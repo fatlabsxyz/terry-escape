@@ -1,0 +1,8 @@
+[package]
+name = "encrypt"
+type = "bin"
+authors = [""]
+
+[dependencies]
+cheon_stehle = { path = "../../libs/cheon_stehle" }
+bignum = { tag = "main", git = "https://github.com/fatlabsxyz/noir-bignum" }

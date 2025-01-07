@@ -1,0 +1,7 @@
+[package]
+name = "cheon_sthele"
+type = "lib"
+authors = [""]
+
+[dependencies]
+bignum = { tag = "main", git = "https://github.com/fatlabsxyz/noir-bignum" }

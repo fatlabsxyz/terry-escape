@@ -1,0 +1,3 @@
+agents = [0, 2, 1, 1]
+player = 3
+salt = 1234

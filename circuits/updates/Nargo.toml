@@ -1,0 +1,6 @@
+[package]
+name = "updates"
+type = "bin"
+authors = [""]
+
+[dependencies]

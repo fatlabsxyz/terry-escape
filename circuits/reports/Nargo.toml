@@ -1,0 +1,6 @@
+[package]
+name = "reports"
+type = "bin"
+authors = [""]
+
+[dependencies]
