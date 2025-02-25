@@ -1,0 +1,26 @@
+{
+  "name": "client",
+  "types": {
+    "import": "./dist/index.d.mts"
+  },
+  "directories": {
+    "src": "src"
+  },
+  "files": [
+    "dist/*",
+    "package.json",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsc -p ./tsconfig.json --outDir dist",
+    "client": "node ./dist/client/index.js",
+    "cli": "node ./dist/client/cli.js",
+    "andres": "node ./dist/client/cli.js 'http://127.0.0.1:3000' 'Andres' 0",
+    "bart": "node ./dist/client/cli.js 'http://127.0.0.1:3000' 'Bart' 0",
+    "felipe": "node ./dist/client/cli.js 'http://127.0.0.1:3000' 'Felipe' 0"
+  },
+  "dependencies": {
+    "nanoid": "^5.0.5"
+  }
+}
