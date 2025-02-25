@@ -3,7 +3,7 @@
   "type": "module",
   "dependencies": {
     "body-parser": "^1.20.3",
-    "client": "workspace:^",
+    "client": "workspace:*",
     "express": "5.0.1",
     "nanoid": "^5.0.5"
   },

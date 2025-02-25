@@ -55,7 +55,7 @@ importers:
         specifier: ^1.20.3
         version: 1.20.3
       client:
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../client
       express:
         specifier: 5.0.1
