@@ -3,6 +3,7 @@
   "include": ["**/*", ".*.js"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
+    "declaration": true,
     "lib": ["es2022", "dom"]
   }
 }

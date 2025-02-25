@@ -1,9 +1,9 @@
-import { io } from "socket.io-client";
-import { LobbyOptions } from "./socket.types";
-import { LobbyMsg } from "../../types/lobbyMessages";
-import { Msg } from "../../types/messages";
+import { io, Socket } from "socket.io-client";
+import { LobbyOptions } from "./socket.types.js";
+import { LobbyMsg } from "../../types/lobbyMessages.js";
+import { Msg } from "../../types/messages.js";
 
-export function setupLobby(options: LobbyOptions) {
+export function setupLobby(options: LobbyOptions): Socket {
 
   const {
     serverUrl,

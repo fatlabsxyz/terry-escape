@@ -11,6 +11,7 @@ export interface PlayerOptions extends SocketInit {
 }
 
 export interface GameOptions extends SocketInit {
+  name: string;
   gameId: string;
 }
 

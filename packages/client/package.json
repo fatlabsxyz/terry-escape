@@ -1,7 +1,19 @@
 {
   "name": "client",
-  "types": {
-    "import": "./dist/index.d.mts"
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/client/index.js",
+      "types": "./dist/client/index.d.ts"
+    },
+    "./cli": {
+      "import": "./dist/client/cli.js",
+      "types": "./dist/client/cli.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
   },
   "directories": {
     "src": "src"
@@ -17,7 +29,7 @@
     "client": "node ./dist/client/index.js",
     "cli": "node ./dist/client/cli.js",
     "andres": "node ./dist/client/cli.js 'http://127.0.0.1:3000' 'Andres' 0",
-    "bart": "node ./dist/client/cli.js 'http://127.0.0.1:3000' 'Bart' 0",
+    "barto": "node ./dist/client/cli.js 'http://127.0.0.1:3000' 'Bartolomeo' 0",
     "felipe": "node ./dist/client/cli.js 'http://127.0.0.1:3000' 'Felipe' 0"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
-import { io } from "socket.io-client";
-import { setupLobby } from "./services/lobby.socket";
-import { setupPlayers } from "./services/players.socket";
-import { setupGame } from "./services/game.socket";
+import { io, Socket } from "socket.io-client";
+import { setupLobby } from "./services/lobby.socket.js";
+import { setupPlayers } from "./services/players.socket.js";
+import { setupGame } from "./services/game.socket.js";
 
 export interface SetupSocketOptions {
   serverUrl: string;
@@ -11,7 +11,12 @@ export interface SetupSocketOptions {
   forceNew?: boolean
 }
 
-export function setupSockets(options: SetupSocketOptions) {
+export interface ClientSockets {
+  lobby: Socket;
+  game?: Socket;
+}
+
+export function setupSockets(options: SetupSocketOptions): ClientSockets {
 
   const {
     serverUrl,
@@ -44,7 +49,7 @@ export function setupSockets(options: SetupSocketOptions) {
 
   let game, players;
   if (gameId !== null) {
-    const gameOptions = { ...socketOptions, gameId }
+    const gameOptions = { ...socketOptions, gameId, name }
     game = setupGame(gameOptions);
     // const playerOptions = { ...gameOptions, name }
     // players = setupPlayers(playerOptions)
@@ -57,4 +62,3 @@ export function setupSockets(options: SetupSocketOptions) {
   }
 
 }
-

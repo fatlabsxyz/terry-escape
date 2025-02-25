@@ -1,4 +1,4 @@
-import { setupSockets } from "./setup";
+import { setupSockets } from "./setup.js";
 
 const args = process.argv.splice(2)
 
