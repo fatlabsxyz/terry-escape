@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
-import { setupLobby } from "./services/lobby.socket.js";
-import { setupPlayers } from "./services/players.socket.js";
-import { setupGame } from "./services/game.socket.js";
+import { setupLobby } from "./sockets/lobby.socket.js";
+import { setupPlayers } from "./sockets/players.socket.js";
+import { setupGame } from "./sockets/game.socket.js";
 
 export interface SetupSocketOptions {
   serverUrl: string;

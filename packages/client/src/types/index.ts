@@ -1,3 +1,4 @@
 export * from "./messages.js";
 export * from "./lobbyMessages.js";
 export * from "./gameMessages.js";
+export * from "./socket.interfaces.js";
