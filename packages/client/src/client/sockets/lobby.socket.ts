@@ -17,6 +17,11 @@ export function setupLobby(options: LobbyOptions): Socket {
     }
   });
 
+  let ping = 0;
+  lobby.once("ping2", () => { ping++; console.log("PING", ping) });
+  lobby.once("ping2", () => { ping++; console.log("PING", ping) });
+  lobby.once("ping2", () => { ping++; console.log("PING", ping) });
+
   lobby.on(Msg.CONNECT, () => {
     log("Connected to lobby");
   })
