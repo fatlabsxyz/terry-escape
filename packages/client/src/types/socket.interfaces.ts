@@ -20,6 +20,8 @@ export interface GameUpdateMsg extends Message {
 }
 
 export interface GameNspClientToServerEvents {
+  [GameMsg.DUMMY]: (...args: any[]) => void;
+
   [GameMsg.READY]: (cb: Ack) => void;
   [GameMsg.TURN_END]: (cb: Ack) => void;
 
@@ -40,6 +42,8 @@ export interface GameNspClientToServerEvents {
 }
 
 export interface GameNspServerToClientEvents {
+  [GameMsg.DUMMY]: (...args: any[]) => void;
+
   [GameMsg.STARTED]: (cb: Ack) => void;
   [GameMsg.FINISHED]: (cb: Ack) => void;
 

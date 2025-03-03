@@ -8,7 +8,6 @@ export function setupLobby(options: LobbyOptions): Socket {
   const {
     serverUrl,
     token,
-    log
   } = options
 
   const lobby = io(serverUrl, {
@@ -23,11 +22,11 @@ export function setupLobby(options: LobbyOptions): Socket {
   lobby.once("ping2", () => { ping++; console.log("PING", ping) });
 
   lobby.on(Msg.CONNECT, () => {
-    log("Connected to lobby");
+    console.log("Connected to lobby");
   })
 
   lobby.on(LobbyMsg.PING, (msg) => {
-    log(`server: ${msg}`);
+    console.log(`server: ${msg}`);
   })
 
   return lobby;

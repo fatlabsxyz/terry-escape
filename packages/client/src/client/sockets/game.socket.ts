@@ -9,7 +9,6 @@ export function setupGame(options: GameOptions): GameSocket {
     serverUrl,
     token,
     gameId,
-    log
   } = options
 
   const game: GameSocket = io(`${serverUrl}/game/${gameId}`, {
@@ -19,12 +18,8 @@ export function setupGame(options: GameOptions): GameSocket {
   });
 
   game.on("connect", () => {
-    log("Connected to game");
+    console.log("Connected to game");
   })
-
-  // game.on(GameMsg.STARTED, (ack: (ok: boolean) => void) => {
-  //   ack(true)
-  // })
 
   game.on(GameMsg.FINISHED, (ack: (ok: boolean) => void) => {
     ack(true)
@@ -33,5 +28,3 @@ export function setupGame(options: GameOptions): GameSocket {
   return game
 
 }
-
-

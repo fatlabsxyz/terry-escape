@@ -1,10 +1,13 @@
 import { TurnData, TurnInfo } from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload } from "../../types/gameMessages.js";
+import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
 
 function _createLogger(name: string) {
   const prefix = name.split('-')[0];
-  const log = (...args: any[]) => console.log(`[${prefix}]`, ...args);
+  const now = () => Number(new Date());
+  const log = (...args: any[]) => console.log(`${now()} [${prefix}]`, ...args);
+  console.log("BUILT LOGGER")
   return log;
 }
 
@@ -14,8 +17,10 @@ export class GameClient {
 
   sockets: SocketManager;
   gameActive: boolean = false;
-  turns: TurnData[];
+  turns: TurnInfo[];
   turn: TurnData | null;
+  _turnFinished: boolean = false;
+  private _turnInfo: any;
 
   constructor(name: string, sockets: SocketManager) {
     this.gameActive = false;
@@ -24,6 +29,18 @@ export class GameClient {
     this.turn = null;
     this.name = name;
     this.log = _createLogger(name)
+
+    const self = this;
+    this.sockets.addListener("TURN_END", () => {
+      console.log("RECEIING TURN_END")
+      self._turnFinished = true;
+    });
+
+    this.sockets.addListener("TURN_START", (turnInfo) => {
+      console.log("RECEIING TURN_START")
+      self._turnInfo = turnInfo;
+    });
+
   }
 
   get playerId(): string {
@@ -58,19 +75,37 @@ export class GameClient {
 
   async _waitForQuery() {
     const queries = await this.sockets.waitForQuery(2)
+    this.log("Returned queries", JSON.stringify(queries))
     this.turn!.queries = queries;
+  }
+
+  async _waitForTurnStart() {
+    const turnInfo = await this.sockets.waitForTurnStartEvent();
+    this.log("New turn info", JSON.stringify(turnInfo));
+    this._newTurn(turnInfo);
+    // while (!this._turnFinished) {
+    //   await passTime(100);
+    // }
+    // this.log("Turn finished");
+  }
+
+  async _waitForTurnEnd() {
+    while (!this._turnFinished) {
+      await passTime(100);
+    }
+    this._turnFinished = false;
+    this.log("Turn finished");
   }
 
   async gameLoop() {
     this.log("Game loop started")
     // if (eliminated) -> skip or break
     while (this.gameActive) {
-      // await for turn order message
-      const turnInfo = await this.sockets.waitForTurnStartEvent();
-      this.log("New turn info", turnInfo);
-      this._newTurn(turnInfo);
 
-      if (turnInfo.activePlayer === this.playerId) {
+      // await for turn order message
+      await this._waitForTurnStart();
+
+      if (this.turn!.activePlayer === this.playerId) {
         this.log("We're active player");
         await this.processActivePlayer()
       } else {
@@ -79,22 +114,25 @@ export class GameClient {
       }
 
       // await for finish turn
-      await this.sockets.waitForTurnEndEvent();
+      this.log("Waiting for turn end...");
+      await this._waitForTurnEnd();
+      // await this.sockets.waitForTurnEndEvent();
     }
   }
 
   private _newTurn(info: TurnInfo) {
-    if (this.turn !== null) {
-      // archive old turn
-      this.turns.push({ ...this.turn });
-      this.turn = {
-        activePlayer: info.activePlayer,
-        answers: new Map(),
-        queries: new Map(),
-        updates: new Map(),
-        report: null
-      };
-    }
+    // archive turn
+    this.turns.push({ ...info });
+
+    // reset turn flag
+    this._turnFinished = false;
+    this.turn = {
+      activePlayer: info.activePlayer,
+      answers: new Map(),
+      queries: new Map(),
+      updates: new Map(),
+      report: null
+    };
   }
 
   private _isActivePlayer(): boolean {
@@ -121,13 +159,15 @@ export class GameClient {
 
     // broadcast answers
     for (let answer of answers) {
-      this.sockets.broadcastAnswer(answer);
+      await this.sockets.broadcastAnswer(answer);
     }
 
     // wait for udpates
     // broadcast reports
 
-    this.sockets.broadcastTurnEnd();
+    this.log("Finishing turn.")
+    await this.sockets.broadcastTurnEnd();
+    this.log("No more duties.")
   }
 
   async processNonActivePlayer() {
@@ -135,10 +175,11 @@ export class GameClient {
     const query = await this.getQuery();
     await this.sockets.broadcastQuery(query);
     // wait for answer
-    await this.waitForAnswer();
+    // await this.waitForAnswer();
     // process update
     // broadcast update
     // wait for report
+    this.log("No more duties.")
   }
 
   async waitForAnswer() {
@@ -149,6 +190,10 @@ export class GameClient {
 
   async getQuery(): Promise<GameQueryPayload> {
     return {
+      mockQueryData: {
+        name: this.name,
+        turn: this.turns[this.turns.length - 1]!.turn,
+      }
     }
   }
 

@@ -13,7 +13,7 @@ export interface SetupSocketOptions {
 
 export interface ClientSockets {
   lobby: Socket;
-  game?: Socket;
+  game: Socket;
 }
 
 export function setupSockets(options: SetupSocketOptions): ClientSockets {
@@ -27,9 +27,6 @@ export function setupSockets(options: SetupSocketOptions): ClientSockets {
 
   const forceNew = options.forceNew === undefined ? false : true;
 
-  const prefix = name.split('-')[0];
-  const log = (...args: any[]) => console.log(`[${prefix}]`, ...args);
-
   const mgr = io({
     forceNew: true,
     auth: {
@@ -42,18 +39,15 @@ export function setupSockets(options: SetupSocketOptions): ClientSockets {
     name,
     token,
     forceNew,
-    log,
   }
 
   const lobby = setupLobby(socketOptions);
 
-  let game, players;
-  if (gameId !== null) {
-    const gameOptions = { ...socketOptions, gameId, name }
-    game = setupGame(gameOptions);
-    // const playerOptions = { ...gameOptions, name }
-    // players = setupPlayers(playerOptions)
-  }
+  let players;
+  const gameOptions = { ...socketOptions, gameId, name }
+  const game = setupGame(gameOptions);
+  // const playerOptions = { ...gameOptions, name }
+  // players = setupPlayers(playerOptions)
 
   return {
     lobby,

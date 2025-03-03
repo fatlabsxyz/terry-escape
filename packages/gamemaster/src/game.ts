@@ -26,6 +26,7 @@ export class Game {
   players: Map<Player, PlayerStatus>;
   round: Player[] = [];
   minPlayers: number;
+  turn: number = 0;
 
   private _activePlayer: Player | null = null;
   private _nextPlayer: Player | null = null;
@@ -132,7 +133,7 @@ export class Game {
 
   private _turnInfo(): TurnInfo {
     return {
-      turn: 0,
+      turn: this.turn++,
       players: this.round,
       activePlayer: this._activePlayer!,
       nextPlayer: this._nextPlayer!

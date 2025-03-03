@@ -20,7 +20,7 @@ export type GameSocket = Socket<
 >
 
 
-function registerGameHandlers(nsp: GameNsp, socket: GameSocket) {
+function registerGameHandlers(socket: GameSocket) {
 
   /*///////////////////////////////////////////////////////////////
                           BROADCASTING
@@ -59,17 +59,24 @@ function registerGameHandlers(nsp: GameNsp, socket: GameSocket) {
   //   socket.broadcast.emit(GameMsg.REPORT, msg)
   // })
 
-  socket.on(GameMsg.TURN_END, async (ack: Ack) => {
-    console.log("SOMEONE IS FINISHIN")
-    await new Promise((res, rej) => {
-      socket
-        .broadcast
-        .timeout(1000)
-        .emit(GameMsg.TURN_END, res);
-    })
+  socket.on(GameMsg.TURN_END, async (sAck: Ack) => {
+    console.log("SOMEONE IS FINISHIN");
+
+    await new Promise<void>((res, rej) => {
+      console.log("EMMITING TURN_END")
+      socket.nsp
+        .timeout(2000)
+        .emit(GameMsg.TURN_END, () => {
+          res();
+        });
+    });
+
+    // release the client
+    sAck();
+
     const game = getGameOrNewOne(socket.nsp);
     await game.nextTurn();
-    ack();
+    console.log("BROADCASTED TURN_FINISH")
   });
 
   socket.on(GameMsg.READY, async (ack: Ack) => {
@@ -87,7 +94,7 @@ export function addGameNamespace(server: Server): Server {
 
   gameNsp.on('connection', async (socket) => {
     const game = getGameOrNewOne(socket.nsp);
-    registerGameHandlers(gameNsp, socket);
+    registerGameHandlers(socket);
     console.log(`[${socket.nsp.name}][${socket.id}] User connection`)
     await game.addPlayer(socket.id as Player);
   });

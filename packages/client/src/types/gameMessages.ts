@@ -1,6 +1,8 @@
 import { Player } from "./game.js"
 
 export enum GameMsg {
+  DUMMY = "game:dummy",
+
   SALUTE = "game:salute",
 
   STARTED = "game:started",
