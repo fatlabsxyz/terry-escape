@@ -1,16 +1,17 @@
 import { io, Socket } from "socket.io-client";
 import { Player, TurnInfo } from "../../types/game.js";
-import { GameAnswerPayload, GameMsg, GameQueryPayload } from "../../types/gameMessages.js";
-import { GameAnswerMsg, GameQueryMsg, GameSocket } from "../../types/socket.interfaces.js";
+import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
+import { GameAnswerMsg, GameQueryMsg, GameReportMsg, GameSocket, GameUpdateMsg } from "../../types/socket.interfaces.js";
 import { SetupSocketOptions, setupSockets } from "../setup.js";
 import { passTime } from "../../utils.js";
 import { EventEmitter } from "eventemitter3";
+import { nanoid } from "nanoid";
 
 export class SocketManager extends EventEmitter {
-
   game: GameSocket;
   lobby: Socket;
   name: string;
+  gameId: string;
 
   private _ready: boolean;
 
@@ -30,22 +31,48 @@ export class SocketManager extends EventEmitter {
     });
 
     this.name = options.name;
+    this.gameId = options.gameId
     this._ready = false;
 
     const self = this;
 
     this.game.on(GameMsg.TURN_END, (ack) => {
-      self.emit("TURN_END")
+      self.emit(GameMsg.TURN_END)
       ack();
     })
 
     this.game.on(GameMsg.TURN_START, (turnInfo, ack) => {
-      self.emit("TURN_START", turnInfo)
+      self.emit(GameMsg.TURN_START, turnInfo)
       ack();
     })
 
+    // this.game.on(GameMsg.WAITING, async (ack) => {
+    //   await self.emitWithAck(GameMsg.WAITING);
+    //   ack();
+    // })
+
   }
 
+  // emitWithAck(event: string, ...args: any[]) {
+  //   return new Promise<void>((res, rej) => {
+  //     const receptionChannel = nanoid();
+  //     this.once(receptionChannel, () => res())
+  //     this.emit(event, { receptionChannel }, ...args)
+  //   })
+  // }
+
+  // addListenerForAck(event: string, cb: (...args: any[]) => void) {
+  //   this.addListener(event, ({ receptionChannel }, ...args) => {
+  //     cb(args);
+  //     this.emit(receptionChannel);
+  //   })
+  // }
+
+  get sender(): Player {
+    // return this.name;
+    // XXX: we are returning the socket.id until we can identify users based on their auths
+    return this.game.id!
+  }
   _lobbyReady(): boolean {
     return this.lobby.connected
   }
@@ -77,82 +104,122 @@ export class SocketManager extends EventEmitter {
     });
   }
 
-  // async waitForTurnEndEvent(): Promise<void> {
-  //   return new Promise((res, rej) => {
-  //     console.log("WE WAITIN here...")
-  //     this.game.on(GameMsg.TURN_END, (ack) => {
-  //       ack();
-  //       console.log("OK, turn is over");
-  //       res();
-  //     });
-  //   });
-  // }
-
   async advertisePlayerAsReady() {
-    const a = await this.game.timeout(3000).emitWithAck(GameMsg.READY);
+    await this.game.timeout(3000).emitWithAck(GameMsg.READY);
   }
 
-  async broadcastAnswer(_toDo: GameAnswerPayload) {
-    // console.log("BROADCASTING ANSWER")
-    const mockAnswer = {
+  async broadcastAnswer(payload: GameAnswerPayload) {
+    const answerMsg = {
       event: GameMsg.ANSWER,
-      sender: this.name,
-      payload: _toDo
+      sender: this.sender,
+      payload
     };
-    const a = await this.game.timeout(3000).emitWithAck(GameMsg.ANSWER, mockAnswer);
-    // console.log("RESPONSE", a)
+    await this.game.timeout(3000).emitWithAck(GameMsg.ANSWER, answerMsg);
   }
 
-  async broadcastQuery(_toDo: GameQueryPayload) {
-    // console.log("BROADCASTING QUERY")
-    const mockAnswer = {
+  async broadcastQuery(payload: GameQueryPayload) {
+    const queryMsg = {
       event: GameMsg.QUERY,
-      sender: this.name,
-      payload: _toDo
+      sender: this.sender,
+      payload
     };
-    await this.game.timeout(3000).emitWithAck(GameMsg.QUERY, mockAnswer);
+    await this.game.timeout(3000).emitWithAck(GameMsg.QUERY, queryMsg);
   }
 
-  async broadcastTurnEnd() {
-    // console.log("BROADCASTING TURN_END")
-    let a = await this.game.timeout(3000).emitWithAck(GameMsg.TURN_END);
-    // console.log("TURN_END", a)
+  async broadcastUpdate(payload: GameUpdatePayload) {
+    const updateMsg = {
+      event: GameMsg.UPDATE,
+      sender: this.sender,
+      payload
+    };
+    await this.game.timeout(3000).emitWithAck(GameMsg.UPDATE, updateMsg);
+  }
+
+  async broadcastReport(payload: GameReportPayload) {
+    const reportMsg = {
+      event: GameMsg.REPORT,
+      sender: this.sender,
+      payload
+    };
+    await this.game.timeout(3000).emitWithAck(GameMsg.REPORT, reportMsg);
   }
 
   async waitForQuery(amount: number): Promise<Map<string, GameQueryPayload>> {
+
     const queries: Map<Player, GameQueryPayload> = new Map();
-    this.game.on(GameMsg.QUERY, (msg: GameQueryMsg, ack: () => void) => {
-      // console.log("Received QUERY", msg);
+
+    const listener = (msg: GameQueryMsg, ack: () => void) => {
       queries.set(msg.sender, msg.payload)
       ack();
-    });
+    };
+    this.game.on(GameMsg.QUERY, listener);
+
     return new Promise(async (res, rej) => {
+      setTimeout(rej, 2000);
       while (queries.size !== amount) {
         await passTime(100);
       }
-      this.game.off(GameMsg.QUERY)
+      this.game.off(GameMsg.QUERY, listener)
       res(queries)
     });
   }
 
   async waitForAnswer(amount: number): Promise<Map<string, GameAnswerPayload>> {
     const answers: Map<Player, GameAnswerPayload> = new Map();
-    this.game.on(GameMsg.ANSWER, (msg: GameAnswerMsg, ack: () => void) => {
+    const listener = (msg: GameAnswerMsg, ack: () => void) => {
       answers.set(msg.payload.to, msg.payload)
       ack();
-    });
+    };
+    this.game.on(GameMsg.ANSWER, listener);
     return new Promise(async (res, rej) => {
       while (answers.size !== amount) {
         await passTime(100);
       }
-      this.game.off(GameMsg.ANSWER)
+      this.game.off(GameMsg.ANSWER, listener)
       res(answers)
     });
   }
 
-  // async waitForAnswer() {
-  //   this.game.on(GameMsg.ANSWER, (msg: AnswerMsg, ack: () => {}) => {
-  //   });
-  // }
+  async waitForUpdates(amount: number): Promise<Map<string, GameUpdatePayload>> {
+
+    const updates: Map<Player, GameUpdatePayload> = new Map();
+
+    const listener = (msg: GameUpdateMsg, ack: () => void) => {
+      // console.log("Received QUERY", msg);
+      updates.set(msg.sender, msg.payload)
+      ack();
+    };
+    this.game.on(GameMsg.UPDATE, listener);
+
+    return new Promise(async (res, rej) => {
+      setTimeout(rej, 2000);
+      while (updates.size !== amount) {
+        await passTime(100);
+      }
+      this.game.off(GameMsg.UPDATE, listener)
+      res(updates)
+    });
+  }
+
+
+  async waitForReport(from: Player): Promise<GameReportPayload> {
+    let report: GameReportPayload | undefined = undefined;
+    const listener = (msg: GameReportMsg, ack: () => void) => {
+      console.log("SOME REPORT MSG", JSON.stringify(msg));
+      if (msg.sender == from) {
+        report = msg.payload;
+      }
+      ack();
+    }
+    this.game.on(GameMsg.REPORT, listener);
+    return new Promise(async (res, rej) => {
+      while (report === undefined) {
+        await passTime(100);
+      }
+      this.game.off(GameMsg.REPORT, listener)
+      res(report)
+    });
+  }
+
 
 }

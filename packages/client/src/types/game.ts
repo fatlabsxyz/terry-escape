@@ -6,7 +6,7 @@ export type ReportData = {};
 
 export interface TurnInfo {
   turn: number;
-  players: Player[];  // Player[]
+  round: Player[];  // Player[]
   activePlayer: Player; // Player := socket id
   nextPlayer: Player;
 };

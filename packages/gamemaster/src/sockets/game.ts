@@ -1,10 +1,11 @@
-import { GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameUpdateMsg } from 'client/types';
+import { GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg } from 'client/types';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 
 type Ack = () => void;
 interface InterServerEvents { }
 interface SocketData { }
+
 export type GameNsp = Namespace<
   GameNspClientToServerEvents,
   GameNspServerToClientEvents,
@@ -26,63 +27,41 @@ function registerGameHandlers(socket: GameSocket) {
                           BROADCASTING
   //////////////////////////////////////////////////////////////*/
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
-    await new Promise((res, rej) => {
-      socket
-        .broadcast
-        .timeout(1000)
-        .emit(GameMsg.QUERY, p, res);
-    })
+    await socket
+      .broadcast
+      .timeout(1000)
+      .emitWithAck(GameMsg.QUERY, p);
     ack();
   })
 
   socket.on(GameMsg.ANSWER, async (p: GameAnswerMsg, ack: Ack) => {
-    await new Promise((res, rej) => {
-      socket
-        .broadcast
-        .timeout(1000)
-        .emit(GameMsg.ANSWER, p, res);
-    })
+    socket
+      .broadcast
+      .timeout(1000)
+      .emitWithAck(GameMsg.ANSWER, p);
     ack();
   });
 
   socket.on(GameMsg.UPDATE, async (p: GameUpdateMsg, ack: Ack) => {
-    await new Promise((res, rej) => {
-      socket
-        .broadcast
-        .timeout(1000)
-        .emit(GameMsg.UPDATE, p, res);
-    })
+    socket
+      .broadcast
+      .timeout(1000)
+      .emitWithAck(GameMsg.UPDATE, p);
     ack();
   });
 
-  // socket.on(GameMsg.REPORT, (msg: any) => {
-  //   socket.broadcast.emit(GameMsg.REPORT, msg)
-  // })
-
-  socket.on(GameMsg.TURN_END, async (sAck: Ack) => {
-    console.log("SOMEONE IS FINISHIN");
-
-    await new Promise<void>((res, rej) => {
-      console.log("EMMITING TURN_END")
-      socket.nsp
-        .timeout(2000)
-        .emit(GameMsg.TURN_END, () => {
-          res();
-        });
-    });
-
-    // release the client
-    sAck();
-
-    const game = getGameOrNewOne(socket.nsp);
-    await game.nextTurn();
-    console.log("BROADCASTED TURN_FINISH")
+  socket.on(GameMsg.REPORT, async (p: GameReportMsg, ack: Ack) => {
+    socket
+      .broadcast
+      .timeout(1000)
+      .emitWithAck(GameMsg.REPORT, p);
+    ack();
   });
 
   socket.on(GameMsg.READY, async (ack: Ack) => {
     const game = getGameOrNewOne(socket.nsp);
-    ack();
     game.readyPlayer(socket.id as Player);
+    ack();
   })
 
 }
@@ -96,7 +75,7 @@ export function addGameNamespace(server: Server): Server {
     const game = getGameOrNewOne(socket.nsp);
     registerGameHandlers(socket);
     console.log(`[${socket.nsp.name}][${socket.id}] User connection`)
-    await game.addPlayer(socket.id as Player);
+    game.addPlayer(socket.id as Player);
   });
 
   return server;

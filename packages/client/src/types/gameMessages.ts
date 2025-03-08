@@ -8,6 +8,7 @@ export enum GameMsg {
   STARTED = "game:started",
   FINISHED = "game:finished",
   READY = "game:player_ready",
+  WAITING = "game:player_waiting",
 
   TURN_START = "game:turn_start",
   TURN_END = "game:turn_end",
@@ -19,10 +20,9 @@ export enum GameMsg {
 }
 
 export interface GamePayload {
-  gameId: string
 }
 
-export interface GameQueryPayload {
+export interface GameQueryPayload extends GamePayload {
 }
 
 export interface GameAnswerPayload extends GamePayload {
@@ -30,4 +30,7 @@ export interface GameAnswerPayload extends GamePayload {
 }
 
 export interface GameUpdatePayload extends GamePayload {
+}
+
+export interface GameReportPayload extends GamePayload {
 }
