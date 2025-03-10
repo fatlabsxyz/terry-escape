@@ -1,3 +1,6 @@
 export enum LobbyMsg {
-  PING = "ping"
+  PING = "lobby:ping"
+}
+
+export interface LobbyPayload {
 }

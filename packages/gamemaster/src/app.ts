@@ -8,7 +8,7 @@ import {
 // import { relayerRouter } from "./routes/index.js";
 
 // Initialize the express app
-const app = express();
+const app: express.Express = express();
 
 // Apply middleware and routes
 

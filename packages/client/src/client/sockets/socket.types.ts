@@ -2,7 +2,7 @@ export interface SocketInit {
   token: string;
   serverUrl: string;
   forceNew: boolean;
-  log: (...args: any[]) => void;
+  // log: (...args: any[]) => void;
 }
 
 export interface PlayerOptions extends SocketInit {
