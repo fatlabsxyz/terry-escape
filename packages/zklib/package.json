@@ -1,0 +1,32 @@
+{
+  "name": "zklib",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "directories": {
+    "src": "src"
+  },
+  "files": [
+    "dist/*",
+    "package.json",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsc -p ./tsconfig.json --outDir dist",
+    "client": "node ./dist/index.js",
+    "test": "vitest run --config vitest.config.ts --passWithNoTests"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "^0.76.4",
+    "@noir-lang/noir_js": "^1.0.0-beta.1"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0",
+    "vite-plugin-mkcert": "^1.17.7"
+  }
+}
