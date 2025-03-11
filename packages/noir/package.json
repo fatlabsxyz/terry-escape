@@ -1,0 +1,15 @@
+{
+  "name": "noir",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    },
+    "circuits": {
+      "./dist/circuits"
+    }
+  },
+  "scripts": {
+    "prepare": "sh ./utils/prepare.sh"
+  }
+}
