@@ -99,7 +99,6 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 
 export class Game {
 
-  started: boolean;
   round: Player[] = [];
 
   private _activePlayer: Player | null = null;
@@ -110,7 +109,6 @@ export class Game {
 
   constructor(readonly id: string, nsp: GameNsp) {
     this.id = id
-    this.started = false
     this.nsp = nsp;
 
     this.gameMachine = createActor(this.stateMachine(Game._defaultContext()));

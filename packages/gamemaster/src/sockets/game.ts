@@ -20,7 +20,6 @@ export type GameSocket = Socket<
   SocketData
 >
 
-
 function registerGameHandlers(socket: GameSocket) {
 
   /*///////////////////////////////////////////////////////////////
@@ -35,7 +34,7 @@ function registerGameHandlers(socket: GameSocket) {
   })
 
   socket.on(GameMsg.ANSWER, async (p: GameAnswerMsg, ack: Ack) => {
-    socket
+    await socket
       .broadcast
       .timeout(1000)
       .emitWithAck(GameMsg.ANSWER, p);
@@ -43,7 +42,7 @@ function registerGameHandlers(socket: GameSocket) {
   });
 
   socket.on(GameMsg.UPDATE, async (p: GameUpdateMsg, ack: Ack) => {
-    socket
+    await socket
       .broadcast
       .timeout(1000)
       .emitWithAck(GameMsg.UPDATE, p);
@@ -51,7 +50,7 @@ function registerGameHandlers(socket: GameSocket) {
   });
 
   socket.on(GameMsg.REPORT, async (p: GameReportMsg, ack: Ack) => {
-    socket
+    await socket
       .broadcast
       .timeout(1000)
       .emitWithAck(GameMsg.REPORT, p);
