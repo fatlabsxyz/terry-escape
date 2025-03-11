@@ -22,6 +22,7 @@
     "test": "vitest run --config vitest.config.ts --passWithNoTests"
   },
   "dependencies": {
+    "noir": "workspace:*",
     "@aztec/bb.js": "^0.76.4",
     "@noir-lang/noir_js": "^1.0.0-beta.1"
   },

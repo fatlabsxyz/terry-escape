@@ -11,7 +11,7 @@ CIRCUITS=(
 )
 
 BUILD_DIR="circuits"
-DEST_DIR="dist/circuits"
+DEST_DIR="src/circuits"
 
 
 mkdir -p "$DEST_DIR"
