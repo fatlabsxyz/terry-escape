@@ -1,0 +1,6 @@
+[package]
+name = "keypair"
+type = "bin"
+
+[dependencies]
+cheon_stehle = { path = "../../libs/cheon_stehle" }
