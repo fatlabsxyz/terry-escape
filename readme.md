@@ -11,9 +11,9 @@ After losing all of its agents, factions informs so. The dispute is settled when
 
 (Noir Submarines: 🎶️"In the land of UltraHonk, lived a prover, with higher speed")
 
+![](terry.png)
 
-
-## Circuit arquitecture
+## Circuit architecture
 
 Each agency commits to its deployed agents and traps by publishing its hash, along with some salt.
 Ideally, verifiable MPC tools would be leveraged but existing ones only work for 3 honest parties.
