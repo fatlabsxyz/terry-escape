@@ -1,0 +1,17 @@
+{
+  "name": "noir",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    },
+    "./circuits": {
+      "import": "./dist/circuits/index.js",
+      "types": "./dist/circuits/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p ./tsconfig.json --outDir dist",
+    "prepare": "sh ./utils/prepare.sh"
+  }
+}

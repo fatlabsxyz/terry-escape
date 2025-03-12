@@ -1,6 +1,0 @@
-[package]
-name = "deploys"
-type = "bin"
-authors = [""]
-
-[dependencies]

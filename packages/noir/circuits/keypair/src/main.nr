@@ -1,16 +1,17 @@
 global Tau: u32 = 1289;
+// TODO: could parametrize dependent on security parameter (using comptime calculations)
 
 fn main(
-    common_divisor_entropy: [Field; 8],
-    multiplier_entropy: [[Field; 2]; Tau],
-    additive_entropy: [[Field; 2]; Tau],
-    resulting_samples: pub [[Field; 9]; Tau],
+    common_divisor: [Field; 8],
+    scaling_factors: [[Field; 2]; Tau+1],
+    additive_noises: [[Field; 2]; Tau+1],
+    resulting_samples: pub [[Field; 9]; Tau+1],
 ) -> pub Field {
     dep::cheon_stehle::validate_keypair(
-        common_divisor_entropy,
-        multiplier_entropy,
-        additive_entropy,
+        common_divisor,
+        scaling_factors,
+        additive_noises,
         resulting_samples,
     );
-    std::hash::pedersen_hash(common_divisor_entropy)
+    std::hash::pedersen_hash(common_divisor)
 }

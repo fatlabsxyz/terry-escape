@@ -1,7 +1,6 @@
 [package]
 name = "keypair"
 type = "bin"
-authors = [""]
 
 [dependencies]
 cheon_stehle = { path = "../../libs/cheon_stehle" }

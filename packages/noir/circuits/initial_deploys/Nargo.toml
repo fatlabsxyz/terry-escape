@@ -1,0 +1,5 @@
+[package]
+name = "initial_deploys"
+type = "bin"
+
+[dependencies]

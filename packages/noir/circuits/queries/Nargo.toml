@@ -1,7 +1,0 @@
-[package]
-name = "queries"
-type = "bin"
-authors = [""]
-
-[dependencies]
-bignum = { tag = "main", git = "https://github.com/fatlabsxyz/noir-bignum" }
