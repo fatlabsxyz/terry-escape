@@ -3,9 +3,9 @@ import { Player, TurnInfo } from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { GameAnswerMsg, GameQueryMsg, GameReportMsg, GameSocket, GameUpdateMsg } from "../../types/socket.interfaces.js";
 import { SetupSocketOptions, setupSockets } from "../setup.js";
-import { passTime } from "../../utils.js";
+import { passTime, setEqual } from "../../utils.js";
 import { EventEmitter } from "eventemitter3";
-import { nanoid } from "nanoid";
+
 
 export class SocketManager extends EventEmitter {
   game: GameSocket;
@@ -144,9 +144,11 @@ export class SocketManager extends EventEmitter {
     await this.game.timeout(3000).emitWithAck(GameMsg.REPORT, reportMsg);
   }
 
-  async waitForQuery(amount: number): Promise<Map<string, GameQueryPayload>> {
+  async waitForQuery(players: Player[]): Promise<Map<string, GameQueryPayload>> {
 
+    const playerSet = new Set(players);
     const queries: Map<Player, GameQueryPayload> = new Map();
+
 
     const listener = (msg: GameQueryMsg, ack: () => void) => {
       queries.set(msg.sender, msg.payload)
@@ -156,7 +158,7 @@ export class SocketManager extends EventEmitter {
 
     return new Promise(async (res, rej) => {
       setTimeout(rej, 2000);
-      while (queries.size !== amount) {
+      while (!setEqual(playerSet, new Set(queries.keys()))) {
         await passTime(100);
       }
       this.game.off(GameMsg.QUERY, listener)
@@ -164,15 +166,18 @@ export class SocketManager extends EventEmitter {
     });
   }
 
-  async waitForAnswer(amount: number): Promise<Map<string, GameAnswerPayload>> {
+  async waitForAnswer(players: Player[]): Promise<Map<string, GameAnswerPayload>> {
+    const playerSet = new Set(players);
     const answers: Map<Player, GameAnswerPayload> = new Map();
+
     const listener = (msg: GameAnswerMsg, ack: () => void) => {
       answers.set(msg.payload.to, msg.payload)
       ack();
     };
+
     this.game.on(GameMsg.ANSWER, listener);
     return new Promise(async (res, rej) => {
-      while (answers.size !== amount) {
+      while (!setEqual(playerSet, new Set(answers.keys()))) {
         await passTime(100);
       }
       this.game.off(GameMsg.ANSWER, listener)
@@ -180,8 +185,9 @@ export class SocketManager extends EventEmitter {
     });
   }
 
-  async waitForUpdates(amount: number): Promise<Map<string, GameUpdatePayload>> {
+  async waitForUpdates(players: Player[]): Promise<Map<string, GameUpdatePayload>> {
 
+    const playerSet = new Set(players);
     const updates: Map<Player, GameUpdatePayload> = new Map();
 
     const listener = (msg: GameUpdateMsg, ack: () => void) => {
@@ -193,7 +199,7 @@ export class SocketManager extends EventEmitter {
 
     return new Promise(async (res, rej) => {
       setTimeout(rej, 2000);
-      while (updates.size !== amount) {
+      while (!setEqual(playerSet, new Set(updates.keys()))) {
         await passTime(100);
       }
       this.game.off(GameMsg.UPDATE, listener)

@@ -1,6 +1,6 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { TurnData, TurnInfo } from "../../types/game.js";
+import { Player, TurnData, TurnInfo } from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
@@ -181,9 +181,11 @@ export class GameClient {
 
   async processActivePlayer() {
 
+    const otherPlayers = this.round.filter(x => x !== this.playerId);
+
     // wait for queries | take action
     await Promise.all([
-      this.waitForQuery(),
+      this.waitForQuery(otherPlayers),
       this.takeAction()
     ])
 
@@ -197,7 +199,7 @@ export class GameClient {
     }
 
     // wait for udpates
-    await this.waitForUpdates();
+    await this.waitForUpdates(otherPlayers);
 
     // broadcast reports
     const report = await this.createReport();
@@ -209,12 +211,16 @@ export class GameClient {
   }
 
   async processNonActivePlayer() {
+
+    const nonActivePlayers = this.round
+      .filter(x => x !== this.activePlayer);
+
     // if query ready, broadcast query
     const query = await this.getQuery();
     await this.sockets.broadcastQuery(query);
 
     // wait for answer
-    await this.waitForAnswer();
+    await this.waitForAnswer(nonActivePlayers);
 
     // process update
     const update = await this.createUpdate();
@@ -239,11 +245,9 @@ export class GameClient {
     }
   }
 
-  async waitForAnswer() {
-    // TODO: make this cleaner using the actual player Ids instead of just a number
-    const numberOfPlayers = this.round.length;
+  async waitForAnswer(players: Player[]) {
     // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
-    const answers = await this.sockets.waitForAnswer(numberOfPlayers - 1);
+    const answers = await this.sockets.waitForAnswer(players);
     this.log("Returned answer", stringify(answers))
     this.turnData.answers = answers
   }
@@ -270,16 +274,15 @@ export class GameClient {
   async takeAction() {
   }
 
-  async waitForQuery() {
-    const numberOfPlayers = this.round.length;
-    const queries = await this.sockets.waitForQuery(numberOfPlayers - 1)
+  async waitForQuery(players: Player[]) {
+    const queries = await this.sockets.waitForQuery(players)
     this.log("Returned queries", stringify(queries))
     this.turnData.queries = queries;
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
     const otherPlayers = this.round.filter(x => x !== this.playerId);
-    const payloads = [];
+    const payloads: GameAnswerPayload[] = [];
     for (const player of otherPlayers) {
       const payload = {
         from: this.name,
@@ -292,9 +295,8 @@ export class GameClient {
     return payloads;
   }
 
-  async waitForUpdates() {
-    const numberOfPlayers = this.round.length;
-    const updates = await this.sockets.waitForUpdates(numberOfPlayers - 1)
+  async waitForUpdates(players: Player[]) {
+    const updates = await this.sockets.waitForUpdates(players)
     this.log("Returned updates", stringify(updates))
     this.turnData.updates = updates;
   }
