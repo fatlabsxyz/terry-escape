@@ -86,10 +86,10 @@ interface ActionInput {
   context: Context
 }
 
-function _createLogger(name: string) {
+function _createLogger(name: string, sender: string) {
   const prefix = name.split('-')[0];
   const now = () => Number(new Date());
-  const log = (...args: any[]) => console.log(`${now()} [${prefix}]`, ...args);
+  const log = (...args: any[]) => console.log(`${now()} [${prefix}] [${sender}]`, ...args);
   return log;
 }
 
@@ -115,7 +115,7 @@ export class GameClient {
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
     this.name = name;
-    this.log = _createLogger(name)
+    this.log = _createLogger(name, sockets.sender)
   }
 
   static _emptyTurnData(): TurnData {
@@ -171,6 +171,18 @@ export class GameClient {
     return this.contextTurnInfo.nextPlayer
   }
 
+  get activeStatus() {
+    if (!this.activePlayer) {
+      return ""
+    } else {
+      return this.activePlayer === this.playerId ? "ACTIVE" : "NON-ACTIVE"
+    }
+  }
+
+  gameLog(...args: any[]) {
+    this.log(this.activeStatus, ...args);
+  }
+
   async setupGame() {
     this.log("Setting up game...")
     // query players/turn order
@@ -183,31 +195,35 @@ export class GameClient {
 
     const otherPlayers = this.round.filter(x => x !== this.playerId);
 
+    // STEP 2
     // wait for queries | take action
     await Promise.all([
       this.waitForQuery(otherPlayers),
       this.takeAction()
     ])
 
+    // STEP 3
     // create answer
     const answers = await this.createAnswers();
-
     // broadcast answers
-    for (let answer of answers) {
-      this.log("Broadcasting answers")
-      await this.sockets.broadcastAnswer(answer);
-    }
+    await Promise.all(answers.map(async (answer) => {
+      this.gameLog("Broadcasting answers")
+      await this.sockets.broadcastAnswer(this.turn, answer.to, answer);
+    }))
+    this.gameLog("NO MORE ANSWERS TO BROADCAST", stringify(this.turnData.answers));
 
+    // STEP 6
     // wait for udpates
     await this.waitForUpdates(otherPlayers);
 
+    // STEP 7
     // broadcast reports
     const report = await this.createReport();
-    this.log("Broadcasting report")
-    await this.sockets.broadcastReport(report);
+    this.gameLog("Broadcasting report")
+    await this.sockets.broadcastReport(this.turn, report);
 
-    this.log("Finishing turn.");
-    this.log("No more duties.");
+    this.gameLog("Finishing turn.");
+    this.gameLog("No more duties.");
   }
 
   async processNonActivePlayer() {
@@ -215,56 +231,74 @@ export class GameClient {
     const nonActivePlayers = this.round
       .filter(x => x !== this.activePlayer);
 
+    const otherNonActivePlayers = nonActivePlayers
+      .filter(x => x !== this.playerId);
+
+    // STEP 1
     // if query ready, broadcast query
     const query = await this.getQuery();
-    await this.sockets.broadcastQuery(query);
+    await Promise.all([
+      this.sockets.broadcastQuery(this.turn, this.activePlayer, query),
+      this.waitForQuery(otherNonActivePlayers),  // we have our query, but we need the other NA-players'
+    ]);
+    this.gameLog("NO MORE QUERIES TO BROADCAST", stringify(this.turnData.queries));
 
+    // STEP 4
     // wait for answer
     await this.waitForAnswer(nonActivePlayers);
 
+    // STEP 5
     // process update
     const update = await this.createUpdate();
-
     // broadcast update
-    await this.sockets.broadcastUpdate(update);
+    await Promise.all([
+      await this.sockets.broadcastUpdate(this.turn, this.activePlayer, update),
+      await this.waitForUpdates(otherNonActivePlayers),
+    ]);
 
+    // STEP 8
     // wait for report
     await this.waitForReport();
-    this.log("No more duties.")
+    this.gameLog("No more duties.")
   }
 
   /*///////////////////////////////////////////////////////////////
                           NON-ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
   async getQuery(): Promise<GameQueryPayload> {
-    return {
+    const payload = {
       mockQueryData: {
         name: this.name,
         turn: `Mock-Q${this.contextTurnInfo.turn}`,
       }
-    }
+    };
+    this.turnData.queries.set(this.playerId, payload)
+    return payload
   }
 
   async waitForAnswer(players: Player[]) {
+    this.gameLog("STARTING WAIT FOR ANSWER");
     // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
-    const answers = await this.sockets.waitForAnswer(players);
-    this.log("Returned answer", stringify(answers))
+    const answers = await this.sockets.waitForAnswer(this.turn, this.activePlayer, players);
+    this.gameLog("Returned answer", stringify(answers))
     this.turnData.answers = answers
   }
 
   async createUpdate(): Promise<GameUpdatePayload> {
-    this.log("Creating update for active player");
-    return {
+    this.gameLog("Creating update for active player");
+    const payload = {
       mockUpdateData: {
         name: this.name,
         turn: `Mock-U${this.turn}`,
       }
     }
+    this.turnData.updates.set(this.playerId, payload)
+    return payload;
   }
 
   async waitForReport() {
-    const report = await this.sockets.waitForReport(this.activePlayer);
-    this.log("Returned report", stringify(report))
+    const report = await this.sockets.waitForReport(this.turn, this.activePlayer);
+    this.gameLog("Returned report", stringify(report))
     this.turnData.report = report
   }
 
@@ -275,9 +309,11 @@ export class GameClient {
   }
 
   async waitForQuery(players: Player[]) {
-    const queries = await this.sockets.waitForQuery(players)
-    this.log("Returned queries", stringify(queries))
-    this.turnData.queries = queries;
+    const queries = await this.sockets.waitForQuery(this.turn, this.activePlayer, players)
+    this.gameLog("Returned queries", stringify(queries))
+    queries.forEach((payload, player) => {
+      this.turnData.queries.set(player, payload)
+    })
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
@@ -296,8 +332,9 @@ export class GameClient {
   }
 
   async waitForUpdates(players: Player[]) {
-    const updates = await this.sockets.waitForUpdates(players)
-    this.log("Returned updates", stringify(updates))
+    this.gameLog("Waiting for updates");
+    const updates = await this.sockets.waitForUpdates(this.turn, this.activePlayer, players)
+    this.gameLog("Returned updates", stringify(updates))
     this.turnData.updates = updates;
   }
 
