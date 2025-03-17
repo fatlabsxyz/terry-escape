@@ -40,9 +40,6 @@ export class SocketManager extends EventEmitter {
 
   constructor(options: SocketManagerOptions) {
     super();
-    
-    // get token and assign to 
-
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
       auth: {
         token: options.token

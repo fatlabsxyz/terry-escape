@@ -96,6 +96,22 @@ export function addGameNamespace(server: Server): Server {
     });
   });
 
+  gameNsp.use((socket, next) => {
+    const auth_list: string[] = ["a", "b", "egg", "test-token"];
+
+    if( auth_list.includes(socket.handshake.auth.token)) {
+      console.log(socket.handshake.auth);
+      console.log("TOKEN IN LIST, WELCOME");
+      next();
+    } else {
+      console.log(socket.handshake.auth);  
+      console.log("TOKEN IN NOT LIST, GOODBYE GUY");
+      socket.disconnect();
+      next(new Error("TOKEN MISSING FROM LIST, GOODBYE"));
+    }
+
+  });
+
   gameNsp.on('connection', async (socket) => {
     const game = getGameOrNewOne(socket.nsp);
     registerGameHandlers(socket);
