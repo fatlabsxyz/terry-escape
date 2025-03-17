@@ -8,7 +8,9 @@ export function addIoSockets(server: HttpServer): Server {
 
   io.on('connection', (socket) => {
     // console.log("User connection", socket.id)
+    console.log(socket.handshake.auth);
   });
+
 
   io = addLobby(io);
   io = addGameNamespace(io);

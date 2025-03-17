@@ -71,13 +71,42 @@ export function addGameNamespace(server: Server): Server {
   // nsp ~ /game/V1StGXR8_Z5jdHi6B2myT
   const gameNsp: GameNsp = server.of(/^\/game\/[a-zA-Z0-9_\-]+$/);
 
+  gameNsp.use((socket, next) => {
+    const auth_list: string[] = ["a", "b", "egg", "test-token"];
+
+    if( auth_list.includes(socket.handshake.auth.token)) {
+      console.log(socket.handshake.auth);
+      console.log("TOKEN IN LIST, WELCOME");
+      next();
+    } else {
+      console.log(socket.handshake.auth);  
+      console.log("TOKEN IN NOT LIST, GOODBYE GUY");
+      socket.disconnect();
+      next(new Error("TOKEN MISSING FROM LIST, GOODBYE"));
+    }
+
+  });
+
   gameNsp.on('connection', async (socket) => {
     const game = getGameOrNewOne(socket.nsp);
     registerGameHandlers(socket);
-    console.log(`[${socket.nsp.name}][${socket.id}] User connection`)
-    game.addPlayer(socket.id as Player);
+    console.log(`[${socket.nsp.name}][${socket.id}] User connection`);
+
+  //  const auth_list: string[] = ["a", "b", "egg", "test-token"];
+  //  if( auth_list.includes(socket.handshake.auth.token)) {
+  //    console.log(socket.handshake.auth);
+  //    console.log("TOKEN IN LIST, WELCOME");
+  //    game.addPlayer(socket.id as Player);
+  //  } else {
+  //    console.log(socket.handshake.auth);
+  //    console.log("TOKEN MISSING FROM LIST, GOODBYE") 
+  //  }
+  //});
+
+  game.addPlayer(socket.id as Player);
+  console.log("welcomne :\)");
   });
 
   return server;
-
 }
+

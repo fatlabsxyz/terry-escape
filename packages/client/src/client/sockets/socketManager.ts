@@ -17,21 +17,23 @@ export class SocketManager extends EventEmitter {
 
   constructor(options: SetupSocketOptions) {
     super();
+    let token: string = "babab"
 
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
-      // auth: {
-      // token
-      // }
+      auth: {
+        token: token
+      }
     });
 
     this.lobby = io(options.serverUrl, {
-      // auth: {
-      //   token
-      // }
+      auth: {
+        token: token
+      }
+
     });
 
     this.name = options.name;
-    this.gameId = options.gameId
+    this.gameId = options.gameId;
     this._ready = false;
 
     const self = this;
