@@ -1,22 +1,36 @@
+interface Agent {
+    id: number;
+    row: number;
+    col: number;
+}
+
+type ActionMode = "move" | "trap" | null;
+
+interface CellPosition {
+    row: number;
+    col: number;
+}
+
+// Main game logic
 document.addEventListener("DOMContentLoaded", () => {
-    const grid = document.getElementById("grid");
-    const log = document.getElementById("log");
-    const moveBtn = document.getElementById("move-btn");
-    const trapBtn = document.getElementById("trap-btn");
-    const errorMessage = document.getElementById("error-message");
-    const tutorial = document.getElementById("tutorial");
+    const grid = document.getElementById("grid") as HTMLDivElement;
+    const log = document.getElementById("log") as HTMLDivElement;
+    const moveBtn = document.getElementById("move-btn") as HTMLButtonElement;
+    const trapBtn = document.getElementById("trap-btn") as HTMLButtonElement;
+    const errorMessage = document.getElementById("error-message") as HTMLDivElement;
+    const tutorial = document.getElementById("tutorial") as HTMLDivElement;
 
-    let agents = [];
-    let turn = 0;
-    const maxAgents = 4;
-    let selectedAgentCell = null;
-    let actionMode = null;
+    let agents: Agent[] = [];
+    let turn: number = 0;
+    const maxAgents: number = 4;
+    let selectedAgentCell: CellPosition | null = null;
+    let actionMode: ActionMode = null;
 
-    function initializeGrid() {
+    function initializeGrid(): void {
         for (let i = 0; i < 16; i++) {
             const cell = document.createElement("div");
             cell.className = "cell";
-            cell.dataset.index = i;
+            cell.dataset.index = i.toString();
             grid.appendChild(cell);
         }
     }
@@ -45,11 +59,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    grid.addEventListener("click", (e) => {
-        const cell = e.target.className === "cell" ? e.target : e.target.closest(".cell");
+    grid.addEventListener("click", (e: Event) => {
+        const target = e.target as HTMLElement;
+        const cell = target.className === "cell" ? target : target.closest(".cell") as HTMLElement;
         if (!cell) return;
 
-        const index = parseInt(cell.dataset.index);
+        const index = parseInt(cell.dataset.index!);
         const row = Math.floor(index / 4);
         const col = index % 4;
 
@@ -90,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    function highlightPossibleCells(row, col) {
+    function highlightPossibleCells(row: number, col: number): void {
         clearPossibleHighlights();
         const directions = [
             { r: -1, c: 0 }, // up
@@ -98,32 +113,34 @@ document.addEventListener("DOMContentLoaded", () => {
             { r: 0, c: -1 }, // left
             { r: 0, c: 1 }   // right
         ];
+
         directions.forEach(dir => {
             const newRow = row + dir.r;
             const newCol = col + dir.c;
+
             if (newRow >= 0 && newRow < 4 && newCol >= 0 && newCol < 4) {
                 const index = newRow * 4 + newCol;
-                const cell = grid.children[index];
+                const cell = grid.children[index] as HTMLElement;
                 cell.classList.add("possible");
             }
         });
     }
 
-    function clearPossibleHighlights() {
+    function clearPossibleHighlights(): void {
         const cells = document.querySelectorAll(".cell.possible");
         cells.forEach(cell => cell.classList.remove("possible"));
     }
 
-    function moveAgent(newRow, newCol) {
-        const { row: oldRow, col: oldCol } = selectedAgentCell;
+    function moveAgent(newRow: number, newCol: number): void {
+        const { row: oldRow, col: oldCol } = selectedAgentCell!;
         const rowDiff = Math.abs(newRow - oldRow);
         const colDiff = Math.abs(newCol - oldCol);
         if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
             const agentToMove = agents.find(a => a.row === oldRow && a.col === oldCol);
             if (agentToMove) {
-                const oldCell = grid.children[oldRow * 4 + oldCol];
-                const newCell = grid.children[newRow * 4 + newCol];
-                const agentElement = oldCell.querySelector(".agent");
+                const oldCell = grid.children[oldRow * 4 + oldCol] as HTMLElement;
+                const newCell = grid.children[newRow * 4 + newCol] as HTMLElement;
+                const agentElement = oldCell.querySelector(".agent") as HTMLElement;
                 newCell.appendChild(agentElement);
                 agentToMove.row = newRow;
                 agentToMove.col = newCol;
@@ -133,12 +150,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function deployTrap(newRow, newCol) {
-        const { row: oldRow, col: oldCol } = selectedAgentCell;
+    function deployTrap(newRow: number, newCol: number): void {
+        const { row: oldRow, col: oldCol } = selectedAgentCell!;
         const rowDiff = Math.abs(newRow - oldRow);
         const colDiff = Math.abs(newCol - oldCol);
         if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
-            const newCell = grid.children[newRow * 4 + newCol];
+            const newCell = grid.children[newRow * 4 + newCol] as HTMLElement;
             const trap = document.createElement("div");
             trap.className = "trap";
             trap.textContent = "💣";
@@ -148,10 +165,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function endTurn() {
+    function endTurn(): void {
         if (selectedAgentCell) {
             const { row, col } = selectedAgentCell;
-            const oldCell = grid.children[row * 4 + col];
+            const oldCell = grid.children[row * 4 + col] as HTMLElement;
             oldCell.classList.remove("selected");
             selectedAgentCell = null;
         }
@@ -164,14 +181,14 @@ document.addEventListener("DOMContentLoaded", () => {
         updateTutorial();
     }
 
-    function logMessage(message) {
+    function logMessage(message: string): void {
         const p = document.createElement("p");
         p.textContent = `> ${message}`;
         log.appendChild(p);
         log.scrollTop = log.scrollHeight;
     }
 
-    function showError(message) {
+    function showError(message: string): void {
         errorMessage.textContent = message;
         errorMessage.style.display = "block";
         errorMessage.classList.add("active");
@@ -181,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 2000);
     }
 
-    function updateTutorial() {
+    function updateTutorial(): void {
         if (turn === 0) {
             const remaining = maxAgents - agents.length;
             tutorial.textContent = `DEPLOY ${remaining} AGENTS BY CLICKING ANY CELL`;

@@ -1,0 +1,14 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc && cp src/index.html src/styles.css dist/",
+    "start": "pnpm build && serve dist -s --no-etag",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.{ts,html,css}"
+  },
+  "devDependencies": {
+    "serve": "^14.2.3"
+  }
+}
