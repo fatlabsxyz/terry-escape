@@ -1,15 +1,9 @@
 {
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*", "src/.*.js"],
+  "exclude": ["node_modules", "dist"],
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "lib": ["es2022", "dom"],
-    "module": "CommonJS",
-    "target": "ES2022",
-    "moduleResolution": "Node",
-    "allowJs": false,
-    "strict": true,
-    "sourceMap": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+    "declaration": false,
+    "lib": ["dom", "es2022"]
+  }
 }
