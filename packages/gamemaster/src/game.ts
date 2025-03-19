@@ -106,12 +106,16 @@ export class Game {
   nsp: GameNsp;
 
   gameMachine!: Actor<ReturnType<Game['stateMachine']>>;
+  broadcastTimeout: number;
+  minPlayers: number;
 
-  constructor(readonly id: string, nsp: GameNsp) {
+  constructor(readonly id: string, nsp: GameNsp, options?: {}) {
     this.id = id
     this.nsp = nsp;
+    this.broadcastTimeout = 2_000;
+    this.minPlayers = 5;
 
-    this.gameMachine = createActor(this.stateMachine(Game._defaultContext()));
+    this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
     this.gameMachine.start();
   }
 
@@ -122,11 +126,11 @@ export class Game {
     return _log(...args);
   }
 
-  static _defaultContext(): Context {
+  static _defaultContext(minPlayers: number): Context {
     const context = {
       players: new Map(),
       round: [],
-      minPlayers: 2,
+      minPlayers,
       turn: 0,
       activePlayer: null,
       nextPlayer: null,
@@ -147,24 +151,6 @@ export class Game {
 
   readyPlayer(player: Player) {
     this.gameMachine.send({ type: Events.PlayerReady, data: { player } });
-  }
-
-  async broadcastGameStarted() {
-    return await new Promise((res, rej) => {
-      this.nsp.timeout(2000).emit(GameMsg.STARTED, res);
-    });
-  }
-
-  async broadcastEndGame() {
-    await new Promise((res, rej) => {
-      this.nsp.timeout(2000).emit(GameMsg.FINISHED, res);
-    });
-  }
-
-  private async broadcastTurn(turnInfo: TurnInfo) {
-    await new Promise((res, rej) => {
-      this.nsp.timeout(2000).emit(GameMsg.TURN_START, turnInfo, res);
-    });
   }
 
   static nextPlayers(finishingPlayer: Player, round: Player[]): [Player, Player] {
@@ -226,6 +212,22 @@ export class Game {
     return newContext;
   }
 
+  async broadcastGameStarted() {
+    await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.STARTED);
+  }
+
+  async broadcastEndGame() {
+    await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.FINISHED);
+  }
+
+  private async broadcastTurn(turnInfo: TurnInfo) {
+    await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.TURN_START, turnInfo);
+  }
+
+  async broadcastQueryWaiting(): Promise<{ player: string, waiting: boolean }[]> {
+    return await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.WAITING);
+  }
+
   async newTurn(context: Context): Promise<Context> {
     const newContext = Game.nextContext(context);
     this.log("oldContext", stringify(context), "newContext", stringify(newContext))
@@ -234,7 +236,7 @@ export class Game {
   }
 
   async queryWaiting(context: Context): Promise<Context> {
-    const waitingRes = await this._broadcastQueryWaiting()
+    const waitingRes = await this.broadcastQueryWaiting()
     waitingRes.forEach(({ player: id, waiting }) => {
       const player = context.players.get(id as Player)
       if (player) {
@@ -243,10 +245,6 @@ export class Game {
       }
     })
     return { ...context, players: context.players }
-  }
-
-  async _broadcastQueryWaiting(): Promise<{ player: string, waiting: boolean }[]> {
-    return await this.nsp.timeout(2000).emitWithAck(GameMsg.WAITING);
   }
 
   machineSetup() {

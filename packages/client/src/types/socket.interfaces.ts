@@ -1,27 +1,9 @@
 import { Socket } from "socket.io-client";
 import { TurnInfo } from "./game.js";
-import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "./gameMessages.js";
-import { Message } from "./messages.js";
+import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg } from "./gameMessages.js";
 
 type Ack = () => void;
 
-export interface GameAnswerMsg extends Message {
-  // event: GameMsg.ANSWER,  // TODO: fix types
-  // event: `${GameMsg.ANSWER}`,
-  payload: GameAnswerPayload
-}
-
-export interface GameQueryMsg extends Message {
-  payload: GameQueryPayload
-}
-
-export interface GameUpdateMsg extends Message {
-  payload: GameUpdatePayload
-}
-
-export interface GameReportMsg extends Message {
-  payload: GameReportPayload
-}
 
 export interface GameNspClientToServerEvents {
   [GameMsg.DUMMY]: (...args: any[]) => void;

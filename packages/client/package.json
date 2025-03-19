@@ -29,9 +29,11 @@
     "client": "node ./dist/client/index.js",
     "cli": "node ./dist/client/cli.js",
     "test": "vitest run --config vitest.config.ts --passWithNoTests",
-    "andres": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:3000' 'Andres' 0 | tee -a /tmp/game_0",
-    "barto": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:3000' 'Bartolomeo' 0 | tee -a /tmp/game_0",
-    "felipe": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:3000' 'Felipe' 0 | tee -a /tmp/game_0"
+    "andres": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:3000' 'Andres' 0 | tee -a /tmp/game_0 /tmp/andres.log",
+    "barto": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:3000' 'Bartolomeo' 0 | tee -a /tmp/game_0 /tmp/barto.log",
+    "felipe": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:3000' 'Felipe' 0 | tee -a /tmp/game_0 /tmp/felipe.log",
+    "pedro": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:3000' 'Pedro' 0 | tee -a /tmp/game_0 /tmp/pedro.log",
+    "juan": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:3000' 'Juan' 0 | tee -a /tmp/game_0 /tmp/juan.log"
   },
   "dependencies": {
     "eventemitter3": "^5.0.1",
