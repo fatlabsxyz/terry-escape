@@ -1,0 +1,15 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p ./tsconfig.json --outDir dist && cp public/* dist/",
+    "start": "pnpm build && serve dist -s --no-etag",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.{ts,html,css}"
+  },
+  "devDependencies": {
+    "serve": "^14.2.3"
+  }
+}
