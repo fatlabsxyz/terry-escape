@@ -50,21 +50,18 @@ After having created these proofs, agencies can justify state hash updates leaki
 
 ## Benchmakrs
 
-(8 cores, 8 GiB, ultrahonk, approximated miliseconds, subject to change)
+(8 cores, 8 GiB, UltraHonk, miliseconds, noir_js, firefox, linux)
 
-| Circuit  | execute (compiled) | write vk | prove | verify |
-| - | - | - | - | - |
-| π_keypair | 130.000 (22.000) | 19.800 | 31.300 | 162 |
-| π_encrypt | 22.600 (5.230) | 3.230 | 5.300 | 94 |
-| π_deploys | 237 (226) | 544 | 739 | 93 |
-| π_queries | 527 (396) | 563 | 745 | 93 |
-| π_answers | () |  |  |  |
-| π_updates | () |  |  |  |
-| π_reports | () |  |  |  |
+| Circuit | prove | verify |
+| - | - | - |
+| π_deploys |  2.515 |  1.866 |
+| - | -| - |
+| π_queries | 77.217 | 30.692 |
+| π_answers | 11.091 |  3.080 |
+| π_updates |  9.164 |  2.620 |
+| π_reports |  4.998 |  1.529 |
 
-Total expected time per turn ≈ 3 minutes \
-(board size x π_encrypt + π_queries + π_answers + π_updates + π_reports) \
-Could potentially be lowered to < 1 min, if π_encrypt's are precomputed offline.
+Total per turn: 2 minutes and 23 seconds
 
 
 ## Extra report notes:
