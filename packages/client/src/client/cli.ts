@@ -15,7 +15,7 @@ async function initClient() {
     serverUrl: args[0]!,
     name: args[1]!,
     gameId: args[2]!,
-    token: ""
+    token: "testtoken"
   });
 
   await sockets.socketsReady();
