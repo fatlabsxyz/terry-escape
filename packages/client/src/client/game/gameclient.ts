@@ -102,20 +102,24 @@ function serMap(map: Map<any, any>): object {
 const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map ? serMap(v) : v);
 
 export class GameClient {
-  readonly name: string;
   readonly log: (...args: any[]) => void;
+  readonly token: string;
 
   sockets: SocketManager;
   turnsData: TurnData[];
   turnData: TurnData;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
 
-  constructor(name: string, sockets: SocketManager) {
+  constructor(token: string, sockets: SocketManager) {
     this.sockets = sockets;
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
-    this.name = name;
-    this.log = _createLogger(name, sockets.sender)
+    this.log = _createLogger(token, sockets.sender)
+    if (token === '0') {
+      this.token = 'generate-some-uuid';
+    } else {
+      this.token = token;
+    } 
   }
 
   static _emptyTurnData(): TurnData {
@@ -268,7 +272,7 @@ export class GameClient {
   async getQuery(): Promise<GameQueryPayload> {
     const payload = {
       mockQueryData: {
-        name: this.name,
+        token: this.token,
         turn: `Mock-Q${this.contextTurnInfo.turn}`,
       }
     };
@@ -288,7 +292,7 @@ export class GameClient {
     this.gameLog("Creating update for active player");
     const payload = {
       mockUpdateData: {
-        name: this.name,
+        token: this.token,
         turn: `Mock-U${this.turn}`,
       }
     }
@@ -321,7 +325,7 @@ export class GameClient {
     const payloads: GameAnswerPayload[] = [];
     for (const player of otherPlayers) {
       const payload = {
-        from: this.name,
+        from: this.token,
         to: player,
         data: `Mock-A${this.contextTurnInfo.turn}`,
       }
@@ -341,7 +345,7 @@ export class GameClient {
   async createReport(): Promise<GameReportPayload> {
     return {
       mockReportData: {
-        name: this.name,
+        token: this.token,
         turn: `Mock-R${this.contextTurnInfo.turn}`,
       }
     }

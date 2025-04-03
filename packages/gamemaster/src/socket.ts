@@ -8,7 +8,7 @@ export function addIoSockets(server: HttpServer): Server {
 
   io.on('connection', (socket) => {
     // console.log("User connection", socket.id)
-    console.log(socket.handshake.auth);
+    console.log(socket.handshake.auth.token);
   });
 
 

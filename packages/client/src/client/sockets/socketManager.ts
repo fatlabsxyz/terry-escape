@@ -20,35 +20,36 @@ import { SetupSocketOptions } from "../setup.js";
 
 const TIMEOUT = 3_000;
 
+type JWT = string;
+
 type FromTo = [string, string];
 
 export class SocketManager extends EventEmitter {
   game: GameSocket;
   lobby: Socket;
-  name: string;
   gameId: string;
+  token: JWT;
 
   private _ready: boolean;
   msgLog: MessageLog<GameMessage>;
 
   constructor(options: SetupSocketOptions) {
     super();
-    let token: string = "babab"
+    this.token = options.token;
 
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
       auth: {
-        token: token
+        token: this.token
       }
     });
 
     this.lobby = io(options.serverUrl, {
       auth: {
-        token: token
+        token: this.token
       }
 
     });
 
-    this.name = options.name;
     this.gameId = options.gameId;
     this._ready = false;
     this.msgLog = new MessageLog();
