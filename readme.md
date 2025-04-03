@@ -1,3 +1,7 @@
+# Terry Escape
+
+![](terry-escape.jpg)
+
 ## Game mechanics
 
 Multiple untrusting factions compete to take control over a strategically placed building complex.
