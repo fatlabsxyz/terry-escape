@@ -20,8 +20,9 @@ export type GameSocket = Socket<
   SocketData
 >
 
-
 function registerGameHandlers(socket: GameSocket) {
+
+  const TIMEOUT = 3_000;
 
   /*///////////////////////////////////////////////////////////////
                           BROADCASTING
@@ -29,31 +30,31 @@ function registerGameHandlers(socket: GameSocket) {
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
     await socket
       .broadcast
-      .timeout(1000)
+      .timeout(TIMEOUT)
       .emitWithAck(GameMsg.QUERY, p);
     ack();
   })
 
   socket.on(GameMsg.ANSWER, async (p: GameAnswerMsg, ack: Ack) => {
-    socket
+    await socket
       .broadcast
-      .timeout(1000)
+      .timeout(TIMEOUT)
       .emitWithAck(GameMsg.ANSWER, p);
     ack();
   });
 
   socket.on(GameMsg.UPDATE, async (p: GameUpdateMsg, ack: Ack) => {
-    socket
+    await socket
       .broadcast
-      .timeout(1000)
+      .timeout(TIMEOUT)
       .emitWithAck(GameMsg.UPDATE, p);
     ack();
   });
 
   socket.on(GameMsg.REPORT, async (p: GameReportMsg, ack: Ack) => {
-    socket
+    await socket
       .broadcast
-      .timeout(1000)
+      .timeout(TIMEOUT)
       .emitWithAck(GameMsg.REPORT, p);
     ack();
   });

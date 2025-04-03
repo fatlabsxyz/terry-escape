@@ -1,4 +1,4 @@
-import random, math, sys
+import random, math, json, sys
 
 λ = int(sys.argv[1])
 log_λ = math.log2(λ)
@@ -25,9 +25,9 @@ def to_limbs(n):
 
 # Generate needed samples
 p = uniform(η)
-qs = [uniform(γ-η) for _ in range(τ)]
-rs = [uniform(ρ) for _ in range(τ)]
-xs = [p*qs[i]+rs[i]-(2**(ρ-1)) for i in range(τ)]
+qs = [uniform(γ-η) for _ in range(τ+1)]
+rs = [uniform(ρ) for _ in range(τ+1)]
+xs = [p*qs[i]+rs[i]-(2**(ρ-1)) for i in range(τ+1)]
 
 # Reorder greatest to x_0
 i = xs.index(max(xs))
@@ -41,11 +41,11 @@ while qs[1] % 2 == 0:
     rs.append(rs.pop(1))
     xs.append(xs.pop(1))
 
-# Output as prover inputs
-print("common_divisor_entropy =", to_limbs(p))
-print("multiplier_entropy =", list(map(to_limbs, qs)))
-print("additive_entropy =", list(map(to_limbs, rs)))
-
-print("resulting_samples =", list(map(to_limbs, xs)))
-
-print(xs[0], file=sys.stderr)
+# Output numbers to files
+print(τ, file=open('tau', 'w'))
+print(λ, file=open('lambda', 'w'))
+print(xs[0], file=open('modulus', 'w'))
+print(json.dumps(to_limbs(p)), file=open('decryption_key', 'w'))
+print(json.dumps(list(map(to_limbs, qs))), file=open('scaling_factors', 'w'))
+print(json.dumps(list(map(to_limbs, rs))), file=open('additive_noises', 'w'))
+print(json.dumps(list(map(to_limbs, xs))), file=open('encryption_key', 'w'))

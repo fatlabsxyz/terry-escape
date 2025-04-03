@@ -1,4 +1,5 @@
 import { Player } from "./game.js"
+import { Message } from "./messages.js"
 
 export enum GameMsg {
   DUMMY = "game:dummy",
@@ -34,3 +35,28 @@ export interface GameUpdatePayload extends GamePayload {
 
 export interface GameReportPayload extends GamePayload {
 }
+
+export interface IGameMessage extends Message {
+  event: `${GameMsg}`
+  turn: number
+  to?: Player
+}
+
+export interface GameQueryMsg extends IGameMessage {
+  payload: GameQueryPayload
+}
+
+export interface GameAnswerMsg extends IGameMessage {
+  payload: GameAnswerPayload
+  to: Player
+}
+
+export interface GameUpdateMsg extends IGameMessage {
+  payload: GameUpdatePayload
+}
+
+export interface GameReportMsg extends IGameMessage {
+  payload: GameReportPayload
+}
+
+export type GameMessage = GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg

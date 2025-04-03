@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERRY ESCAPE</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="grid-container">
+            <h1 class="game-title">TERRY ESCAPE</h1>
+            <div class="action-buttons">
+                <button id="move-btn" class="action-btn">MOVE</button>
+                <button id="trap-btn" class="action-btn">TRAP</button>
+            </div>
+            <div id="grid" class="grid"></div>
+            <div id="tutorial-container" class="tutorial-container">
+                <div id="tutorial" class="tutorial"></div>
+            </div>
+            <div id="error-message" class="error-message"></div>
+        </div>
+        <div class="log-container">
+            <h3>AGENT LOGS</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+    <script src="script.js" type="module"></script>
+</body>
+</html>
