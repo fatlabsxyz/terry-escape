@@ -20,6 +20,8 @@ import { SetupSocketOptions } from "../setup.js";
 
 const TIMEOUT = 3_000;
 
+type JWT = string;
+
 type FromTo = [string, string];
 
 export interface SocketManagerOptions {
