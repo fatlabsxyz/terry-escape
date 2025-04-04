@@ -8,6 +8,9 @@ interface InterServerEvents { }
 interface SocketData {
     id: string,
     name: string,
+=======
+    player: string,
+>>>>>>> 2d158e0 (added simple jwt)
 }
 
 export type GameNsp = Namespace<
@@ -97,19 +100,17 @@ export function addGameNamespace(server: Server): Server {
   });
 
   gameNsp.use((socket, next) => {
-    const auth_list: string[] = ["a", "b", "egg", "test-token"];
-
-    if( auth_list.includes(socket.handshake.auth.token)) {
-      console.log(socket.handshake.auth);
-      console.log("TOKEN IN LIST, WELCOME");
-      next();
-    } else {
-      console.log(socket.handshake.auth);  
-      console.log("TOKEN IN NOT LIST, GOODBYE GUY");
-      socket.disconnect();
-      next(new Error("TOKEN MISSING FROM LIST, GOODBYE"));
+    if (!socket.handshake.auth.token) {
+      return next(new Error ('No player token provided'))
     }
 
+    jwt.verify(socket.handshake.auth.token, SECRET_KEY, (err: jwt.VerifyErrors | null, decoded: unknown) => {
+      if (err) {
+        return next(new Error('Invalid Token'))
+      }
+      const data = decoded as JwtPayload; 
+      socket.data.player = data.name;
+    });
   });
 
   gameNsp.on('connection', async (socket) => {
