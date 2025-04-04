@@ -13,13 +13,13 @@ function passTime(ms: number): Promise<void> {
 async function initClient() {
   const sockets = new SocketManager({
     serverUrl: args[0]!,
-    token: args[1]!,
+    name: args[1]!,
     gameId: args[2]!,
   });
 
   await sockets.socketsReady();
 
-  const client = new GameClient(sockets.token, sockets);
+  const client = new GameClient(sockets.name, sockets);
 
   await client.play();
 
