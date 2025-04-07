@@ -29,7 +29,6 @@ export function addIoSockets(server: HttpServer): Server {
     });
   });
 
-
   io = addLobby(io);
   io = addGameNamespace(io);
 
