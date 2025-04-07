@@ -6,12 +6,12 @@ export interface SocketInit {
 }
 
 export interface PlayerOptions extends SocketInit {
-  name: string;
+  token: string;
   gameId: string;
 }
 
 export interface GameOptions extends SocketInit {
-  name: string;
+  token: string;
   gameId: string;
 }
 

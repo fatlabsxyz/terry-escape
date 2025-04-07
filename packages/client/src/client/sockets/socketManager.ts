@@ -17,37 +17,52 @@ import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
 import { MessageLog } from "../messageLog.js";
 import { SetupSocketOptions } from "../setup.js";
+import jwt from "jsonwebtoken";
 
 const TIMEOUT = 3_000;
 
 type FromTo = [string, string];
 
+export interface SocketManagerOptions {
+  serverUrl: string;
+  name: string,
+  gameId: string,
+  forceNew?: boolean
+}
+
 export class SocketManager extends EventEmitter {
   game: GameSocket;
   lobby: Socket;
-  name: string;
   gameId: string;
+  name: string;
 
   private _ready: boolean;
   msgLog: MessageLog<GameMessage>;
 
-  constructor(options: SetupSocketOptions) {
+  constructor(options: SocketManagerOptions) {
     super();
 
+    const SECRET_KEY = 'test-key'
+    const tokenData = { name: options.name }
+    const newToken = jwt.sign(tokenData, SECRET_KEY, {expiresIn: '2h'});
+
+        //generate new token based on provided data 
+
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
-      // auth: {
-      // token
-      // }
+      auth: {
+        token: newToken
+      }
     });
 
     this.lobby = io(options.serverUrl, {
-      // auth: {
-      //   token
-      // }
+      auth: {
+        token: newToken
+      }
+
     });
 
     this.name = options.name;
-    this.gameId = options.gameId
+    this.gameId = options.gameId;
     this._ready = false;
     this.msgLog = new MessageLog();
 
