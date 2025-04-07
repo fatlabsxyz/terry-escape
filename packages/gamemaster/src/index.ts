@@ -2,7 +2,7 @@ import { app } from "./app.js"
 import { createServer } from 'node:http';
 import { addIoSockets } from "./socket.js";
 
-const port = 3000;
+const port = 2448;
 
 
 async function main() {

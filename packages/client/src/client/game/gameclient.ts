@@ -115,11 +115,8 @@ export class GameClient {
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
     this.log = _createLogger(token, sockets.sender)
-    if (token === '0') {
-      this.token = 'generate-some-uuid';
-    } else {
-      this.token = token;
-    } 
+    this.token = token;
+     
   }
 
   static _emptyTurnData(): TurnData {

@@ -46,7 +46,7 @@ export class SocketManager extends EventEmitter {
     const tokenData = { name: options.name }
     const newToken = jwt.sign(tokenData, SECRET_KEY, {expiresIn: '2h'});
 
-        //generate new token based on provided 
+        //generate new token based on provided data 
 
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
       auth: {
