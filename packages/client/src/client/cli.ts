@@ -1,5 +1,6 @@
 import { GameClient } from "./game/gameclient.js";
 import { SocketManager } from "./sockets/socketManager.js";
+import { getAuthToken, AuthRequestData } from "./../utils.js";
 
 const args = process.argv.splice(2)
 
@@ -9,20 +10,26 @@ function passTime(ms: number): Promise<void> {
   })
 }
 
-
 async function initClient() {
-  const sockets = new SocketManager({
-    serverUrl: args[0]!,
-    name: args[1]!,
-    gameId: args[2]!,
-  });
 
-  await sockets.socketsReady();
+  const data: AuthRequestData = { name: args[1]! };
+  const newToken = await getAuthToken(data);
 
-  const client = new GameClient(sockets.name, sockets);
+  if (newToken) {
+    const sockets = new SocketManager({
+      serverUrl: args[0]!,
+      token: newToken,
+      gameId: args[2]!,
+    });
 
-  await client.play();
+    await sockets.socketsReady();
 
+    const client = new GameClient(sockets.token, sockets);
+
+    await client.play();
+  } else {
+    console.log("Could not get user token from gamemaster in /auth")
+  } 
 }
 
 initClient().catch((e) => {

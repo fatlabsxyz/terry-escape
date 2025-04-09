@@ -6,7 +6,8 @@ import jwt from 'jsonwebtoken';
 type Ack = () => void;
 interface InterServerEvents { }
 interface SocketData {
-    player: string,
+    id: string,
+    name: string,
 }
 
 export type GameNsp = Namespace<
@@ -71,13 +72,14 @@ function registerGameHandlers(socket: GameSocket) {
 }
 
 interface JwtPayload {
+  id: string;
   name: string;
 }
 
 export function addGameNamespace(server: Server): Server {
-
   // nsp ~ /game/V1StGXR8_Z5jdHi6B2myT
   const gameNsp: GameNsp = server.of(/^\/game\/[a-zA-Z0-9_\-]+$/);
+  
   const SECRET_KEY = 'test-key';
   gameNsp.use((socket, next) => {
     if (!socket.handshake.auth.token) {
@@ -89,7 +91,8 @@ export function addGameNamespace(server: Server): Server {
         return next(new Error('Invalid Token'))
       }
       const data = decoded as JwtPayload; 
-      socket.data.player = data.name;
+      socket.data.name = data.name;
+      socket.data.id = data.id;
     });
   });
 
@@ -99,7 +102,7 @@ export function addGameNamespace(server: Server): Server {
     console.log(`[${socket.id}] User connection`);
 
     game.addPlayer(socket.id as Player);
-    console.log(`welcomne ${socket.data.player} :\)`);
+    console.log(`welcome ${socket.data.name} with id ${socket.data.id} :\)`);
   });
 
   return server;
