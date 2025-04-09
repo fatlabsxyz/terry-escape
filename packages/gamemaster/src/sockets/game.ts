@@ -8,9 +8,6 @@ interface InterServerEvents { }
 interface SocketData {
     id: string,
     name: string,
-=======
-    player: string,
->>>>>>> 2d158e0 (added simple jwt)
 }
 
 export type GameNsp = Namespace<
@@ -96,20 +93,6 @@ export function addGameNamespace(server: Server): Server {
       const data = decoded as JwtPayload; 
       socket.data.name = data.name;
       socket.data.id = data.id;
-    });
-  });
-
-  gameNsp.use((socket, next) => {
-    if (!socket.handshake.auth.token) {
-      return next(new Error ('No player token provided'))
-    }
-
-    jwt.verify(socket.handshake.auth.token, SECRET_KEY, (err: jwt.VerifyErrors | null, decoded: unknown) => {
-      if (err) {
-        return next(new Error('Invalid Token'))
-      }
-      const data = decoded as JwtPayload; 
-      socket.data.player = data.name;
     });
   });
 

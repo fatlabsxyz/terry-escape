@@ -17,7 +17,6 @@ import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
 import { MessageLog } from "../messageLog.js";
 import { SetupSocketOptions } from "../setup.js";
-import jwt from "jsonwebtoken";
 
 const TIMEOUT = 3_000;
 

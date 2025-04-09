@@ -12,8 +12,11 @@ import { nanoid } from "nanoid";
 import { AuthRequestData } from "./types.js";
 // import { relayerRouter } from "./routes/index.js";
 
+<<<<<<< HEAD
 export const FRONTEND_URLS = ["http://localhost:8000"];
 
+=======
+>>>>>>> 65ab831 (updated auth flow via /auth endpoint and redid token distribution between client and gamemaster)
 const SECRET_KEY = 'test-key';
 
 // Initialize the express app
