@@ -18,7 +18,7 @@ export interface AuthRequestData {
   name: string;
 }
 
-export async function getAuthToken(data: AuthRequestData): Promise<string | null> {
+async function getAuthToken(data: AuthRequestData): Promise<string | null> {
   try {
     const response = await fetch('http://localhost:2448/auth', {
       method: 'POST',

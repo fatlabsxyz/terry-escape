@@ -1,6 +1,5 @@
 {
   "name": "client",
-  "version": "0.0.1",
   "type": "module",
   "exports": {
     ".": {
@@ -10,6 +9,10 @@
     "./cli": {
       "import": "./dist/client/cli.js",
       "types": "./dist/client/cli.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils.js",
+      "types": "./dist/utils.d.ts"
     },
     "./types": {
       "import": "./dist/types/index.js",

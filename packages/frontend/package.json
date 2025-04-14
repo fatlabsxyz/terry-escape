@@ -10,9 +10,9 @@
     "format": "prettier --write src/**/*.{ts,html,css}"
   },
   "devDependencies": {
-    "serve": "^14.2.3"
+    "serve": "^14.2.4"
   },
   "dependencies": {
-    "client": "*"
+    "client": "workspace:*"
   }
 }
