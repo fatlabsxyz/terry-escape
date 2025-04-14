@@ -16,11 +16,13 @@ interface AuthResponse {
 
 export interface AuthRequestData {
   name: string;
+  url: string;
 }
 
-async function getAuthToken(data: AuthRequestData): Promise<string | null> {
+export async function getAuthToken(data: AuthRequestData): Promise<string | null> {
   try {
-    const response = await fetch('http://localhost:2448/auth', {
+    const endpoint: string = `${data.url}"/auth"`;
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
