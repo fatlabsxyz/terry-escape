@@ -11,13 +11,13 @@ function passTime(ms: number): Promise<void> {
 }
 
 async function initClient() {
-
-  const data: AuthRequestData = { name: args[1]! };
+  const url = args[0]!;
+  const data: AuthRequestData = { name: args[1]!, url: url };
   const newToken = await getAuthToken(data);
 
   if (newToken) {
     const sockets = new SocketManager({
-      serverUrl: args[0]!,
+      serverUrl: url,
       token: newToken,
       gameId: args[2]!,
     });
