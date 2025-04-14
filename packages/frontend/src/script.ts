@@ -14,6 +14,11 @@ interface CellPosition {
 }
 
 // Connection logic
+const url: string = "0.0.0.0:2248";
+const newToken = await getAuthToken({
+  name: "test-name",
+  url: url
+});
 
 function getCookie(name: string): string | null {
   console.log(`getting ${name} cookie`)
@@ -57,7 +62,6 @@ try {
 
 } catch (e) {
     console.error("Client failed to initialize");
-}
 
 // Main game logic
 document.addEventListener("DOMContentLoaded", () => {

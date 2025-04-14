@@ -19,7 +19,7 @@ export interface AuthRequestData {
   url: string;
 }
 
-export async function getAuthToken(data: AuthRequestData): Promise<string | null> {
+async function getAuthToken(data: AuthRequestData): Promise<string | null> {
   try {
     const endpoint: string = `${data.url}/auth`;
     const response = await fetch(endpoint, {
