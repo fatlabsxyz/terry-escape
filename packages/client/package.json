@@ -1,5 +1,6 @@
 {
   "name": "client",
+  "version": "0.0.1",
   "type": "module",
   "exports": {
     ".": {
@@ -36,9 +37,7 @@
     "juan": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:2448' 'Juan' 0 | tee -a /tmp/game_0 /tmp/juan.log"
   },
   "dependencies": {
-    "@types/jsonwebtoken": "^9.0.9",
     "eventemitter3": "^5.0.1",
-    "jsonwebtoken": "^9.0.2",
     "nanoid": "^5.0.5"
   }
 }

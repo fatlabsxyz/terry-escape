@@ -1,3 +1,5 @@
+import { setupSockets } from 'client';
+
 interface Agent {
     id: number;
     row: number;
@@ -10,6 +12,9 @@ interface CellPosition {
     row: number;
     col: number;
 }
+
+// Connection logic
+
 
 // Main game logic
 document.addEventListener("DOMContentLoaded", () => {
