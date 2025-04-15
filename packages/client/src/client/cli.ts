@@ -10,16 +10,25 @@ function passTime(ms: number): Promise<void> {
   })
 }
 
-async function initClient() {
+async function initCli() {
+
   const url = args[0]!;
-  const data: AuthRequestData = { name: args[1]!, url: url };
+  const name = args[1]!;
+  const gameId = args[2]!;
+
+  initClient(name, url, gameId);  
+}
+
+export async function initClient(name: string, url: string, gameId: string) {
+
+  const data: AuthRequestData = { name: name, url: url };
   const newToken = await getAuthToken(data);
 
   if (newToken) {
     const sockets = new SocketManager({
       serverUrl: url,
       token: newToken,
-      gameId: args[2]!,
+      gameId: gameId, 
     });
 
     await sockets.socketsReady();
@@ -32,8 +41,7 @@ async function initClient() {
   } 
 }
 
-initClient().catch((e) => {
+initCli().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-
