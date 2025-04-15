@@ -22,32 +22,41 @@ const TIMEOUT = 3_000;
 
 type FromTo = [string, string];
 
+export interface SocketManagerOptions {
+  serverUrl: string;
+  token: string,
+  gameId: string,
+  forceNew?: boolean
+}
+
 export class SocketManager extends EventEmitter {
   game: GameSocket;
   lobby: Socket;
-  name: string;
   gameId: string;
+  token: string;
 
   private _ready: boolean;
   msgLog: MessageLog<GameMessage>;
 
-  constructor(options: SetupSocketOptions) {
+  constructor(options: SocketManagerOptions) {
     super();
+    
+    // get token and assign to 
 
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
-      // auth: {
-      // token
-      // }
+      auth: {
+        token: options.token
+      }
     });
 
     this.lobby = io(options.serverUrl, {
-      // auth: {
-      //   token
-      // }
-    });
+      auth: {
+        token: options.token
+      }
 
-    this.name = options.name;
-    this.gameId = options.gameId
+    });
+    this.token = options.token;
+    this.gameId = options.gameId;
     this._ready = false;
     this.msgLog = new MessageLog();
 

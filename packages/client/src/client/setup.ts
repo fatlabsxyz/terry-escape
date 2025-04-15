@@ -5,7 +5,6 @@ import { setupGame } from "./sockets/game.socket.js";
 
 export interface SetupSocketOptions {
   serverUrl: string;
-  name: string,
   token: string,
   gameId: string,
   forceNew?: boolean
@@ -20,7 +19,6 @@ export function setupSockets(options: SetupSocketOptions): ClientSockets {
 
   const {
     serverUrl,
-    name,
     token,
     gameId,
   } = options;
@@ -36,7 +34,6 @@ export function setupSockets(options: SetupSocketOptions): ClientSockets {
 
   const socketOptions = {
     serverUrl,
-    name,
     token,
     forceNew,
   }
@@ -44,7 +41,7 @@ export function setupSockets(options: SetupSocketOptions): ClientSockets {
   const lobby = setupLobby(socketOptions);
 
   let players;
-  const gameOptions = { ...socketOptions, gameId, name }
+  const gameOptions = { ...socketOptions, token, gameId }
   const game = setupGame(gameOptions);
   // const playerOptions = { ...gameOptions, name }
   // players = setupPlayers(playerOptions)

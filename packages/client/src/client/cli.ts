@@ -1,5 +1,6 @@
 import { GameClient } from "./game/gameclient.js";
 import { SocketManager } from "./sockets/socketManager.js";
+import { getAuthToken, AuthRequestData } from "./../utils.js";
 
 const args = process.argv.splice(2)
 
@@ -9,28 +10,26 @@ function passTime(ms: number): Promise<void> {
   })
 }
 
-
 async function initClient() {
-  const sockets = new SocketManager({
-    serverUrl: args[0]!,
-    name: args[1]!,
-    gameId: args[2]!,
-    token: ""
-  });
+  const url = args[0]!;
+  const data: AuthRequestData = { name: args[1]!, url: url };
+  const newToken = await getAuthToken(data);
 
-  await sockets.socketsReady();
+  if (newToken) {
+    const sockets = new SocketManager({
+      serverUrl: url,
+      token: newToken,
+      gameId: args[2]!,
+    });
 
-  const client = new GameClient(args[1]!, sockets);
+    await sockets.socketsReady();
 
-  await client.play();
+    const client = new GameClient(sockets.token, sockets);
 
-  // if (args[1] === "Bartolomeo") {
-  //   await passTime(3_000);
-  //   await sockets.broadcastTurnEnd();
-  // } else {
-  //   await sockets.waitForTurnEndEvent();
-  // }
-
+    await client.play();
+  } else {
+    console.log("Could not get user token from gamemaster in /auth")
+  } 
 }
 
 initClient().catch((e) => {
