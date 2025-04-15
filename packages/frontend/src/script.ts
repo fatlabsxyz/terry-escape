@@ -1,4 +1,5 @@
-import { getAuthToken, SocketManager, GameClient } from 'client';
+import { initClient } from 'client/cli'
+
 
 interface Agent {
     id: number;
@@ -14,24 +15,11 @@ interface CellPosition {
 }
 
 // Connection logic
-const url: string = "0.0.0.0:2248";
-const newToken = await getAuthToken({
-  name: "test-name",
-  url: url
-});
 
-if (newToken) {
-  const sockets = new SocketManager({
-    serverUrl: "0.0.0.0:2248",
-    token: newToken,
-    gameId: "0",
-  });
-  await sockets.socketsReady();
-
-  const client = new GameClient(sockets.token, sockets);
-  await client.play();
-} else {
-  console.log("Could not get user token from gamemaster in /auth")
+try {
+    initClient("web-gamer", "0.0.0.0:2448", "0");
+} catch (e) {
+    console.error("Client failed to initialize");
 }
 
 // Main game logic

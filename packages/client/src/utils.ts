@@ -21,7 +21,7 @@ export interface AuthRequestData {
 
 export async function getAuthToken(data: AuthRequestData): Promise<string | null> {
   try {
-    const endpoint: string = `${data.url}"/auth"`;
+    const endpoint: string = `${data.url}/auth`;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
