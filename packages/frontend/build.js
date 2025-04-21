@@ -8,6 +8,7 @@ if (shouldServe) {
     bundle: true,
     minify: false,
     sourcemap: true,
+    format: 'esm',
     platform: 'browser',
     outfile: 'public/out.js', 
   });
@@ -18,6 +19,7 @@ if (shouldServe) {
 } else {
   await esbuild.build({
     entryPoints: ['src/script.ts'],
+    format: 'esm',
     bundle: true,
     minify: true,
     sourcemap: true,
