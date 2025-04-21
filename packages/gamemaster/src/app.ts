@@ -30,8 +30,6 @@ app.use(cors(options));
 // json parser
 app.use(bodyParser.json());
 
-
-
 // app.use(marshalResponseMiddleware);
 
 // ping route
