@@ -27,7 +27,6 @@ type EventMap = { [key in GameMsg]?: MockInstance };
 
 function newSocketManager(port: number) {
   return new SocketManager({
-    name: "name",
     serverUrl: `http://127.0.0.1:${port}`,
     gameId: "0",
     token: ""

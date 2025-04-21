@@ -3,13 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "hasInstallScript": true,
   "scripts": {
-    "build": "tsc -p ./tsconfig.json --outDir dist && cp public/* dist/",
-    "start": "pnpm build && serve dist -s --no-etag",
+    "buildjs": "node build.js",
+    "build": "esbuild src/script.ts --bundle --outfile=dist/bundle.js --format=esm --platform=browser --sourcemap",
+    "oldbuild": "tsc -p ./tsconfig.json --outDir dist && cp public/* dist/",
+    "start": "pnpm buildjs --start",
+    "oldstart": "pnpm build && serve dist -s --no-etag",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.{ts,html,css}"
   },
   "devDependencies": {
+    "esbuild": "^0.25.2",
+    "esbuild-serve": "^1.0.1",
     "serve": "^14.2.4"
   },
   "dependencies": {

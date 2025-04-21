@@ -1,5 +1,4 @@
-import { initClient } from 'client/cli'
-
+import { initClient } from 'client/init'
 
 interface Agent {
     id: number;
@@ -17,7 +16,7 @@ interface CellPosition {
 // Connection logic
 
 try {
-    initClient("web-gamer", "0.0.0.0:2448", "0");
+    initClient("web-gamer", "http://0.0.0.0:2448", "0");
 } catch (e) {
     console.error("Client failed to initialize");
 }

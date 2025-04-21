@@ -10,6 +10,10 @@
       "import": "./dist/client/cli.js",
       "types": "./dist/client/cli.d.ts"
     },
+    "./init": {
+      "import": "./dist/client/init.js",
+      "types": "./dist/client/init.d.ts"
+    },
     "./types": {
       "import": "./dist/types/index.js",
       "types": "./dist/types/index.d.ts"

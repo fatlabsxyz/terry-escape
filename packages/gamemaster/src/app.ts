@@ -1,4 +1,5 @@
 import bodyParser from "body-parser";
+import cors from "cors";
 import express, { NextFunction, Request, Response } from "express";
 import {
   errorHandlerMiddleware,
@@ -18,8 +19,13 @@ const app: express.Express = express();
 
 // Apply middleware and routes
 
+// CORS middleware
+app.use(cors());
+
 // json parser
 app.use(bodyParser.json());
+
+
 
 // app.use(marshalResponseMiddleware);
 
