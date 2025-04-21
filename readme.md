@@ -1,3 +1,7 @@
+# Terry Escape
+
+![](terry-escape.jpg)
+
 ## Game mechanics
 
 Multiple untrusting factions compete to take control over a strategically placed building complex.
@@ -52,14 +56,14 @@ After having created these proofs, agencies can justify state hash updates leaki
 
 (8 cores, 8 GiB, UltraHonk, miliseconds, noir_js, firefox, linux)
 
-| Circuit | prove | verify |
-| - | - | - |
-| π_deploys |  2.515 |  1.866 |
-| - | -| - |
-| π_queries | 77.217 | 30.692 |
-| π_answers | 11.091 |  3.080 |
-| π_updates |  9.164 |  2.620 |
-| π_reports |  4.998 |  1.529 |
+| Circuit | prove | verify | | bb (gates) |
+| - | - | - | - | - |
+| π_deploys |  2.515 |  1.866 | |  8.339 |
+| - | -| - | - | - |
+| π_queries | 77.217 | 30.692 | | 17.007 + 13.218 |
+| π_answers | 11.091 |  3.080 | | 83.857 |
+| π_updates |  9.164 |  2.620 | | 28.223 |
+| π_reports |  4.998 |  1.529 | | 24.748 |
 
 Total per turn: 2 minutes and 23 seconds
 

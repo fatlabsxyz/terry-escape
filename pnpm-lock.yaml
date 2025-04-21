@@ -51,9 +51,15 @@ importers:
 
   packages/client:
     dependencies:
+      '@types/jsonwebtoken':
+        specifier: ^9.0.9
+        version: 9.0.9
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
+      jsonwebtoken:
+        specifier: ^9.0.2
+        version: 9.0.2
       nanoid:
         specifier: ^5.0.5
         version: 5.1.2

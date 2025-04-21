@@ -14,7 +14,6 @@ export function validateAuthMiddleware(
   res: Response,
   next: NextFunction,
 ): void {
-
   const data: unknown = req.body;
   
   if (!data || typeof data !== 'object') {
