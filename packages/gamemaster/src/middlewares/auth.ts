@@ -15,7 +15,6 @@ export function validateAuthMiddleware(
   next: NextFunction,
 ): void {
 
-  console.log(`auth middeware, req headers: ${req.headers}`);
   const data: unknown = req.body;
   
   if (!data || typeof data !== 'object') {

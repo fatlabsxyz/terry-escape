@@ -20,12 +20,14 @@ const app: express.Express = express();
 // Apply middleware and routes
 
 // CORS middleware
-app.use(cors());
+const allowedOrigins = ['http://localhost:8000'];
+const options: cors.CorsOptions = {
+  origin: allowedOrigins
+};
+app.use(cors(options));
 
 // json parser
 app.use(bodyParser.json());
-
-
 
 // app.use(marshalResponseMiddleware);
 

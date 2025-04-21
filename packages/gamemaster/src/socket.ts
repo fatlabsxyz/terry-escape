@@ -5,7 +5,12 @@ import { addLobby } from './sockets/lobby.js';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
 export function addIoSockets(server: HttpServer): Server {
-  let io = new Server(server)
+  let io = new Server(server, {
+      cors: {
+        origin: "http://localhost:8000",
+        methods: ["GET", "POST"]
+      }
+    })
 
   io.on('connection', (socket: Socket) => {
     // console.log("User connection", socket.id)
