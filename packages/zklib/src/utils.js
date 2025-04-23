@@ -43,8 +43,8 @@ export async function init_circuits() {
 };
 
 export async function generate_proof(circuit, inputs) {
-	let computed_board = null;
-	let informed_detect = null;
+	let computed_board;
+	let informed_detect;
 	const oracle_handler = async (name, inputs) => {
 		if (name == "oracle_board") { computed_board = inputs[0]; }
 		if (name == "oracle_detect") { informed_detect = inputs[0]; }
