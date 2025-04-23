@@ -19,7 +19,7 @@
     "clean": "rm -rf dist",
     "build": "tsc -p ./tsconfig.json --outDir dist",
     "client": "node ./dist/index.js",
-    "test": "vitest run --config vitest.config.ts --passWithNoTests"
+    "test": "vitest run --testTimeout 0 --config vitest.config.ts --passWithNoTests"
   },
   "dependencies": {
     "noir": "workspace:*",

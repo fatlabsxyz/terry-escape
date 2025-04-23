@@ -1,13 +1,7 @@
+import { ProofData } from '@aztec/bb.js';
+import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
 import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, verification_failed_halt } from './utils.js';
 const circuits = await init_circuits();
-
-type Field = string;
-type BigNum = Field[];
-type Secret_Key = BigNum[];
-type Public_Key = { key_set: BigNum[], params: any };
-type State = { board_used?: Field[], board_salt: Field }
-type Proof = { proof: Uint8Array, public_inputs: string[] }
-type Action = { reason: number, target: number, trap: boolean }
 
 export class zklib {
   round: number;
@@ -16,7 +10,7 @@ export class zklib {
   all_states!: Field[];
   secret_key: Secret_Key;
   public_keys: Public_Key[];
-  temp_proofs: { queries?: Proof[], answers?: Proof[] }
+  temp_proofs: { queries?: ProofData[], answers?: ProofData[] }
   temp_values: { veils?: boolean[], action?: Action, action_salt?: Field, tiles_salt?: Field[], veils_salt?: Field[] }
 
   constructor(id: number, sk: Secret_Key, pks: Public_Key[]) {
@@ -29,16 +23,16 @@ export class zklib {
     this.all_states = Array(4);
   }
 
-  async createDeploys(agents: number[]): Promise<{ proof: Proof; }> {
+  async createDeploys(agents: number[]): Promise<{ proof: ProofData; }> {
     const board_salt = random_Field();
     const inputs = { player: this.own_seat, agents, board_salt };
     const result = await generate_proof(circuits['initial_deploys'], inputs);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt }
-    this.all_states[this.own_seat] = result.payload.publicInputs[1];
+    this.all_states[this.own_seat] = result.payload.publicInputs[1]!; // XXX
     return { proof: result.payload };
   };
 
-  async createQueries(mover: number): Promise<{ proof: Proof[]; }> {
+  async createQueries(mover: number): Promise<{ proof: ProofData[]; }> {
     let proofs = [];
     if (this.own_state.board_used === undefined) {
       throw Error("Board state undefined");
@@ -61,11 +55,11 @@ export class zklib {
         selectors: compute_selectors(this.round, this.own_seat, tile_index),
         params,
         key_set,
-        entropy: Array.from(Array(1289), random_bool)
+        entropy: Array.from(Array(1290), random_bool)
       };
       const result = await generate_proof(circuits['offline_queries'], inputs);
       proofs.push(result.payload);
-      postMessage("Individual query computed");
+      console.log("Individual query computed", Number(new Date()));
     }
     const inputs = {
       board_used: this.own_state.board_used,
@@ -78,7 +72,7 @@ export class zklib {
     return { proof: proofs };
   };
 
-  async createAnswers(queries: Proof[][], action: Action): Promise<{ proof: Proof[]; }> {
+  async createAnswers(queries: ProofData[][], action: Action): Promise<{ proof: ProofData[]; }> {
     let proofs = [];
     for (let player_index = 0; player_index < 2; player_index++) {
 
@@ -107,7 +101,7 @@ export class zklib {
         params: ourKeys.params,
         decryption_key: this.secret_key,
         selectors: Array.from(Array(16), (_, i) => compute_selectors(this.round, player_index, i)),
-        queries: playerQuery.slice(0, -1).map(({ public_inputs }) => public_inputs.slice(-9))
+        queries: playerQuery.slice(0, -1).map(({ publicInputs }) => publicInputs.slice(-9))
       };
       this.temp_values.action = action;
       this.temp_values.action_salt = inputs.action_salt;
@@ -118,8 +112,8 @@ export class zklib {
     return { proof: proofs };
   };
 
-  async createUpdates(answers: Proof, mover: number): Promise<{ proof: Proof; detected?: number; }> {
-    const responses = answers.public_inputs.slice(-32);
+  async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; detected?: number; }> {
+    const responses = answers.publicInputs.slice(-32);
     const moverKeys = this.public_keys[mover]
     if (moverKeys === undefined) {
       throw Error("Mover keys undefined")
@@ -142,7 +136,7 @@ export class zklib {
     return { proof: result.payload, detected: result.private_outputs.informed_detect }
   };
 
-  async createReports(reports: Proof[]): Promise<{ proof: Proof; impacted: Boolean; }> {
+  async createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: Boolean; }> {
     const action = this.temp_values.action
     if (action === undefined) {
       throw Error("Action is undefiend")
@@ -161,7 +155,7 @@ export class zklib {
       action_salt: this.temp_values.action_salt,
       params,
       decryption_key: this.secret_key,
-      hit_reports: reports.map(({ public_inputs }) => public_inputs.slice(-9))
+      hit_reports: reports.map(({ publicInputs }) => publicInputs.slice(-9))
     };
     const result = await generate_proof(circuits['reports_updates'], inputs);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
@@ -171,8 +165,8 @@ export class zklib {
     return { proof: result.payload, impacted }
   };
 
-  verifyDeploys(deploys: Proof[]) { };
-  verifyForeign(queries: Proof[][], answers: Proof[], updates: Proof[], reports: Proof) { };
+  verifyDeploys(deploys: ProofData[]) { };
+  verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData) { };
 };
 
 function compute_selectors(round: number, player: number, tile: number) {
