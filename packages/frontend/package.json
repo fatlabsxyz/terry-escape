@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "hasInstallScript": true,
   "scripts": {
     "buildjs": "node build.js",
     "build": "esbuild src/script.ts --bundle --outfile=dist/bundle.js --format=esm --platform=browser --sourcemap",
