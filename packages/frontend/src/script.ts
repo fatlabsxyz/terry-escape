@@ -1,4 +1,4 @@
-import { connect, getNewToken } from 'client/init';
+import { connect, getNewToken } from 'client';
 
 interface Agent {
     id: number;
