@@ -35,23 +35,22 @@ export class zklib {
 		const result = await generate_proof(circuits['initial_deploys'], inputs);
 		this.own_state = { board_used: result.private_outputs.computed_board, board_salt }
 		this.all_states[this.own_seat] = result.payload.publicInputs[1];
-		console.log(result.returnValue);
 		return { proof: result.payload };
 	};
 	
 	async createQueries(mover: number) : { proof: Proof[] } {
 		let proofs = [];
-		const tiles_used = this.own_state.board_used.map(tile => (tile != 1));
+		const tiles = this.own_state.board_used.map(tile => (tile != 1));
 		this.temp_values.tiles_salt = Array.from(Array(16), random_Field);
-		this.temp_values.veils_used = Array.from(Array(16), random_bool);
+		this.temp_values.veils = Array.from(Array(16), random_bool);
 		this.temp_values.veils_salt = Array.from(Array(16), random_Field);
 		for (let tile_index = 0; tile_index < 16; tile_index++) {
 			let inputs = {
-				tile_used: tiles_used[tile_index],
+				tile_used: tiles[tile_index],
 				tile_salt: this.temp_values.tiles_salt[tile_index],
-				veil_used: this.temp_values.veils_used[tile_index],
+				veil_used: this.temp_values.veils[tile_index],
 				veil_salt: this.temp_values.veils_salt[tile_index],
-				selectors: compute_selectors(this.round, this.own_seat),
+				selectors: compute_selectors(this.round, this.own_seat, tile_index),
 				params: this.public_keys[mover].params,
 				key_set: this.public_keys[mover].key_set,
 				entropy: Array.from(Array(1289), random_bool)
@@ -75,7 +74,6 @@ export class zklib {
 		let proofs = [];
 		for (let player_index = 0; player_index < 2; player_index++) {
 			if (player_index == this.own_seat) { queries.splice(player_index, 0, {}); continue; }
-			debugger;
 			const inputs = {
 				board_used: this.own_state.board_used,
 				board_salt: this.own_state.board_salt,
@@ -85,7 +83,7 @@ export class zklib {
 				action_salt: random_Field(),
 				params: this.public_keys[this.own_seat].params,
 				decryption_key: this.secret_key,
-				selectors: compute_selectors(this.round, player_index),
+				selectors: Array.from(Array(16), (_,i) => compute_selectors(this.round, player_index, i)),
 				queries: queries[player_index].proof.slice(0,-1).map(proof => proof.publicInputs.slice(-9))
 			};
 			this.temp_values.action = action;
@@ -98,14 +96,14 @@ export class zklib {
 	};
 
 	async createUpdates(answers: Proof, mover: number) : { proof: Proof, detected: number } {
-		const responses = answers.payload.publicInputs.slice(-32);
+		const responses = answers.publicInputs.slice(-32);
 		const inputs = {
 			board_used: this.own_state.board_used,
 			old_board_salt: this.own_state.board_salt,
 			new_board_salt: random_Field(),
 			params: this.public_keys[mover].params,
 			key_set: this.public_keys[mover].key_set,
-			entropy: Array.from(Array(1289), random_bool),
+			entropy: Array.from(Array(1290), random_bool),
 			veils_used: this.temp_values.veils,
 			veils_salt: this.temp_values.veils_salt,
 			responses,
@@ -117,7 +115,6 @@ export class zklib {
 	};
 
 	async createReports(reports: Proof[]) : { proof: Proof, impacted: boolean } {
-		const hit_report = reports.payload.publicInputs.slice(-9);
 		const inputs = {
 			board_used: this.own_state.board_used,
 			old_board_salt: this.own_state.board_salt,
@@ -128,18 +125,18 @@ export class zklib {
 			action_salt: this.temp_values.action_salt,
 			params: this.public_keys[this.own_seat].params,
 			decryption_key: this.secret_key,
-			hit_reports: reports.map(payload => payload.publicInputs.slice(-9))
+			hit_reports: reports.map(({publicInputs}) => publicInputs.slice(-9))
 		};
 		const result = await generate_proof(circuits['reports_updates'], inputs);
 		this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
 		// (note: verify reports before publishing)
-		return { proof: result.payload, impacted: result.private_output.informed_detect }
+		return { proof: result.payload, impacted: result.private_outputs.informed_detect }
 	};
 	
 	verifyDeploys(deploys: Proof[]) {};
 	verifyForeign(queries: Proof[][], answers: Proof[], updates: Proof[], reports: Proof) : boolean {};
 };
 
-function compute_selectors(round, player) {
+function compute_selectors(round, player, tile) {
 	return [[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0]];
 }

@@ -50,7 +50,6 @@ export async function generate_proof(circuit, inputs) {
 		if (name == "oracle_detect") { informed_detect = inputs[0]; }
 		return [];
 	};
-
 	const { witness, returnValue } = await circuit.noir.execute(inputs, oracle_handler);
 	const payload = await circuit.backend.generateProof(witness);
 	const private_outputs = { computed_board, informed_detect };

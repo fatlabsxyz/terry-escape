@@ -9,6 +9,7 @@ import { key_set as brenda_key_set } from '../../example-data/keypairs/brenda/en
 const brenda_public_key = { key_set: brenda_key_set, params: brenda_params }
 
 import { decryption_key } from '../../example-data/keypairs/alicia/decryption_key.json';
+decryption_key.push("0");
 
 const zk = new zklib(0, decryption_key, [alicia_public_key, brenda_public_key]);
 
@@ -20,10 +21,10 @@ addEventListener('message', async event => {
 		zk.verifyDeploys([event.data.payload]);
 	}
 	if (event.data.stage == 'queries') {
-		const action = { reason: 14, target: 15, trap: true };
+		const action = { reason: 10, target: 9, trap: true };
 		postMessage({ stage: 'answers', payload: await zk.createAnswers([event.data.payload], action) });
 	}
 	if (event.data.stage == 'updates') {
-		postMessage({ stage: 'reports', payload: undefined /*await zk.createReports([event.data.payload])*/ });
+		postMessage({ stage: 'reports', payload: (await zk.createReports(Array(3).fill(event.data.payload))).proof });
 	}
 });

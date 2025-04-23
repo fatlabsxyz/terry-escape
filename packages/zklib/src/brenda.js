@@ -9,6 +9,7 @@ import { key_set as brenda_key_set } from '../../example-data/keypairs/brenda/en
 const brenda_public_key = { key_set: brenda_key_set, params: brenda_params }
 
 import { decryption_key } from '../../example-data/keypairs/brenda/decryption_key.json';
+decryption_key.push("0");
 
 const zk = new zklib(1, decryption_key, [alicia_public_key, brenda_public_key]);
 
@@ -22,7 +23,7 @@ addEventListener('message', async event => {
 		postMessage({ stage: 'queries', payload: await zk.createQueries(0) });
 	}
 	if (event.data.stage == 'answers') {
-		postMessage({ stage: 'updates', payload: await zk.createUpdates(event.data.payload.proof, 0) });
+		postMessage({ stage: 'updates', payload: (await zk.createUpdates(event.data.payload.proof[0], 0)).proof });
 	}
 	if (event.data.stage == 'reports') {
 		// Vefify reports
