@@ -26,11 +26,7 @@ export async function initClient(name: string, url: string, gameId: string) {
 
 export async function getNewToken(name: string, url: string) { 
   const token = await getAuthToken({name, url});
-    if (token) {
-      return token;
-    } else {
-      return null;
-    }
+      return token || null;
 }
 
 export async function connect(token: string, url: string, gameId: string) {
