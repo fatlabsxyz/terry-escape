@@ -13,7 +13,7 @@ export class zklib {
 	round: number;
 	own_seat: number;
 	own_state!: State;
-	all_states: Field[];
+	all_states!: Field[];
 	secret_key: Secret_Key;
 	public_keys: Public_Key[];
 	temp_proofs: { queries?: Proof[], answers?: Proof[] }
