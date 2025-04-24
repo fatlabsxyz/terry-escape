@@ -12,6 +12,8 @@ import { nanoid } from "nanoid";
 import { AuthRequestData } from "./types.js";
 // import { relayerRouter } from "./routes/index.js";
 
+export const FRONTEND_URLS = ["http://localhost:8000"];
+
 const SECRET_KEY = 'test-key';
 
 // Initialize the express app
@@ -20,9 +22,8 @@ const app: express.Express = express();
 // Apply middleware and routes
 
 // CORS middleware
-const allowedOrigins = ['http://localhost:8000'];
 const options: cors.CorsOptions = {
-  origin: allowedOrigins
+  origin: FRONTEND_URLS
 };
 app.use(cors(options));
 

@@ -5,7 +5,7 @@ export {
 export {
   connect,
   getNewToken,
-} from "./init.js"
+} from "./connect.js"
 
 export {
   type ClientSockets,

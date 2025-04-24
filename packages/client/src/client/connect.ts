@@ -2,6 +2,7 @@ import { GameClient } from "./game/gameclient.js";
 import { SocketManager } from "./sockets/socketManager.js";
 import { getAuthToken } from "./../utils.js";
 
+export const FRONTEND_URLS = ['http://localhost:8000'];
 
 export async function getNewToken(name: string, url: string) { 
   const token = await getAuthToken({name, url});
