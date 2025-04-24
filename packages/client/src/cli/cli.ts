@@ -1,25 +1,31 @@
-import { GameClient } from "./game/gameclient.js";
-import { SocketManager } from "./sockets/socketManager.js";
+import { GameClient } from "./../client/game/gameclient.js";
+import { SocketManager } from "./../client/sockets/socketManager.js";
 import { getAuthToken, AuthRequestData } from "./../utils.js";
+
 
 const args = process.argv.splice(2)
 
-function passTime(ms: number): Promise<void> {
+export function passTime(ms: number): Promise<void> {
   return new Promise((res, rej) => {
     setTimeout(res, ms)
   })
 }
 
-async function initClient() {
+export async function initCli() {
+
   const url = args[0]!;
-  const data: AuthRequestData = { name: args[1]!, url: url };
+  const name = args[1]!;
+  const gameId = args[2]!;
+
+
+  const data: AuthRequestData = { name: name, url: url };
   const newToken = await getAuthToken(data);
 
   if (newToken) {
     const sockets = new SocketManager({
       serverUrl: url,
       token: newToken,
-      gameId: args[2]!,
+      gameId: gameId, 
     });
 
     await sockets.socketsReady();
@@ -32,8 +38,7 @@ async function initClient() {
   } 
 }
 
-initClient().catch((e) => {
+initCli().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

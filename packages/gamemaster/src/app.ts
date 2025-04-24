@@ -1,4 +1,5 @@
 import bodyParser from "body-parser";
+import cors from "cors";
 import express, { NextFunction, Request, Response } from "express";
 import {
   errorHandlerMiddleware,
@@ -11,12 +12,20 @@ import { nanoid } from "nanoid";
 import { AuthRequestData } from "./types.js";
 // import { relayerRouter } from "./routes/index.js";
 
+export const FRONTEND_URLS = ["http://localhost:8000"];
+
 const SECRET_KEY = 'test-key';
 
 // Initialize the express app
 const app: express.Express = express();
 
 // Apply middleware and routes
+
+// CORS middleware
+const options: cors.CorsOptions = {
+  origin: FRONTEND_URLS
+};
+app.use(cors(options));
 
 // json parser
 app.use(bodyParser.json());

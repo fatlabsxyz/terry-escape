@@ -7,8 +7,8 @@
       "types": "./dist/client/index.d.ts"
     },
     "./cli": {
-      "import": "./dist/client/cli.js",
-      "types": "./dist/client/cli.d.ts"
+      "import": "./dist/cli/index.js",
+      "types": "./dist/cli/index.d.ts"
     },
     "./types": {
       "import": "./dist/types/index.js",

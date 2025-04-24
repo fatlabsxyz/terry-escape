@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "include": ["src/**/*", "src/.*.js"],
-  "exclude": ["node_modules", "dist"],
+  "exclude": ["dist"],
   "compilerOptions": {
     "declaration": false,
     "lib": ["dom", "es2022"]

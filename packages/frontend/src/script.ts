@@ -1,3 +1,5 @@
+import { connect, getNewToken } from 'client';
+
 interface Agent {
     id: number;
     row: number;
@@ -9,6 +11,52 @@ type ActionMode = "move" | "trap" | null;
 interface CellPosition {
     row: number;
     col: number;
+}
+
+// Connection logic
+
+function getCookie(name: string): string | null {
+  console.log(`getting ${name} cookie`)
+
+  const nameEQ = `${name}=`;
+  const cookies = document.cookie.split(';');
+  for (let cookie of cookies) {
+    cookie = cookie.trim();
+    if (cookie.startsWith(nameEQ)) {
+      return decodeURIComponent(cookie.substring(nameEQ.length));
+    }
+  }
+  return null;
+}
+
+function setCookie(name: string, value: string): void {
+  console.log(`setting ${name} cookie`);
+
+  const date = new Date();
+  date.setTime(date.getTime() + 60 * 60 * 1000); // 1 Hour expiration
+  let expires = `; expires=${date.toUTCString()}`;
+
+  document.cookie = `${name}=${encodeURIComponent(value)}${expires}; path=/; SameSite=Strict`;
+}
+
+try {
+    const token = getCookie("auth");
+    const url = "http://0.0.0.0:2448";
+
+    if (token != null) {
+        connect(token, url, "0");
+    } else {
+        const newToken = await getNewToken("gordo-web", url);
+        if (newToken) {
+            setCookie("auth", newToken);
+            connect(newToken, url, "0");
+        } else {
+            console.error("Could not get new auth token")
+        }
+    }
+
+} catch (e) {
+    console.error("Client failed to initialize");
 }
 
 // Main game logic

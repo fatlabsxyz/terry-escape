@@ -1,2 +1,5 @@
 node_modules/
 dist/
+
+public/out.js
+public/out.js.map
