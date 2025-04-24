@@ -3,11 +3,13 @@ import { Server, Socket } from 'socket.io';
 import { addGameNamespace } from './sockets/game.js';
 import { addLobby } from './sockets/lobby.js';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import { FRONTEND_URLS } from  './app.js'
+
 
 export function addIoSockets(server: HttpServer): Server {
   let io = new Server(server, {
       cors: {
-        origin: "http://localhost:8000",
+        origin: FRONTEND_URLS[0],
         methods: ["GET", "POST"]
       }
     })
