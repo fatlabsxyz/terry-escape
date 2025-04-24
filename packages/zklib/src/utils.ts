@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 import {
   answers_updates_json,
   blinded_answers_json,
