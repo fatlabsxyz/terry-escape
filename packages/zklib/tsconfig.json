@@ -3,7 +3,6 @@
   "include": ["src/**/*", "src/.*.js"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
-    "declaration": true,
-    "lib": ["dom"]
+    "declaration": true
   }
 }

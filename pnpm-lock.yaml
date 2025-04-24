@@ -124,8 +124,14 @@ importers:
       '@aztec/bb.js':
         specifier: ^0.76.4
         version: 0.76.4
+      '@noir-lang/acvm_js':
+        specifier: ^1.0.0-beta.3
+        version: 1.0.0-beta.3
       '@noir-lang/noir_js':
-        specifier: ^1.0.0-beta.1
+        specifier: ^1.0.0-beta.3
+        version: 1.0.0-beta.3
+      '@noir-lang/noirc_abi':
+        specifier: ^1.0.0-beta.3
         version: 1.0.0-beta.3
       noir:
         specifier: workspace:*
