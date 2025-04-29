@@ -5,10 +5,24 @@ import { getAuthToken, AuthRequestData } from "./../utils.js";
 
 import { zklib } from "zklib";
 
-type Field = string;
-type BigNum = Field[];
-type Secret_Key = BigNum;
-type Public_Key = { key_set: BigNum[], params: any };
+import alicia_params from './example-data/keypairs/alicia/params.json' with { type: "json" };
+import alicia_keys from './example-data/keypairs/alicia/encryption_key.json' with { type: "json" };
+
+const alicia_key_set = alicia_keys.key_set;
+const alicia_public_key = { key_set: alicia_key_set , params: alicia_params }
+
+import brenda_params from './example-data/keypairs/brenda/params.json' with { type: "json" };
+import brenda_keys from './example-data/keypairs/brenda/encryption_key.json' with { type: "json" };
+
+
+const brenda_key_set = brenda_keys.key_set;
+const brenda_public_key = { key_set: brenda_key_set, params: brenda_params }
+
+import brenda_decryption_keys from './example-data/keypairs/brenda/decryption_key.json' with { type: "json" };
+import alicia_decryption_keys from './example-data/keypairs/alicia/decryption_key.json' with { type: "json" };
+
+const alicia_decryption_key = alicia_decryption_keys.decryption_key;
+const brenda_decryption_key = brenda_decryption_keys.decryption_key;
 
 const args = process.argv.splice(2)
 
@@ -18,13 +32,38 @@ export function passTime(ms: number): Promise<void> {
   })
 }
 
-export function testZkLib() {
-  const privkey: Secret_Key = ["test", "test"];
-  const pubkeyNum: BigNum = ["testpub", "testpub"];
-  const pubkey: Public_Key = { key_set: [pubkeyNum], params: null };
-  const zklibber: zklib = new zklib(0, privkey, [pubkey]);
+export async function testZkLib() {
 
-  console.log(zklibber);
+  /// ALICIA (ACTIVE PLAYER)
+  const zkAlicia = new zklib(0, [...alicia_decryption_key, "0"], [alicia_public_key, brenda_public_key]);
+
+  /// BRENDA
+  const zkBrenda = new zklib(1, [...brenda_decryption_key, "0"], [alicia_public_key, brenda_public_key]);
+
+
+  const aliciaDeploy = await zkAlicia.createDeploys([0, 0, 0, 4]);
+  const brendaDeploy = await zkBrenda.createDeploys([1, 1, 1, 1]);
+
+  zkAlicia.verifyDeploys([brendaDeploy.proof]);
+  zkBrenda.verifyDeploys([aliciaDeploy.proof]);
+  console.log("verified deploys")
+
+  // brenda queries alicia
+  const { proof: queryProof } = await zkBrenda.createQueries(0);
+  console.log("queryProof", queryProof)
+
+  // alicia creates answers using queries
+  const action = { reason: 10, target: 9, trap: true };
+  const { proof: answerProof } = await zkAlicia.createAnswers([queryProof], action);
+  console.log("answerProof", answerProof)
+  
+  // brenda updates her state with potential collsion
+  const { proof: updateProof } = await zkBrenda.createUpdates(answerProof[0]!, 0);
+  console.log("updateProof", updateProof)
+
+  // alicia creates proofs that she used everyones input
+  const { proof: reportProof } = await zkAlicia.createReports([updateProof, updateProof, updateProof]);
+  console.log("reportProof", reportProof)
 }
 
 export async function initCli() {
