@@ -3,26 +3,23 @@ import { GameClient } from "./../client/game/gameclient.js";
 import { SocketManager } from "./../client/sockets/socketManager.js";
 import { getAuthToken, AuthRequestData } from "./../utils.js";
 
+
+// -- ZKLIB imports -- //
 import { zklib } from "zklib";
-
-import alicia_params from './example-data/keypairs/alicia/params.json' with { type: "json" };
-import alicia_keys from './example-data/keypairs/alicia/encryption_key.json' with { type: "json" };
-
+import alicia_params from './../example-data/keypairs/alicia/params.json' with { type: "json" };
+import alicia_keys from './../example-data/keypairs/alicia/encryption_key.json' with { type: "json" };
 const alicia_key_set = alicia_keys.key_set;
 const alicia_public_key = { key_set: alicia_key_set , params: alicia_params }
-
-import brenda_params from './example-data/keypairs/brenda/params.json' with { type: "json" };
-import brenda_keys from './example-data/keypairs/brenda/encryption_key.json' with { type: "json" };
-
-
+import brenda_params from './../example-data/keypairs/brenda/params.json' with { type: "json" };
+import brenda_keys from './../example-data/keypairs/brenda/encryption_key.json' with { type: "json" };
 const brenda_key_set = brenda_keys.key_set;
 const brenda_public_key = { key_set: brenda_key_set, params: brenda_params }
-
-import brenda_decryption_keys from './example-data/keypairs/brenda/decryption_key.json' with { type: "json" };
-import alicia_decryption_keys from './example-data/keypairs/alicia/decryption_key.json' with { type: "json" };
-
+import brenda_decryption_keys from './../example-data/keypairs/brenda/decryption_key.json' with { type: "json" };
+import alicia_decryption_keys from './../example-data/keypairs/alicia/decryption_key.json' with { type: "json" };
 const alicia_decryption_key = alicia_decryption_keys.decryption_key;
 const brenda_decryption_key = brenda_decryption_keys.decryption_key;
+
+// -- that's all thanks -- //
 
 const args = process.argv.splice(2)
 
@@ -36,10 +33,8 @@ export async function testZkLib() {
 
   /// ALICIA (ACTIVE PLAYER)
   const zkAlicia = new zklib(0, [...alicia_decryption_key, "0"], [alicia_public_key, brenda_public_key]);
-
-  /// BRENDA
+  /// BRENDA (OPP)
   const zkBrenda = new zklib(1, [...brenda_decryption_key, "0"], [alicia_public_key, brenda_public_key]);
-
 
   const aliciaDeploy = await zkAlicia.createDeploys([0, 0, 0, 4]);
   const brendaDeploy = await zkBrenda.createDeploys([1, 1, 1, 1]);
