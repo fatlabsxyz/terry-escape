@@ -43,19 +43,30 @@ import initNoirC from "@noir-lang/noirc_abi";
 
 /****************/
 
+import { abiEncode, Abi } from '@noir-lang/noirc_abi';
 import { ProofData, UltraHonkBackend } from '@aztec/bb.js';
 import { Noir } from '@noir-lang/noir_js';
 
 interface Circuit {
+  abi: Abi,
   noir: Noir,
   backend: UltraHonkBackend
 }
 
-export async function init_circuits() {
+type CircuitType = "initial_deploys"
+    | "offline_queries"
+    | "combine_queries"
+    | "blinded_answers"
+    | "answers_updates"
+    | "reports_updates";
+
+
+export function init_circuits() : Record<CircuitType, Circuit> {
   const from_json = function(json: Artifact) {
     const { bytecode, abi } = json;
     return {
-      noir: new Noir({ bytecode, abi: abi as any }),
+      abi: abi as Abi,
+      noir: new Noir({ bytecode, abi: abi as Abi }),
       backend: new UltraHonkBackend(bytecode, { threads: 8 })
     };
   };
@@ -71,6 +82,8 @@ export async function init_circuits() {
 };
 
 export async function generate_proof(circuit: Circuit, inputs: any) {
+  const mockProof = true;
+  
   let computed_board;
   let informed_detect;
   const oracle_handler = async (name: string, _inputs: any) => {
@@ -79,7 +92,17 @@ export async function generate_proof(circuit: Circuit, inputs: any) {
     return [];
   };
   const { witness, returnValue } = await circuit.noir.execute(inputs, oracle_handler);
-  const payload = await circuit.backend.generateProof(witness);
+  
+  const publicAbi = {...circuit.abi, parameters: circuit.abi.parameters.filter(p => p.visibility == 'public') }
+  let publicInputs = [...abiEncode(publicAbi, inputs).values()];
+  publicInputs = publicInputs.concat([returnValue].flat(3).map(v => "0x"+BigInt(v as string).toString(16).padStart(64,'0')));
+  let payload : ProofData = { proof: new Uint8Array(), publicInputs }
+  
+  if (!mockProof) {
+    payload = await circuit.backend.generateProof(witness);
+    console.assert(JSON.stringify(payload.publicInputs) == JSON.stringify(publicInputs));
+  }
+  
   const private_outputs = { computed_board, informed_detect };
   return { payload, private_outputs, returnValue };
 }
