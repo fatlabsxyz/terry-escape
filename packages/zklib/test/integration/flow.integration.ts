@@ -14,10 +14,10 @@ import { decryption_key as brenda_decryption_key } from '../../example-data/keyp
 import { decryption_key as alicia_decryption_key } from '../../example-data/keypairs/alicia/decryption_key.json';
 
 /// ALICIA (ACTIVE PLAYER)
-const zkAlicia = new zklib(0, [...alicia_decryption_key, "0"], [alicia_public_key, brenda_public_key]);
+const zkAlicia = new zklib(0, [...alicia_decryption_key, "0"], [alicia_public_key, brenda_public_key], { mockProof: true });
 
 /// BRENDA
-const zkBrenda = new zklib(1, [...brenda_decryption_key, "0"], [alicia_public_key, brenda_public_key]);
+const zkBrenda = new zklib(1, [...brenda_decryption_key, "0"], [alicia_public_key, brenda_public_key], { mockProof: true });
 
 async function flow() {
 
