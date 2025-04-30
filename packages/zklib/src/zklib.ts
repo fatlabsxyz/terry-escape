@@ -12,8 +12,9 @@ export class zklib {
   public_keys: Public_Key[];
   temp_proofs: { queries?: ProofData[], answers?: ProofData[] }
   temp_values: { veils?: boolean[], action?: Action, action_salt?: Field, tiles_salt?: Field[], veils_salt?: Field[] }
+  options: { mockProof: boolean };
 
-  constructor(id: number, sk: Secret_Key, pks: Public_Key[]) {
+  constructor(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean } = { mockProof: false }) {
     this.round = 0;
     this.own_seat = id;
     this.secret_key = sk;
@@ -21,12 +22,13 @@ export class zklib {
     this.temp_proofs = {};
     this.temp_values = {};
     this.all_states = Array(4);
+    this.options = options;
   }
 
   async createDeploys(agents: number[]): Promise<{ proof: ProofData; }> {
     const board_salt = random_Field();
     const inputs = { player: this.own_seat, agents, board_salt };
-    const result = await generate_proof(circuits['initial_deploys'], inputs);
+    const result = await generate_proof(circuits['initial_deploys'], inputs, this.options);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt }
     this.all_states[this.own_seat] = result.payload.publicInputs[1]!; // XXX
     return { proof: result.payload };
@@ -57,7 +59,7 @@ export class zklib {
         key_set,
         entropy: Array.from(Array(1290), random_bool)
       };
-      const result = await generate_proof(circuits['offline_queries'], inputs);
+      const result = await generate_proof(circuits['offline_queries'], inputs, this.options);
       proofs.push(result.payload);
       console.log("Individual query computed", Number(new Date()));
     }
@@ -67,7 +69,7 @@ export class zklib {
       tiles_salt: this.temp_values.tiles_salt,
       veil_digests: proofs.map(({ publicInputs }) => publicInputs.slice(-10, -9)[0])
     }
-    const result = await generate_proof(circuits['combine_queries'], inputs);
+    const result = await generate_proof(circuits['combine_queries'], inputs, this.options);
     proofs.push(result.payload);
     return { proof: proofs };
   };
@@ -105,7 +107,7 @@ export class zklib {
       };
       this.temp_values.action = action;
       this.temp_values.action_salt = inputs.action_salt;
-      const result = await generate_proof(circuits['blinded_answers'], inputs);
+      const result = await generate_proof(circuits['blinded_answers'], inputs, this.options);
       proofs.push(result.payload);
     }
     // (note: verify queries before publishing)
@@ -130,7 +132,7 @@ export class zklib {
       veils_salt: this.temp_values.veils_salt,
       responses,
     };
-    const result = await generate_proof(circuits['answers_updates'], inputs);
+    const result = await generate_proof(circuits['answers_updates'], inputs, this.options);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
     // (note: verify answers before publishing)
     return { proof: result.payload, detected: result.private_outputs.informed_detect }
@@ -157,7 +159,7 @@ export class zklib {
       decryption_key: this.secret_key,
       hit_reports: reports.map(({ publicInputs }) => publicInputs.slice(-9))
     };
-    const result = await generate_proof(circuits['reports_updates'], inputs);
+    const result = await generate_proof(circuits['reports_updates'], inputs, this.options);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
     const informed_detect = result.private_outputs.informed_detect;
     const impacted = informed_detect !== undefined;

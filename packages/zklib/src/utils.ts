@@ -81,9 +81,7 @@ export function init_circuits() : Record<CircuitType, Circuit> {
   };
 };
 
-export async function generate_proof(circuit: Circuit, inputs: any) {
-  const mockProof = true;
-  
+export async function generate_proof(circuit: Circuit, inputs: any, options: { mockProof: boolean } = { mockProof: false }) {
   let computed_board;
   let informed_detect;
   const oracle_handler = async (name: string, _inputs: any) => {
@@ -98,7 +96,7 @@ export async function generate_proof(circuit: Circuit, inputs: any) {
   publicInputs = publicInputs.concat([returnValue].flat(3).map(v => "0x"+BigInt(v as string).toString(16).padStart(64,'0')));
   let payload : ProofData = { proof: new Uint8Array(), publicInputs }
   
-  if (!mockProof) {
+  if (!options.mockProof) {
     payload = await circuit.backend.generateProof(witness);
     console.assert(JSON.stringify(payload.publicInputs) == JSON.stringify(publicInputs));
   }
