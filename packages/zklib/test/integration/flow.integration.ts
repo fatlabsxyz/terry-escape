@@ -2,22 +2,12 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { zklib } from "../../src/zklib.js";
 
-import alicia_params from '../../example-data/keypairs/alicia/params.json';
-import { key_set as alicia_key_set } from '../../example-data/keypairs/alicia/encryption_key.json';
-const alicia_public_key = { key_set: alicia_key_set, params: alicia_params }
-
-import brenda_params from '../../example-data/keypairs/brenda/params.json';
-import { key_set as brenda_key_set } from '../../example-data/keypairs/brenda/encryption_key.json';
-const brenda_public_key = { key_set: brenda_key_set, params: brenda_params }
-
-import { decryption_key as brenda_decryption_key } from '../../example-data/keypairs/brenda/decryption_key.json';
-import { decryption_key as alicia_decryption_key } from '../../example-data/keypairs/alicia/decryption_key.json';
+import { publicKeySample, secretKeySample } from '../../../keypairs/src/data/index.js';
 
 /// ALICIA (ACTIVE PLAYER)
-const zkAlicia = new zklib(0, [...alicia_decryption_key, "0"], [alicia_public_key, brenda_public_key], { mockProof: true });
-
+const zkAlicia = new zklib(0, secretKeySample(0), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
 /// BRENDA
-const zkBrenda = new zklib(1, [...brenda_decryption_key, "0"], [alicia_public_key, brenda_public_key], { mockProof: true });
+const zkBrenda = new zklib(1, secretKeySample(1), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
 
 async function flow() {
 
