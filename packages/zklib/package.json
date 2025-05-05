@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "noir": "workspace:*",
+    "keypairs": "workspace:*",
     "@aztec/bb.js": "^0.76.4",
     "@noir-lang/noir_js": "^1.0.0-beta.3",
     "@noir-lang/acvm_js": "^1.0.0-beta.3",
