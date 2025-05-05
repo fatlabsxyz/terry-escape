@@ -37,22 +37,22 @@ import dk_09 from "./keypair-09/decryption_key.json" with { type: "json" }
 import dk_10 from "./keypair-10/decryption_key.json" with { type: "json" }
 import dk_11 from "./keypair-11/decryption_key.json" with { type: "json" }
 
+import { Public_Key, Secret_Key } from "zklib/types"
+
 export const pks = [ pk_00, pk_01, pk_02, pk_03, pk_04, pk_05, pk_06, pk_07, pk_08, pk_09, pk_10, pk_11 ];
 export const pss = [ ps_00, ps_01, ps_02, ps_03, ps_04, ps_05, ps_06, ps_07, ps_08, ps_09, ps_10, ps_11 ];
 export const dks = [ dk_00, dk_01, dk_02, dk_03, dk_04, dk_05, dk_06, dk_07, dk_08, dk_09, dk_10, dk_11 ];
 
-import { Public_Key, Secret_Key } from '../../../zklib/src/types.js';
+const POOL_SIZE = pks.length;
 
 export function publicKeySample(id: number) : Public_Key {
-  if (id < 12) {
-    return { key_set: pks[id]!, params: pss[id]! }
-  } else { throw Error("key index out of bounds (12)"); }
+  if (! (id < POOL_SIZE)) throw Error(`key index out of bounds (${id} >= ${POOL_SIZE})`);
+  return { key_set: pks[id]!, params: pss[id]! }
 }
 
 export function secretKeySample(id: number) : Secret_Key {
-   if (id < 12) {
-    let dk = dks[id]!;
-    dk.push("0");
-    return dk;
-  } else { throw Error("key index out of bounds (12)"); }
+  if (! (id < POOL_SIZE)) throw Error(`key index out of bounds (${id} >= ${POOL_SIZE})`);
+  const dk = dks[id]!;
+  dk.push("0");
+  return dk;
 }
