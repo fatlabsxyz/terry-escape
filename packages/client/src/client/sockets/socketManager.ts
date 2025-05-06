@@ -1,6 +1,6 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
-import { Player, TurnInfo } from "../../types/game.js";
+import { Player, TurnInfo, UpdatesData } from "../../types/game.js";
 import {
   GameAnswerMsg,
   GameAnswerPayload,
@@ -248,7 +248,9 @@ export class SocketManager extends EventEmitter {
           .values()
           .map(from => [from, activePlayer] as FromTo))
         const loggedMsgs = this.lookLogForUpdates(turn, missingPlayers);
-        loggedMsgs.forEach(msg => updates.set(msg.sender, {proofs: msg.payload.proofs}));
+        loggedMsgs.forEach(msg => updates.set(
+          msg.sender, { proof: msg.payload.proof }
+        ));
         let enough = setEqual(playerSet, new Set(updates.keys()));
         if (!enough) { await passTime(100); } else { break; }
       }

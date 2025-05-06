@@ -1,12 +1,11 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction } from "../../types/game.js";
-import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload, ReceivedUpdate } from "../../types/gameMessages.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, ReportData } from "../../types/game.js";
+import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
-import { IZklib } from 'zklib/types';
+import { IZkLib, ProofData } from 'zklib/types';
 
-import { zklib } from "zklib";
 import alicia_params from './../../example-data/keypairs/alicia/params.json' with { type: "json" };
 import alicia_keys from './../../example-data/keypairs/alicia/encryption_key.json' with { type: "json" };
 const alicia_key_set = alicia_keys.key_set;
@@ -20,9 +19,6 @@ const brenda_key_set = brenda_keys.key_set;
 const brenda_public_key = { key_set: brenda_key_set , params: brenda_params }
 import brenda_decryption_keys from './../../example-data/keypairs/brenda/decryption_key.json' with { type: "json" };
 const brenda_decryption_key = brenda_decryption_keys.decryption_key;
-
-import { ProofData } from '@aztec/bb.js';
-
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -123,14 +119,13 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 export class GameClient {
   readonly log: (...args: any[]) => void;
   readonly token: string;
-  zkplayer: zklib = new zklib(0, ["placeholder"], [{key_set: [["placeholder"]], params:["placeholder"]}]);
 
   sockets: SocketManager;
   turnsData: TurnData[];
   turnData: TurnData;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
 
-  constructor(token: string, sockets: SocketManager, readonly zklib: IZklib) {
+  constructor(token: string, sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
@@ -153,8 +148,8 @@ export class GameClient {
     return this.sockets.game!.id!
   }
 
-  async play(idk: number) {
-    await this.setupGame(idk);
+  async play() {
+    await this.setupGame();
 
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
@@ -200,20 +195,25 @@ export class GameClient {
     }
   }
 
+  get activePlayerIndex() {
+    return this.round.indexOf(this.activePlayer);
+  }
+
+  get playerIndex() {
+    return this.round.indexOf(this.playerId);
+  }
+
   gameLog(...args: any[]) {
     this.log(this.activeStatus, ...args);
   }
 
-  async setupGame(idk: number) {
+  async setupGame() {
     this.log("Setting up game...")
     // query players/turn order
+    
     // setup pieces
+
     // zk setup
-    if (idk = 1){
-      this.zkplayer = new zklib(0, [...alicia_decryption_key, "0"], [alicia_public_key, brenda_public_key]);
-    } else if(idk = 0) {
-      this.zkplayer = new zklib(0, [...brenda_decryption_key, "0"], [alicia_public_key, brenda_public_key]);
-    }
     // emit ready (or wrap setup within emitAck from master)
   }
 
@@ -239,7 +239,7 @@ export class GameClient {
     this.gameLog("NO MORE ANSWERS TO BROADCAST", stringify(this.turnData.answers));
 
     // STEP 6
-    // wait for udpates
+    // wait for updates
     await this.waitForUpdates(otherPlayers);
 
     // STEP 7
@@ -292,9 +292,9 @@ export class GameClient {
                           NON-ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
   async getQuery(): Promise<GameQueryPayload> {
-    // TODO how to call zklib to generate proof of your board
+    // call zklib to generate proof of your board
      
-    const query = await this.zkplayer.createQueries(0);  
+    const query = await this.zklib.createQueries(this.activePlayerIndex);  
     // const payload = {
     //   mockQueryData: {
     //     token: this.token,
@@ -309,30 +309,19 @@ export class GameClient {
     this.gameLog("STARTING WAIT FOR ANSWER");
     // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
     const answers = await this.sockets.waitForAnswer(this.turn, this.activePlayer, players);
+    // to: Player
+    // proofs: ProofData[];
     this.gameLog("Returned answer", stringify(answers))
-    this.turnData.answers = answers
+    this.turnData.answers = {answers}
   }
 
   async createUpdate(): Promise<GameUpdatePayload> {
- 
-    //TODO The type for GameUpdatePayload is kind of undefined at the moment
-    let map: ReceivedUpdate = new Map();
-    let i: number = 0;
-    this.turnData.answers.forEach( async (answer, player) => {
-      // check through each player's answer and create a specific update
-      const {proof, detected} = await this.zkplayer.createUpdates(answer.proofs.at(i)!, Number(player));
-      map.set(proof, detected);
-      i++;
-    } )
+    const answer = this.turnData.answers.get(this.playerId);
+    const data: UpdatesData = await this.zklib.createUpdates(answer!.proofs, this.activePlayerIndex);
     
-    // const payload = {
-    //   mockUpdateData: {
-    //     token: this.token,
-    //     turn: `Mock-U${this.turn}`,
-    //   }
-    // }
+    this.turnData.updates.set(this.playerId, data);
     
-    return { proofs:[] ,updates: map};
+    return {proof: data.proof};
   }
 
   async waitForReport() {
@@ -359,26 +348,14 @@ export class GameClient {
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
-    const otherPlayers = this.round.filter(x => x !== this.playerId);
     const payloads: GameAnswerPayload[] = [];
 
-    const answers = await this.zkplayer.createAnswers(Object.values(this.turnData.queries), this.turnData.action);  
+    const answers = await this.zklib.createAnswers(Object.values(this.turnData.queries), this.turnData.action);  
     this.turnData.queries.forEach((_, player) => {
+      payloads.push({to: player, proofs: answers.proof});
       this.turnData.answers.set(player, { proofs: answers.proof });
     });
 
-    // for (const player of otherPlayers) {
-    //   // TODO:
-    //   // take queries and create answer
-    //   const queries = this.turnData.queries.get(player);
-    //
-    //   // const payload = {
-    //   //   from: this.token,
-    //   //   to: player,
-    //   //   data: `Mock-A${this.contextTurnInfo.turn}`,
-    //   // }
-    //   // payloads.push(payload);
-    // }
     return payloads
   }
 
@@ -393,16 +370,15 @@ export class GameClient {
   }
 
   async createReport(): Promise<GameReportPayload> {
-    // TODO:
-    // report with proof that all queries were used.
-    const reports: GameReportPayload = await this.zkplayer.createReports(Object.values(this.turnData.updates));
+
+    const nonActivePlayerUpdates = Object.entries(this.turnData.updates)
+      .filter(([x,_]) => x !== this.activePlayer).map(([_,y]) => y );
     
-    return reports;
-      // data: {
-      //   token: this.token,
-      //   turn: `Mock-R${this.contextTurnInfo.turn}`,
-      //   proof: reports.proof, 
-      // }
+    const report: ReportData = await this.zklib.createReports(nonActivePlayerUpdates);
+    
+    this.turnData.report = report;
+
+    return { proof: report.proof };
   }
 
   /*///////////////////////////////////////////////////////////////

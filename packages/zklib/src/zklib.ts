@@ -1,9 +1,10 @@
 import { ProofData } from '@aztec/bb.js';
 import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
+import { Collision } from './zklib.interface.js';
 import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, verification_failed_halt } from './utils.js';
 const circuits = await init_circuits();
 
-export class zklib {
+export class ZkLib {
   round: number;
   own_seat: number;
   own_state!: State;
@@ -114,7 +115,7 @@ export class zklib {
     return { proof: proofs };
   };
 
-  async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; detected?: number; }> {
+  async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; }> {
     const responses = answers.publicInputs.slice(-32);
     const moverKeys = this.public_keys[mover]
     if (moverKeys === undefined) {
@@ -135,7 +136,8 @@ export class zklib {
     const result = await generate_proof(circuits['answers_updates'], inputs, this.options);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
     // (note: verify answers before publishing)
-    return { proof: result.payload, detected: result.private_outputs.informed_detect }
+    const collision = result.private_outputs.informed_detect === undefined ? null : result.private_outputs.informed_detect;
+    return { proof: result.payload, collision}
   };
 
   async createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: Boolean; }> {

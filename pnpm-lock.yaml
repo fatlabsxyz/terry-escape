@@ -123,6 +123,12 @@ importers:
         specifier: ^22.13.5
         version: 22.13.5
 
+  packages/keypairs:
+    dependencies:
+      zklib:
+        specifier: workspace:*
+        version: link:../zklib
+
   packages/noir: {}
 
   packages/zklib:
@@ -139,6 +145,9 @@ importers:
       '@noir-lang/noirc_abi':
         specifier: ^1.0.0-beta.3
         version: 1.0.0-beta.3
+      keypairs:
+        specifier: workspace:*
+        version: link:../keypairs
       noir:
         specifier: workspace:*
         version: link:../noir
