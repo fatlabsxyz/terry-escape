@@ -1,4 +1,4 @@
-import { Action, BigNum, Field, IZklib, ProofData, Public_Key, State } from 'zklib/types';
+import { Action, BigNum, Field, IZklib, ProofData, Public_Key, Secret_Key, State } from 'zklib/types';
 export class ZklibMock implements IZklib {
     round: number;
     own_seat: number;
@@ -9,6 +9,10 @@ export class ZklibMock implements IZklib {
     temp_proofs: { queries?: ProofData[]; answers?: ProofData[]; };
     temp_values: { veils?: boolean[]; action?: Action; action_salt?: Field; tiles_salt?: Field[]; veils_salt?: Field[]; };
     options: { mockProof: boolean; };
+
+  static newMock() : IZklib {
+    return new ZklibMock(0, [], []);
+  }
 
   constructor(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean } = { mockProof: false }) {
     this.round = 0;
@@ -38,8 +42,8 @@ export class ZklibMock implements IZklib {
 	return { proof: emptyProofData(), impacted: false };
     }
 
-    verifyDeploys(deploys: ProofData[]): boolean {}
-    verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData): boolean {}
+    verifyDeploys(deploys: ProofData[]): boolean { return true; }
+    verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData): boolean { return true; }
 }
 
 function emptyProofData() : ProofData { return { proof: new Uint8Array(), publicInputs: [] } }

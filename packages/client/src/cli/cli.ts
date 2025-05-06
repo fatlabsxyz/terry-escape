@@ -1,3 +1,4 @@
+import { ZklibMock } from "../client/zklib-mock.js";
 import { GameClient } from "./../client/game/gameclient.js";
 import { SocketManager } from "./../client/sockets/socketManager.js";
 import { getAuthToken, AuthRequestData } from "./../utils.js";
@@ -30,7 +31,7 @@ export async function initCli() {
 
     await sockets.socketsReady();
 
-    const client = new GameClient(sockets.token, sockets);
+    const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
 
     await client.play();
   } else {
