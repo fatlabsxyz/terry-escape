@@ -10,17 +10,17 @@ import alicia_params from './../example-data/keypairs/alicia/params.json' with {
 import alicia_keys from './../example-data/keypairs/alicia/encryption_key.json' with { type: "json" };
 const alicia_key_set = alicia_keys.key_set;
 const alicia_public_key = { key_set: alicia_key_set , params: alicia_params }
+import alicia_decryption_keys from './../example-data/keypairs/alicia/decryption_key.json' with { type: "json" };
+const alicia_decryption_key = alicia_decryption_keys.decryption_key;
+
 import brenda_params from './../example-data/keypairs/brenda/params.json' with { type: "json" };
 import brenda_keys from './../example-data/keypairs/brenda/encryption_key.json' with { type: "json" };
 const brenda_key_set = brenda_keys.key_set;
 const brenda_public_key = { key_set: brenda_key_set, params: brenda_params }
 import brenda_decryption_keys from './../example-data/keypairs/brenda/decryption_key.json' with { type: "json" };
-import alicia_decryption_keys from './../example-data/keypairs/alicia/decryption_key.json' with { type: "json" };
-const alicia_decryption_key = alicia_decryption_keys.decryption_key;
 const brenda_decryption_key = brenda_decryption_keys.decryption_key;
 
 // -- that's all thanks -- //
-
 const args = process.argv.splice(2)
 
 export function passTime(ms: number): Promise<void> {
@@ -83,7 +83,7 @@ export async function initCli() {
 
     const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
 
-    await client.play();
+    await client.play(1);
   } else {
     console.log("Could not get user token from gamemaster in /auth")
   } 

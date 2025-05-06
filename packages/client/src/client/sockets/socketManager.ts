@@ -248,7 +248,7 @@ export class SocketManager extends EventEmitter {
           .values()
           .map(from => [from, activePlayer] as FromTo))
         const loggedMsgs = this.lookLogForUpdates(turn, missingPlayers);
-        loggedMsgs.forEach(msg => updates.set(msg.sender, msg.payload));
+        loggedMsgs.forEach(msg => updates.set(msg.sender, {proofs: msg.payload.proofs}));
         let enough = setEqual(playerSet, new Set(updates.keys()));
         if (!enough) { await passTime(100); } else { break; }
       }

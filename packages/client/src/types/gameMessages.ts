@@ -1,5 +1,7 @@
 import { Player } from "./game.js"
 import { Message } from "./messages.js"
+import { ProofData } from "@aztec/bb.js"
+
 
 export enum GameMsg {
   DUMMY = "game:dummy",
@@ -20,20 +22,29 @@ export enum GameMsg {
   REPORT = "game:report",
 }
 
+export type Collision = number | undefined;
+
+export type ReceivedUpdate = Map<ProofData, Collision>;
+
 export interface GamePayload {
 }
 
 export interface GameQueryPayload extends GamePayload {
+  queries: ProofData[];
 }
 
 export interface GameAnswerPayload extends GamePayload {
   to: Player
+  proofs: ProofData[];
 }
 
 export interface GameUpdatePayload extends GamePayload {
+  proofs: ProofData[];
+  updates: ReceivedUpdate;
 }
 
 export interface GameReportPayload extends GamePayload {
+  proof: ProofData;
 }
 
 export interface IGameMessage extends Message {
