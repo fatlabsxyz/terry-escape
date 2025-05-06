@@ -227,7 +227,7 @@ export class SocketManager extends EventEmitter {
       while (true) {
         const missingPlayers = new Set(playerSet.difference(new Set(answers.keys()))
           .values()
-          .map(from => [activePlayer, from] as FromTo))
+          .map(to => [activePlayer, to] as FromTo))
         const loggedMsgs = this.lookLogForAnswer(turn, missingPlayers);
         loggedMsgs.forEach(msg => answers.set(msg.to, msg.payload));
         const enough = setEqual(playerSet, new Set(answers.keys()));

@@ -32,13 +32,13 @@ export class ZklibMock implements IZkLib {
     async createQueries(mover: number): Promise<{ proof: ProofData[]; }> {
 	return { proof: Array.from(Array(17), emptyProofData) };
     }
-    async createAnswers(queries: ProofData[][], action: Action): Promise<{ proof: ProofData[]; }> {
-	return { proof: Array.from(Array(3), emptyProofData) };
+    async createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }> {
+	return { playerProofs: Array.from(Array(3), emptyProofData) };
     }
     async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; }> {
 	return { proof: emptyProofData(), collision: null };
     }
-    async createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: Boolean; }> {
+    async createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: boolean; }> {
 	return { proof: emptyProofData(), impacted: false };
     }
 
