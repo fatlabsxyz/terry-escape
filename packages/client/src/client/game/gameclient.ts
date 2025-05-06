@@ -4,6 +4,7 @@ import { Player, TurnData, TurnInfo } from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
+import { IZklib } from 'zklib/types';
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -110,13 +111,12 @@ export class GameClient {
   turnData: TurnData;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
 
-  constructor(token: string, sockets: SocketManager) {
+  constructor(token: string, sockets: SocketManager, readonly zklib: IZklib) {
     this.sockets = sockets;
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
     this.log = _createLogger(token, sockets.sender)
     this.token = token;
-     
   }
 
   static _emptyTurnData(): TurnData {
