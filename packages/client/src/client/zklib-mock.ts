@@ -22,20 +22,20 @@ export class ZklibMock implements IZklib {
   }
 
 
-    createDeploys(agents: number[]): Promise<{ proof: ProofData; }> {
-	return new Promise(r => r({ proof: emptyProofData() }));
+    async createDeploys(agents: number[]): Promise<{ proof: ProofData; }> {
+	return { proof: emptyProofData() };
     }
-    createQueries(mover: number): Promise<{ proof: ProofData[]; }> {
-	return new Promise(r => r({ proof: Array.from(Array(17), emptyProofData) }));
+    async createQueries(mover: number): Promise<{ proof: ProofData[]; }> {
+	return { proof: Array.from(Array(17), emptyProofData) };
     }
-    createAnswers(queries: ProofData[][], action: Action): Promise<{ proof: ProofData[]; }> {
-	return new Promise(r => r({ proof: Array.from(Array(3), emptyProofData) }));
+    async createAnswers(queries: ProofData[][], action: Action): Promise<{ proof: ProofData[]; }> {
+	return { proof: Array.from(Array(3), emptyProofData) };
     }
-    createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; detected?: number; }> {
-	return new Promise(r => r({ proof: emptyProofData(), detected: 0 }));
+    async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; detected?: number; }> {
+	return { proof: emptyProofData(), detected: 0 };
     }
-    createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: Boolean; }> {
-	return new Promise(r => r({ proof: emptyProofData(), impacted: false }));
+    async createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: Boolean; }> {
+	return { proof: emptyProofData(), impacted: false };
     }
 
     verifyDeploys(deploys: ProofData[]): boolean {}
