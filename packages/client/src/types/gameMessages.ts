@@ -31,7 +31,7 @@ export interface GameQueryPayload extends GamePayload {
 
 export interface GameAnswerPayload extends GamePayload {
   to: Player
-  proofs: ProofData[];
+  proof: ProofData;
 }
 
 export interface GameUpdatePayload extends GamePayload {

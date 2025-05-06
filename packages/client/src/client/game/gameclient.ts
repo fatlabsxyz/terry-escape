@@ -291,17 +291,8 @@ export class GameClient {
   /*///////////////////////////////////////////////////////////////
                           NON-ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
-  async getQuery(): Promise<GameQueryPayload> {
-    // call zklib to generate proof of your board
-     
+  async getQuery(): Promise<GameQueryPayload> { 
     const query = await this.zklib.createQueries(this.activePlayerIndex);  
-    // const payload = {
-    //   mockQueryData: {
-    //     token: this.token,
-    //     turn: `Mock-Q${this.contextTurnInfo.turn}`,
-    //     // add proof
-    //   }
-    // };
     return {queries: query.proof}
   }
 
@@ -309,15 +300,17 @@ export class GameClient {
     this.gameLog("STARTING WAIT FOR ANSWER");
     // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
     const answers = await this.sockets.waitForAnswer(this.turn, this.activePlayer, players);
-    // to: Player
-    // proofs: ProofData[];
+
     this.gameLog("Returned answer", stringify(answers))
-    this.turnData.answers = {answers}
+    
+    answers.forEach( (payload, id) => {
+      this.turnData.answers.set(id, {proof: payload.proof})
+    });
   }
 
   async createUpdate(): Promise<GameUpdatePayload> {
-    const answer = this.turnData.answers.get(this.playerId);
-    const data: UpdatesData = await this.zklib.createUpdates(answer!.proofs, this.activePlayerIndex);
+    const answer = this.turnData.answers.get(this.playerId)!;
+    const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex);
     
     this.turnData.updates.set(this.playerId, data);
     
@@ -350,10 +343,16 @@ export class GameClient {
   async createAnswers(): Promise<GameAnswerPayload[]> {
     const payloads: GameAnswerPayload[] = [];
 
-    const answers = await this.zklib.createAnswers(Object.values(this.turnData.queries), this.turnData.action);  
+    const answers = await this.zklib.createAnswers(Object.values(this.turnData.queries), this.turnData.action);
+    
+    const nonActivePlayersRound = this.round
+      .filter(x => x !== this.activePlayer);
+
     this.turnData.queries.forEach((_, player) => {
-      payloads.push({to: player, proofs: answers.proof});
-      this.turnData.answers.set(player, { proofs: answers.proof });
+      let nonActivePlayerIndex = nonActivePlayersRound.indexOf(player);
+      const playerProof = answers.playerProofs[nonActivePlayerIndex]!;
+      payloads.push({to: player, proof: playerProof });
+      this.turnData.answers.set(player, { proof: playerProof });
     });
 
     return payloads
@@ -374,9 +373,9 @@ export class GameClient {
     const nonActivePlayerUpdates = Object.entries(this.turnData.updates)
       .filter(([x,_]) => x !== this.activePlayer).map(([_,y]) => y );
     
-    const report: ReportData = await this.zklib.createReports(nonActivePlayerUpdates);
+    const report = await this.zklib.createReports(nonActivePlayerUpdates);
     
-    this.turnData.report = report;
+    this.turnData.report = {proof: report.proof, impacted: report.impacted};
 
     return { proof: report.proof };
   }

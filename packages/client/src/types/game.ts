@@ -5,7 +5,7 @@ export type QueryData = {
   queries: ProofData[]; 
 };
 export type AnswerData = {
-  proofs: ProofData[];
+  proof: ProofData;
 };
 export type UpdatesData = {
   proof: ProofData;
