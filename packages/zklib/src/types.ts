@@ -8,3 +8,4 @@ export type Params = { has_multiplicative_inverse: boolean, modulus: BigNum, dou
 	modulus_u60: { limbs: string[] }, modulus_u60_x4: { limbs: string[] }, redc_param: string[] }
 
 export { type ProofData } from '@aztec/bb.js';
+export { type IZklib } from './zklib.interface.js';
