@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 import { ProofData } from '@aztec/bb.js';
 import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
-import { Collision } from './zklib.interface.js';
+import { Collision, IZkLib } from './zklib.interface.js';
 import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, verification_failed_halt } from './utils.js';
 const circuits = await init_circuits();
 
-export class ZkLib {
+export class ZkLib implements IZkLib {
   round: number;
   own_seat: number;
   own_state!: State;
@@ -76,7 +76,7 @@ export class ZkLib {
     return { proof: proofs };
   };
 
-  async createAnswers(queries: ProofData[][], action: Action): Promise<{ proof: ProofData[]; }> {
+  async createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }> {
     let proofs = [];
     for (let player_index = 0; player_index < 2; player_index++) {
 
@@ -114,7 +114,7 @@ export class ZkLib {
       proofs.push(result.payload);
     }
     // (note: verify queries before publishing)
-    return { proof: proofs };
+    return { playerProofs: proofs };
   };
 
   async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; died: boolean}> {
