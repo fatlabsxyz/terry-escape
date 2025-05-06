@@ -1,4 +1,4 @@
-import {ProofData} from '@aztec/bb.js';
+import {ProofData, Collision} from 'zklib/types';
 
 export type Player = string;
 export type QueryData = {
@@ -8,9 +8,13 @@ export type AnswerData = {
   proofs: ProofData[];
 };
 export type UpdatesData = {
-  proofs: ProofData[];
+  proof: ProofData;
+  collision?: Collision;
 };
-export type ReportData = {};
+export type ReportData = {
+  proof: ProofData;
+  impacted?: boolean;
+};
 
 export interface TurnInfo {
   turn: number;

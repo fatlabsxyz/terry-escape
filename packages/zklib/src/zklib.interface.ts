@@ -1,7 +1,9 @@
 import { ProofData } from '@aztec/bb.js';
 import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
 
-export interface IZklib {
+export type Collision = number | null;
+
+export interface IZkLib {
   round: number;
   own_seat: number;
   own_state: State;
@@ -16,7 +18,7 @@ export interface IZklib {
   createDeploys(agents: number[]): Promise<{ proof: ProofData; }>;
   createQueries(mover: number): Promise<{ proof: ProofData[]; }>;
   createAnswers(queries: ProofData[][], action: Action): Promise<{ proof: ProofData[]; }>;
-  createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; detected?: number; }>;
+  createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; }>;
   createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: Boolean; }>;
 
   verifyDeploys(deploys: ProofData[]) : boolean ;

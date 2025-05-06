@@ -1,6 +1,6 @@
 import { Player } from "./game.js"
 import { Message } from "./messages.js"
-import { ProofData } from "@aztec/bb.js"
+import { ProofData, Collision } from "zklib/types"
 
 
 export enum GameMsg {
@@ -22,10 +22,6 @@ export enum GameMsg {
   REPORT = "game:report",
 }
 
-export type Collision = number | undefined;
-
-export type ReceivedUpdate = Map<ProofData, Collision>;
-
 export interface GamePayload {
 }
 
@@ -39,8 +35,7 @@ export interface GameAnswerPayload extends GamePayload {
 }
 
 export interface GameUpdatePayload extends GamePayload {
-  proofs: ProofData[];
-  updates: ReceivedUpdate;
+  proof: ProofData;
 }
 
 export interface GameReportPayload extends GamePayload {
