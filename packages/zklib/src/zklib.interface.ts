@@ -17,9 +17,9 @@ export interface IZkLib {
   // new(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean } = { mockProof: false });
   createDeploys(agents: number[]): Promise<{ proof: ProofData; }>;
   createQueries(mover: number): Promise<{ proof: ProofData[]; }>;
-  createAnswers(queries: ProofData[][], action: Action): Promise<{ proof: ProofData[]; }>;
+  createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }>;
   createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; }>;
-  createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: Boolean; }>;
+  createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: boolean; }>;
 
   verifyDeploys(deploys: ProofData[]) : boolean ;
   verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData) : boolean;

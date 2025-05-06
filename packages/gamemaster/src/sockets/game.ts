@@ -83,20 +83,22 @@ export function addGameNamespace(server: Server): Server {
   const SECRET_KEY = 'test-key';
   gameNsp.use((socket, next) => {
     if (!socket.handshake.auth.token) {
-      return next(new Error ('No player token provided'))
+      return next(new Error ('No player token provided'));
     }
 
     jwt.verify(socket.handshake.auth.token, SECRET_KEY, (err: jwt.VerifyErrors | null, decoded: unknown) => {
       if (err) {
-        return next(new Error('Invalid Token'))
+        return next(new Error('Invalid Token'));
       }
       const data = decoded as JwtPayload; 
       socket.data.name = data.name;
       socket.data.id = data.id;
+      next();
     });
   });
 
   gameNsp.on('connection', async (socket) => {
+  
     const game = getGameOrNewOne(socket.nsp);
     registerGameHandlers(socket);
     console.log(`[${socket.id}] User connection`);
