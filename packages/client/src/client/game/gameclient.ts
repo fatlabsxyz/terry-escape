@@ -193,12 +193,12 @@ export class GameClient {
     this.log(this.activeStatus, ...args);
   }
 
-  async setupGame(agentLocation: Coordinates) {
+  async setupGame(agentsLocations: Coordinates) {
     this.log("Setting up game...")
     // query players/turn order
      
     // setup pieces
-    this.zklib.createDeploys(agentLocation);
+    this.zklib.createDeploys(agentsLocations);
 
     
   
