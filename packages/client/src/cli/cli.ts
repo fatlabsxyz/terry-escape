@@ -1,11 +1,9 @@
 import { ZklibMock } from "../client/zklib-mock.js";
 import { GameClient } from "./../client/game/gameclient.js";
+import { Board } from "./../client/game/board.js";
 import { SocketManager } from "./../client/sockets/socketManager.js";
 import { getAuthToken, AuthRequestData } from "./../utils.js";
 
-
-
-// -- that's all thanks -- //
 const args = process.argv.splice(2)
 
 export function passTime(ms: number): Promise<void> {
@@ -35,7 +33,8 @@ export async function initCli() {
     await sockets.socketsReady();
 
     const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
-
+    const board = new Board(client.playerIndex);
+    board.
     await client.play();
   } else {
     console.log("Could not get user token from gamemaster in /auth")
