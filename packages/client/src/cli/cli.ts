@@ -14,7 +14,6 @@ export function passTime(ms: number): Promise<void> {
 
 export async function initCli() {
     
-  // testZkLib();
   const url = args[0]!;
   const name = args[1]!;
   const gameId = args[2]!;
