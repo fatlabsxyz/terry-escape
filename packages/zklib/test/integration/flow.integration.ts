@@ -1,13 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { zklib } from "../../src/zklib.js";
+import { ZkLib } from "../../src/zklib.js";
 
 import { publicKeySample, secretKeySample } from '../../../keypairs/src/data/index.js';
 
 /// ALICIA (ACTIVE PLAYER)
-const zkAlicia = new zklib(0, secretKeySample(0), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
+const zkAlicia = new ZkLib(0, secretKeySample(0), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
 /// BRENDA
-const zkBrenda = new zklib(1, secretKeySample(1), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
+const zkBrenda = new ZkLib(1, secretKeySample(1), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
 
 async function flow() {
 
@@ -24,7 +24,7 @@ async function flow() {
 
   // alicia creates answers using queries
   const action = { reason: 10, target: 9, trap: true };
-  const { proof: answerProof } = await zkAlicia.createAnswers([queryProof], action);
+  const { playerProofs: answerProof } = await zkAlicia.createAnswers([queryProof], action);
   console.log("answerProof", answerProof)
 
   // brenda updates her state with potential collsion

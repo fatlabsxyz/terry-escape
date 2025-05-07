@@ -1,6 +1,59 @@
 import {ProofData, Collision} from 'zklib/types';
 
+/// -- --- --- Board --- --- -- ///
+
+// [0,1,2,3] Represents a list of amounts of agents assigned to each player's four available squares.
+// 
+// For example, player 1 has this 4 squares available:
+// [ ][0][ ][1]
+// [ ][ ][ ][ ]
+// [ ][2][ ][3]
+// [ ][ ][ ][ ]
+//
+// Each number shown in the matrix, is an index of the Coordinates array. 
+// Each value in every index is the quantity of agents deployed in that square.
+export type Coordinates = number[];
+
+// Represents the agent placements allowed game's board in the UI.
+// This depends on the player index, and it's constrained as such:
+//   (i = player index)
+//
+//   i |  0  1  2  3 <- columns
+//   --|-------------   
+//   0 | [0][1][0][1]   
+//   1 | [2][3][2][3]
+//   2 | [0][1][0][1]  
+//   3 | [2][3][2][3]
+//   ^
+//   | rows 
+export type AllowedPlacements = {
+  a: Placement;
+  b: Placement;
+  c: Placement;
+  d: Placement;
+}
+
+export type Placement = {
+  row: number;
+  col: number;
+}
+
+// The absolute coordinate of an agent on the board
+export type Agent = {
+  row: number, 
+  column: number
+};
+
+// List of agent placements on the board
+export type Placements = {
+  agents: Agent[];
+};
+
+/// -- --- --- Game --- --- -- ///
+
+// Represents a socket-id
 export type Player = string;
+
 export type QueryData = {
   queries: ProofData[]; 
 };
@@ -18,8 +71,8 @@ export type ReportData = {
 
 export interface TurnInfo {
   turn: number;
-  round: Player[];  // Player[]
-  activePlayer: Player; // Player := socket id
+  round: Player[];
+  activePlayer: Player;
   nextPlayer: Player;
 };
 

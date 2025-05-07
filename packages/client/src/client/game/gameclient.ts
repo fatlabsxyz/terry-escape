@@ -1,24 +1,10 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, ReportData } from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Coordinates} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
-import { IZkLib, ProofData } from 'zklib/types';
-
-import alicia_params from './../../example-data/keypairs/alicia/params.json' with { type: "json" };
-import alicia_keys from './../../example-data/keypairs/alicia/encryption_key.json' with { type: "json" };
-const alicia_key_set = alicia_keys.key_set;
-const alicia_public_key = { key_set: alicia_key_set , params: alicia_params }
-import alicia_decryption_keys from './../../example-data/keypairs/alicia/decryption_key.json' with { type: "json" };
-const alicia_decryption_key = alicia_decryption_keys.decryption_key;
-
-import brenda_params from './../../example-data/keypairs/alicia/params.json' with { type: "json" };
-import brenda_keys from './../../example-data/keypairs/alicia/encryption_key.json' with { type: "json" };
-const brenda_key_set = brenda_keys.key_set;
-const brenda_public_key = { key_set: brenda_key_set , params: brenda_params }
-import brenda_decryption_keys from './../../example-data/keypairs/brenda/decryption_key.json' with { type: "json" };
-const brenda_decryption_key = brenda_decryption_keys.decryption_key;
+import { IZkLib } from 'zklib/types';
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -56,28 +42,28 @@ enum ClientEvent {
 }
 
 interface QueryWaitingEvent extends AnyEventObject {
-  type: ClientEvent.QueryWaiting
+  type: ClientEvent.QueryWaiting;
 }
 
 interface TurnStartEvent {
-  type: GameMsg.TURN_START
-  turnInfo: TurnInfo
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.TURN_START;
+  turnInfo: TurnInfo;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface TurnEndEvent {
-  type: GameMsg.TURN_END
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.TURN_END;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface WaitingEvent {
-  type: GameMsg.WAITING
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.WAITING;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface OutputEvent {
-  type: "ouptut"
-  output: any
+  type: "output";
+  output: any;
 }
 
 type Events = AnyEventObject
@@ -88,17 +74,17 @@ type Events = AnyEventObject
   | QueryWaitingEvent
 
 function isTurnStartEvent(event: Events): event is TurnStartEvent {
-  return event.type === GameMsg.TURN_START
+  return event.type === GameMsg.TURN_START;
 }
 
 interface Context {
-  turnInfo: TurnInfo
-  waiting: boolean
+  turnInfo: TurnInfo;
+  waiting: boolean;
 }
 
 interface ActionInput {
-  event: Events,
-  context: Context
+  event: Events;
+  context: Context;
 }
 
 function _createLogger(name: string, sender: string) {
@@ -129,14 +115,14 @@ export class GameClient {
     this.sockets = sockets;
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
-    this.log = _createLogger(token, sockets.sender)
+    this.log = _createLogger(token, sockets.sender);
     this.token = token;
   }
 
   static _emptyTurnData(): TurnData {
     return {
       activePlayer: "",
-      action: {reason: 1, target: 2,trap: true },
+      action: {reason: 0, target: 0,trap: false },
       queries: new Map(),
       answers: new Map(),
       updates: new Map(),
@@ -148,8 +134,8 @@ export class GameClient {
     return this.sockets.game!.id!
   }
 
-  async play() {
-    await this.setupGame();
+  async play(initialDeployCoords: Coordinates ) {
+    await this.setupGame(initialDeployCoords);
 
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
@@ -207,14 +193,18 @@ export class GameClient {
     this.log(this.activeStatus, ...args);
   }
 
-  async setupGame() {
+  async setupGame(agentLocation: Coordinates) {
     this.log("Setting up game...")
     // query players/turn order
-    
+     
     // setup pieces
+    this.zklib.createDeploys(agentLocation);
 
-    // zk setup
+    
+  
     // emit ready (or wrap setup within emitAck from master)
+    
+    //notifyPlayerReady()?
   }
 
   async processActivePlayer() {
