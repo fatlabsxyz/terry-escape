@@ -1,5 +1,6 @@
 import { Agent, AllowedPlacements, Coordinates, Placements } from "../../types/game.js";
 
+// Ts hates arrays and he's right
 type TwoNumberArray = {
     f: number; //first number
     s: number; //second number
