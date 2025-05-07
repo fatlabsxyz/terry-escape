@@ -26,6 +26,9 @@ export type Coordinates = number[];
 //   3 | [2][3][2][3]
 //   ^
 //   | rows 
+//
+//   i=0 | a = {0,1} 
+//   ...
 export type AllowedPlacements = {
   a: Placement;
   b: Placement;
@@ -33,6 +36,7 @@ export type AllowedPlacements = {
   d: Placement;
 }
 
+// A placement is a set of absolute board coordinates
 export type Placement = {
   row: number;
   col: number;
