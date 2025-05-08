@@ -4,11 +4,12 @@ import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg } fr
 
 type Ack = () => void;
 
+type AckPlayerIndex = (playerIndex: number) => void;
 
 export interface GameNspClientToServerEvents {
   [GameMsg.DUMMY]: (...args: any[]) => void;
 
-  [GameMsg.READY]: (cb: Ack) => void;
+  [GameMsg.READY]: (cb: AckPlayerIndex) => void;
   // [GameMsg.WAITING]: (cb: Ack) => void;
   [GameMsg.TURN_END]: (cb: Ack) => void;
 

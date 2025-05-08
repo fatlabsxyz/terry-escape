@@ -22,7 +22,8 @@ export async function connect(token: string, url: string, gameId: string) {
 
   const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
 
-  await client.play(mockAddAgents(client));
+  await client.play();
+  // await client.play(mockAddAgents(client));
 }
 
 function mockAddAgents(client: GameClient) {

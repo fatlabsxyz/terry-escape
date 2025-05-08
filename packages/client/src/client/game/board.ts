@@ -1,6 +1,6 @@
 import { Agent, AllowedPlacements, Coordinates, Placements } from "../../types/game.js";
 
-// Ts hates arrays and he's right
+//TODO change to tuple type = [number, number]
 type TwoNumberArray = {
     f: number; //first number
     s: number; //second number
@@ -31,6 +31,7 @@ export class Board {
   // receive agent in 0,3 > [1,2,0,1]
   addAgents(placements: Placements): Coordinates {
 
+    // TODO maybe tuple
     let coordinates: CoordinatesMap = new Map<number, number>([
         [0, 0],
         [1, 0],
@@ -45,7 +46,6 @@ export class Board {
 
     // return in which of the allowed coordinates the agent is placed
     return [coordinates.get(0)!, coordinates.get(1)!, coordinates.get(2)!, coordinates.get(3)!];
-
   }
 
   // I'm so sorry for this

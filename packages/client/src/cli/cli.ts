@@ -30,30 +30,36 @@ export async function initCli() {
     });
 
     await sockets.socketsReady();
-    
-    // create board
-    const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
-    const board = new Board(client.playerIndex);
-    const allowedCoordinates = board.allowedPlacements();
-    const agents = {
-      agents: [
-        {
-          row: allowedCoordinates.a.row, 
-          column: allowedCoordinates.a.col,
-        }, {
-          row: allowedCoordinates.b.row, 
-          column: allowedCoordinates.b.row
-        }, {
-          row: allowedCoordinates.c.row, 
-          column: allowedCoordinates.c.row
-        }, {
-          row: allowedCoordinates.d.row, 
-          column: allowedCoordinates.d.row
-        }
-      ]};
 
-    const coordinates = board.addAgents(agents);
-    await client.play(coordinates);
+    // 
+    
+    const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
+
+    await client.play();
+
+    // create board after player index is defined by gameMachine
+    // const board = new Board(client.playerIndex);
+    // const allowedCoordinates = board.allowedPlacements();
+    // const agents = {
+    //   agents: [
+    //     {
+    //       row: allowedCoordinates.a.row, 
+    //       column: allowedCoordinates.a.col,
+    //     }, {
+    //       row: allowedCoordinates.b.row, 
+    //       column: allowedCoordinates.b.row
+    //     }, {
+    //       row: allowedCoordinates.c.row, 
+    //       column: allowedCoordinates.c.row
+    //     }, {
+    //       row: allowedCoordinates.d.row, 
+    //       column: allowedCoordinates.d.row
+    //     }
+    //   ]};
+    //
+    // const coordinates = board.addAgents(agents);
+
+    // submit agent coordinates to game
   } else {
     console.log("Could not get user token from gamemaster in /auth")
   } 

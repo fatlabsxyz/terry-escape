@@ -4,6 +4,9 @@ import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
 
 type Ack = () => void;
+
+type AckPlayerIndex = (playerIndex: number) => void;
+
 interface InterServerEvents { }
 interface SocketData {
     id: string,
@@ -44,7 +47,7 @@ function registerGameHandlers(socket: GameSocket) {
       .broadcast
       .timeout(TIMEOUT)
       .emitWithAck(GameMsg.ANSWER, p);
-    ack();
+      ack();
   });
 
   socket.on(GameMsg.UPDATE, async (p: GameUpdateMsg, ack: Ack) => {
@@ -63,10 +66,10 @@ function registerGameHandlers(socket: GameSocket) {
     ack();
   });
 
-  socket.on(GameMsg.READY, async (ack: Ack) => {
+  socket.on(GameMsg.READY, async (ack: AckPlayerIndex) => {
     const game = getGameOrNewOne(socket.nsp);
-    game.readyPlayer(socket.id as Player);
-    ack();
+    const playerIndex = game.readyPlayer(socket.id as Player);
+    ack( playerIndex );
   })
 
 }
