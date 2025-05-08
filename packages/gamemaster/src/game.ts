@@ -65,7 +65,6 @@ function isPlayerReadyEvent(event: EventsSm): event is PlayerReadyEvent {
 interface Context {
   minPlayers: number;
   players: Map<Player, PlayerStatus>;
-  round: Player[];
   turn: number;
   activePlayer: Player | null;
   nextPlayer: Player | null;
@@ -98,8 +97,6 @@ function serMap(map: Map<any, any>): object {
 const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map ? serMap(v) : v);
 
 export class Game {
-
-  round: Player[] = [];
 
   private _activePlayer: Player | null = null;
   private _nextPlayer: Player | null = null;
@@ -142,7 +139,11 @@ export class Game {
   }
 
   get activePlayer() {
-    return this._activePlayer!
+    return this._activePlayer!;
+  }
+
+  get activePlayerIndex() {
+    return this.players;
   }
 
   addPlayer(player: Player) {
@@ -150,7 +151,9 @@ export class Game {
   }
 
   readyPlayer(player: Player) {
+    const playerIndex: number = this.gameMachine.getSnapshot().context.players.get(player)!.place;
     this.gameMachine.send({ type: Events.PlayerReady, data: { player } });
+    return playerIndex;
   }
 
   static nextPlayers(finishingPlayer: Player, round: Player[]): [Player, Player] {
@@ -168,10 +171,9 @@ export class Game {
   }
 
   static turnInfoFromContext(context: Omit<Context, 'turnInfo'>): TurnInfo {
-    const { turn, round, activePlayer, nextPlayer } = context;
+    const { turn, activePlayer, nextPlayer } = context;
     return {
       turn,
-      round,
       activePlayer: activePlayer!,
       nextPlayer: nextPlayer!,
     }
@@ -261,6 +263,7 @@ export class Game {
           id: playerId,
           waiting: false
         }
+        this.players.set(playerId, players.size);
         players.set(playerId, playerStatus);
         return { players }
       } else return context

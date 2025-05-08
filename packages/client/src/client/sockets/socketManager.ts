@@ -154,7 +154,10 @@ export class SocketManager extends EventEmitter {
   }
 
   async advertisePlayerAsReady() {
-    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
+    const playerIndex = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
+
+    console.log(playerIndex);
+    return playerIndex;
   }
 
   async broadcastAnswer(turn: number, to: string, payload: GameAnswerPayload) {

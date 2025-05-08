@@ -29,18 +29,18 @@ export type Coordinates = number[];
 //
 //   i=0 | a = {0,1} 
 //   ...
-export type AllowedPlacements = {
+export interface AllowedPlacements {
   a: Placement;
   b: Placement;
   c: Placement;
   d: Placement;
-}
+};
 
 // A placement is a set of absolute board coordinates
-export type Placement = {
+export interface Placement {
   row: number;
   col: number;
-}
+};
 
 // The absolute coordinate of an agent on the board
 export type Agent = {
@@ -71,7 +71,9 @@ export type UpdatesData = {
 export type ReportData = {
   proof: ProofData;
   impacted?: boolean;
-};
+}
+
+export type SetupData = Map<Player, ProofData>; 
 
 export interface TurnInfo {
   turn: number;
@@ -87,10 +89,10 @@ export interface TurnData {
   answers: Map<Player, AnswerData>;
   updates: Map<Player, UpdatesData>;
   report: ReportData | null;
-}
+};
 
 export type TurnAction = {
   reason: number; // Origin coordinates 
   target: number; // Target coordinates
   trap: boolean; // To trap or not to trap
-}
+};

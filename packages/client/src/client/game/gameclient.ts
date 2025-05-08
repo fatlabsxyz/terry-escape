@@ -134,8 +134,9 @@ export class GameClient {
     return this.sockets.game!.id!
   }
 
-  async play(initialDeployCoords: Coordinates ) {
-    await this.setupGame(initialDeployCoords); 
+  async play() {
+
+    await this.setupGame(); 
     //to get the coords i need the player index 
     //to get the player index I need the gameMachine running 
 
@@ -144,7 +145,9 @@ export class GameClient {
   }
 
   async notifyPlayerReady() {
-    await this.sockets.advertisePlayerAsReady();
+    const playerIndex = await this.sockets.advertisePlayerAsReady();
+
+    console.log("player index:, " + playerIndex)
     this.log("We are ready!");
   }
 
@@ -195,18 +198,15 @@ export class GameClient {
     this.log(this.activeStatus, ...args);
   }
 
-  async setupGame(agentsLocations: Coordinates) {
+  async setupGame() {
     this.log("Setting up game...")
-    // query players/turn order
-     
-    // setup pieces
-    this.zklib.createDeploys(agentsLocations);
+    // query players/turn order 
+    // ^ done by state machine
 
-    
-  
     // emit ready (or wrap setup within emitAck from master)
+    // ^ done by state machine
     
-    //notifyPlayerReady()?
+    //notifyPlayerReady()? <- done by state machine
   }
 
   async processActivePlayer() {
@@ -318,6 +318,16 @@ export class GameClient {
   /*///////////////////////////////////////////////////////////////
                           ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
+  
+
+  async setupAgents(agentsLocations: Coordinates) {
+    // setup pieces
+    const deploy = await this.zklib.createDeploys(agentsLocations);
+
+    // each player should verify a list of deploy proofs from other players 
+    this.zklib.verifyDeploys([deploy.proof]);
+  }
+
   async takeAction(action: TurnAction) {
     // I figured we could just save the action and then it's used when generating proofs 
     console.log(action); 
