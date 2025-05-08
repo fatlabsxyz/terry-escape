@@ -135,7 +135,9 @@ export class GameClient {
   }
 
   async play(initialDeployCoords: Coordinates ) {
-    await this.setupGame(initialDeployCoords);
+    await this.setupGame(initialDeployCoords); 
+    //to get the coords i need the player index 
+    //to get the player index I need the gameMachine running 
 
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
