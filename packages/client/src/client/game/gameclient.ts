@@ -110,6 +110,7 @@ export class GameClient {
   turnsData: TurnData[];
   turnData: TurnData;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
+  private initialPlayerIndexNow: number;
 
   constructor(token: string, sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
@@ -117,6 +118,7 @@ export class GameClient {
     this.turnData = GameClient._emptyTurnData();
     this.log = _createLogger(token, sockets.sender);
     this.token = token;
+    this.initialPlayerIndexNow = 0;
   }
 
   static _emptyTurnData(): TurnData {
@@ -147,7 +149,9 @@ export class GameClient {
   async notifyPlayerReady() {
     const playerIndex = await this.sockets.advertisePlayerAsReady();
 
-    console.log("player index:, " + playerIndex)
+    console.log("player index:, " + playerIndex);
+    this.initialPlayerIndexNow = playerIndex;
+    
     this.log("We are ready!");
   }
 
@@ -192,6 +196,10 @@ export class GameClient {
 
   get playerIndex() {
     return this.round.indexOf(this.playerId);
+  }
+
+  get initialPlayerIndex() {
+    return this.initialPlayerIndexNow;
   }
 
   gameLog(...args: any[]) {
