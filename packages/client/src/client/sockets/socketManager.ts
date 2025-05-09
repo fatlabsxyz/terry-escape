@@ -6,6 +6,8 @@ import {
   GameAnswerPayload,
   GameMessage,
   GameMsg,
+  GameDeployMsg,
+  GameDeployPayload,
   GameQueryMsg,
   GameQueryPayload,
   GameReportMsg,
@@ -72,6 +74,11 @@ export class SocketManager extends EventEmitter {
       ack();
     })
 
+    this.game.on(GameMsg.DEPLOY, (msg: GameDeployMsg, ack: () => void) => {
+      this.msgLog.register(msg);
+      ack();
+    });
+
     this.game.on(GameMsg.QUERY, (msg: GameQueryMsg, ack: () => void) => {
       this.msgLog.register(msg);
       ack();
@@ -137,6 +144,10 @@ export class SocketManager extends EventEmitter {
     }).filter(x => x !== undefined))
   }
 
+  lookLogForDeploys(turn: number, fromTo: Set<FromTo>): GameDeployMsg[] {
+    return this.lookLogForEvent(turn, GameMsg.DEPLOY, fromTo) as GameDeployMsg[]
+  }
+
   lookLogForQueries(turn: number, fromTo: Set<FromTo>): GameQueryMsg[] {
     return this.lookLogForEvent(turn, GameMsg.QUERY, fromTo) as GameQueryMsg[]
   }
@@ -158,6 +169,17 @@ export class SocketManager extends EventEmitter {
 
     console.log(playerIndex);
     return playerIndex;
+  }
+
+  async broadcastDeploy(turn: number, to: string, payload: GameDeployPayload) {
+    const deployMsg = {
+      turn,
+      event: GameMsg.DEPLOY,
+      sender: this.sender,
+      to,
+      payload
+    };
+    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.DEPLOY, deployMsg);
   }
 
   async broadcastAnswer(turn: number, to: string, payload: GameAnswerPayload) {
@@ -201,6 +223,25 @@ export class SocketManager extends EventEmitter {
       payload,
     };
     await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.REPORT, reportMsg);
+  }
+
+  async waitForDeploy(turn: number, activePlayer: string, players: Player[]): Promise<Map<string, GameDeployPayload>> {
+    const playerSet = new Set(players);
+    const deploys: Map<Player, GameDeployPayload> = new Map();
+    return new Promise(async (res, rej) => {
+      setTimeout(rej, TIMEOUT);
+      while (true) {
+        await passTime(100);
+        const missingPlayers = new Set(playerSet.difference(new Set(deploys.keys()))
+          .values()
+          .map(from => [from, activePlayer] as FromTo))
+        const loggedMsgs = this.lookLogForDeploys(turn, missingPlayers);
+        loggedMsgs.forEach(msg => deploys.set(msg.sender, msg.payload));
+        const enough = setEqual(playerSet, new Set(deploys.keys()));
+        if (!enough) { await passTime(100); } else { break; }
+      }
+      res(deploys)
+    });
   }
 
   async waitForQuery(turn: number, activePlayer: string, players: Player[]): Promise<Map<string, GameQueryPayload>> {
