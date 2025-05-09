@@ -67,7 +67,20 @@ export class Board {
     }
   }
 
-  // Returns the allowed initial deploy placements for a player's agents 
+  // Returns the allowed initial deploy placements for a player's agents
+  // This depends on the player index, and it's constrained as such:
+  //   (i = player index)
+  //
+  //   [i] |  0  1  2  3 <- columns
+  //  -----|-------------   
+  //    0  | [0][1][0][1]   
+  //    1  | [2][3][2][3]
+  //    2  | [0][1][0][1]  
+  //    3  | [2][3][2][3]
+  //    ^
+  //    | rows 
+  //
+  //   i=0 | a = {0,1} 
   allowedPlacements(): AllowedPlacements  {
     const index = this.playerIndex; 
 

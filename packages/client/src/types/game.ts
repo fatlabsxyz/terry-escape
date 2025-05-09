@@ -15,20 +15,6 @@ import {ProofData, Collision} from 'zklib/types';
 export type Coordinates = [number, number, number, number];
 
 // Represents the agent placements allowed game's board in the UI.
-// This depends on the player index, and it's constrained as such:
-//   (i = player index)
-//
-//   i |  0  1  2  3 <- columns
-//   --|-------------   
-//   0 | [0][1][0][1]   
-//   1 | [2][3][2][3]
-//   2 | [0][1][0][1]  
-//   3 | [2][3][2][3]
-//   ^
-//   | rows 
-//
-//   i=0 | a = {0,1} 
-//   ...
 export interface AllowedPlacements {
   a: Placement;
   b: Placement;
