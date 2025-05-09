@@ -207,29 +207,15 @@ export class GameClient {
   async setupGame(agents: Coordinates) {
     this.log("Setting up game...")
     
-    // Deploy your agents
-    const myDeploys = await this.zklib.createDeploys(agents);
-    console.log(myDeploys);
+    await this.setupAgents(agents);
 
-    // Broadcast your deployment proofs
-    this.sockets.broadcastDeploy({deploys: myDeploys.proof});
-    
-    // Collect all the other player's deploy proofs then validate them
-    const enemyDeploys = await this.sockets.waitForDeploy(
-      this.activePlayer, 
-      this.round.filter(x => x !== this.playerId) // TODO List of inactive players
-      // depends on state machine running, pretty much the same thing as last time
-    );
-
-    const enemyDeploysArray = Array.from(enemyDeploys.values()).map(v => v.deploys);
-
-    this.zklib.verifyDeploys(enemyDeploysArray);
+    // TODO find out where I can run validateDeploys()
   }
 
   async processActivePlayer() {
 
     const otherPlayers = this.round.filter(x => x !== this.playerId);
-
+    
     // STEP 2
     // wait for queries | take action
     await Promise.all([
@@ -337,17 +323,34 @@ export class GameClient {
                           ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
   
-
   async setupAgents(agentsLocations: Coordinates) {
-    // setup pieces
-    const deploy = await this.zklib.createDeploys(agentsLocations);
+    // Deploy your agents
+    const myDeploys = await this.zklib.createDeploys(agentsLocations);
+    console.log(`myDeploys: ${myDeploys.proof}`);
 
-    // each player should verify a list of deploy proofs from other players 
-    this.zklib.verifyDeploys([deploy.proof]);
+    // Broadcast your deployment proofs
+    this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
+
+  }
+
+  // Wait for other deploys and validate them
+  async validateDeploys() {
+    
+    // TODO need info on other players to call waitForDeploy, but state machine 
+    // needs to be running and all players
+    // need to be connected for round to be defined
+    const otherPlayers = this.round.filter(x => x !== this.playerId);
+
+    const enemyDeploys = await this.sockets.waitForDeploy(
+      this.activePlayer, otherPlayers
+    );
+
+    const enemyDeploysArray = Array.from(enemyDeploys.values()).map(v => v.deploys);
+
+    this.zklib.verifyDeploys(enemyDeploysArray);
   }
 
   async takeAction(action: TurnAction) {
-    // I figured we could just save the action and then it's used when generating proofs 
     console.log(action); 
     this.turnData.action = action;
   }
