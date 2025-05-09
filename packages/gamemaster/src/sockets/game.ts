@@ -4,6 +4,9 @@ import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
 
 type Ack = () => void;
+
+type AckPlayerIndex = (playerIndex: number) => void;
+
 interface InterServerEvents { }
 interface SocketData {
     id: string,
@@ -44,7 +47,7 @@ function registerGameHandlers(socket: GameSocket) {
       .broadcast
       .timeout(TIMEOUT)
       .emitWithAck(GameMsg.ANSWER, p);
-    ack();
+      ack();
   });
 
   socket.on(GameMsg.UPDATE, async (p: GameUpdateMsg, ack: Ack) => {
@@ -63,11 +66,11 @@ function registerGameHandlers(socket: GameSocket) {
     ack();
   });
 
-  socket.on(GameMsg.READY, async (ack: Ack) => {
+  socket.on(GameMsg.READY, async (ack: AckPlayerIndex) => {
     const game = getGameOrNewOne(socket.nsp);
-    game.readyPlayer(socket.id as Player);
-    ack();
-  })
+    const playerIndex = game.readyPlayer(socket.id as Player);
+    ack( playerIndex );
+  });
 
 }
 
@@ -83,20 +86,22 @@ export function addGameNamespace(server: Server): Server {
   const SECRET_KEY = 'test-key';
   gameNsp.use((socket, next) => {
     if (!socket.handshake.auth.token) {
-      return next(new Error ('No player token provided'))
+      return next(new Error ('No player token provided'));
     }
 
     jwt.verify(socket.handshake.auth.token, SECRET_KEY, (err: jwt.VerifyErrors | null, decoded: unknown) => {
       if (err) {
-        return next(new Error('Invalid Token'))
+        return next(new Error('Invalid Token'));
       }
       const data = decoded as JwtPayload; 
       socket.data.name = data.name;
       socket.data.id = data.id;
+      next();
     });
   });
 
   gameNsp.on('connection', async (socket) => {
+  
     const game = getGameOrNewOne(socket.nsp);
     registerGameHandlers(socket);
     console.log(`[${socket.id}] User connection`);

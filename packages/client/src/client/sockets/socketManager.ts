@@ -1,6 +1,6 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
-import { Player, TurnInfo } from "../../types/game.js";
+import { Player, TurnInfo, UpdatesData } from "../../types/game.js";
 import {
   GameAnswerMsg,
   GameAnswerPayload,
@@ -154,7 +154,10 @@ export class SocketManager extends EventEmitter {
   }
 
   async advertisePlayerAsReady() {
-    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
+    const playerIndex = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
+
+    console.log(playerIndex);
+    return playerIndex;
   }
 
   async broadcastAnswer(turn: number, to: string, payload: GameAnswerPayload) {
@@ -227,7 +230,7 @@ export class SocketManager extends EventEmitter {
       while (true) {
         const missingPlayers = new Set(playerSet.difference(new Set(answers.keys()))
           .values()
-          .map(from => [activePlayer, from] as FromTo))
+          .map(to => [activePlayer, to] as FromTo))
         const loggedMsgs = this.lookLogForAnswer(turn, missingPlayers);
         loggedMsgs.forEach(msg => answers.set(msg.to, msg.payload));
         const enough = setEqual(playerSet, new Set(answers.keys()));
@@ -248,7 +251,9 @@ export class SocketManager extends EventEmitter {
           .values()
           .map(from => [from, activePlayer] as FromTo))
         const loggedMsgs = this.lookLogForUpdates(turn, missingPlayers);
-        loggedMsgs.forEach(msg => updates.set(msg.sender, msg.payload));
+        loggedMsgs.forEach(msg => updates.set(
+          msg.sender, { proof: msg.payload.proof }
+        ));
         let enough = setEqual(playerSet, new Set(updates.keys()));
         if (!enough) { await passTime(100); } else { break; }
       }
