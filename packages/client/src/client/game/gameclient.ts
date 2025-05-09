@@ -136,11 +136,9 @@ export class GameClient {
     return this.sockets.game!.id!
   }
 
-  async play() {
+  async play(agents: Coordinates) {
 
-    await this.setupGame(); 
-    //to get the coords i need the player index 
-    //to get the player index I need the gameMachine running 
+    await this.setupGame(agents);
 
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
@@ -206,15 +204,19 @@ export class GameClient {
     this.log(this.activeStatus, ...args);
   }
 
-  async setupGame() {
+  async setupGame(agents: Coordinates) {
     this.log("Setting up game...")
-    // query players/turn order 
-    // ^ done by state machine
-
-    // emit ready (or wrap setup within emitAck from master)
-    // ^ done by state machine
     
-    //notifyPlayerReady()? <- done by state machine
+    // TODO need to add new state to state machine to handle deploy verifications
+    const myDeploys = this.zklib.createDeploys(agents);
+    console.log(myDeploys);
+
+    // TODO add socket memes to collect deployment proofs
+    // this.sockets.emit("DEPLOYS", deploys.proof);
+    
+    // TODO add socket waiter to get all player proofs then validate them
+    // const enemyDeploys: ProofData[] = this.sockets.waitForDeploys();
+    // this.zklib.verifyDeploys(enemyDeploys);
   }
 
   async processActivePlayer() {
@@ -240,6 +242,7 @@ export class GameClient {
 
     // STEP 6
     // wait for updates
+
     await this.waitForUpdates(otherPlayers);
 
     // STEP 7
