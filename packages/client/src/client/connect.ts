@@ -1,7 +1,7 @@
 import { GameClient } from "./game/gameclient.js";
 import { SocketManager } from "./sockets/socketManager.js";
 import { getAuthToken } from "./../utils.js";
-import { ZklibMock } from "./zklib-mock.js";
+import { ZkLibMock } from "./zklib-mock.js";
 import { mockAddAgents } from "./../cli/cli.js";
 
 export const FRONTEND_URLS = ['http://localhost:8000'];
@@ -20,7 +20,7 @@ export async function connect(token: string, url: string, gameId: string) {
 
   await sockets.socketsReady();
 
-  const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
+  const client = new GameClient(sockets.token, sockets, ZkLibMock.newMock());
 
   await client.play(mockAddAgents(client));
 }

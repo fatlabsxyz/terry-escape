@@ -1,5 +1,5 @@
 import { Action, BigNum, Collision, Field, IZkLib, ProofData, Public_Key, Secret_Key, State } from 'zklib/types';
-export class ZklibMock implements IZkLib {
+export class ZkLibMock implements IZkLib {
     round: number;
     own_seat: number;
     own_state!: State;
@@ -11,7 +11,7 @@ export class ZklibMock implements IZkLib {
     options: { mockProof: boolean; };
 
   static newMock() : IZkLib {
-    return new ZklibMock(0, [], []);
+    return new ZkLibMock(0, [], []);
   }
 
   constructor(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean } = { mockProof: false }) {

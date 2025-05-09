@@ -1,4 +1,5 @@
-import { ZklibMock } from "../client/zklib-mock.js";
+import { ZkLibMock } from "../client/zklib-mock.js";
+import { ZkLib } from "zklib";
 import { GameClient } from "./../client/game/gameclient.js";
 import { Board } from "./../client/game/board.js";
 import { SocketManager } from "./../client/sockets/socketManager.js";
@@ -31,7 +32,7 @@ export async function initCli() {
 
     await sockets.socketsReady(); 
     
-    const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
+    const client = new GameClient(sockets.token, sockets, ZkLibMock.newMock());
 
     // submit agent coordinates to game and start playing
     await client.play(mockAddAgents(client));
