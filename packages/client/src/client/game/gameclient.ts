@@ -207,16 +207,23 @@ export class GameClient {
   async setupGame(agents: Coordinates) {
     this.log("Setting up game...")
     
-    // TODO need to add new state to state machine to handle deploy verifications
-    const myDeploys = this.zklib.createDeploys(agents);
+    // Deploy your agents
+    const myDeploys = await this.zklib.createDeploys(agents);
     console.log(myDeploys);
 
-    // TODO add socket memes to collect deployment proofs
-    // this.sockets.emit("DEPLOYS", deploys.proof);
+    // Broadcast your deployment proofs
+    this.sockets.broadcastDeploy({deploys: myDeploys.proof});
     
-    // TODO add socket waiter to get all player proofs then validate them
-    // const enemyDeploys: ProofData[] = this.sockets.waitForDeploys();
-    // this.zklib.verifyDeploys(enemyDeploys);
+    // Collect all the other player's deploy proofs then validate them
+    const enemyDeploys = await this.sockets.waitForDeploy(
+      this.activePlayer, 
+      this.round.filter(x => x !== this.playerId) // TODO List of inactive players
+      // depends on state machine running, pretty much the same thing as last time
+    );
+
+    const enemyDeploysArray = Array.from(enemyDeploys.values()).map(v => v.deploys);
+
+    this.zklib.verifyDeploys(enemyDeploysArray);
   }
 
   async processActivePlayer() {
