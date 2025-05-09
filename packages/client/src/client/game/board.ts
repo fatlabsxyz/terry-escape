@@ -1,16 +1,7 @@
 import { Agent, AllowedPlacements, Coordinates, Placements } from "../../types/game.js";
 
 //TODO change to tuple type = [number, number]
-type TwoNumberArray = {
-    f: number; //first number
-    s: number; //second number
-};
-
-// CoordinatesMap is just a type to get around ts's asenine limitation 
-// to access predefined arrays via known existing indexes for some reason
-type Square = number;
-type AgentCount = number;
-type CoordinatesMap = Map<Square, AgentCount>;
+type CoordinatePoint = [number, number];
 
 export class Board {
 
@@ -20,8 +11,7 @@ export class Board {
     this.playerIndex = playerIndex;
   }
 
-
-  // Convert agent placements (4x4 matrix) into agent coordinates (2x2 matrix).
+  // Convert agent placements (4x4 matrix) into a list of agent coordinates (2x2 matrix).
   //
   // Example:
   // player of index 0
@@ -31,28 +21,43 @@ export class Board {
   // receive agent in 0,3 > [1,2,0,1]
   addAgents(placements: Placements): Coordinates {
 
-    // TODO maybe tuple
-    let coordinates: CoordinatesMap = new Map<number, number>([
-        [0, 0],
-        [1, 0],
-        [2, 0],
-        [3, 0]
-    ]);
+    let coordinates: Coordinates = [ 0, 0, 0, 0 ];
 
     placements.agents.forEach( (agent) => {
       const index = this.placementToIndex(agent);
-      coordinates.set(index, (coordinates.get(index) || 0) + 1);
+      coordinates[index] += 1;
     });
 
     // return in which of the allowed coordinates the agent is placed
-    return [coordinates.get(0)!, coordinates.get(1)!, coordinates.get(2)!, coordinates.get(3)!];
+    return [ coordinates[0], coordinates[1], coordinates[2], coordinates[3] ];
   }
 
-  // I'm so sorry for this
+  // Placement to index takes an agent's absolute coordinates on the board,
+  // and converts them into an index on their array of allowed positions.
+  //
+  // Example:
+  // agentCoordinates = [0, 1];
+  //
+  // Agent allowed positions:
+  // [ ][0][ ][1]
+  // [ ][ ][ ][ ]
+  // [ ][2][ ][3]
+  // [ ][ ][ ][ ]
+  //
+  // [ (0,1), (0,3), (2,1), (2,3) ]
+  //     0      1      2      3    
+  //
+  // Therefore the returned index is:
+  // index = 0;
+  //
+  // This is then added in the array of coordinates:
+  // coordinates[index] + 1;
+  // coordinates: [1, 0, 0, 0];
   private placementToIndex(agent: Agent): 0 | 1 | 2 | 3 {
   
     const p = this.allowedPlacements(); // p stands for placements
     
+    // I'm so sorry for making this switch
     switch (`${agent.row},${agent.column}`) {
         case `${p.a.row},${p.a.col}`: return 0;
         case `${p.b.row},${p.b.col}`: return 1;
@@ -66,14 +71,14 @@ export class Board {
   allowedPlacements(): AllowedPlacements  {
     const index = this.playerIndex; 
 
-    const allowedCols: TwoNumberArray = ( index % 2 === 0 ) ? {f: 0, s:2} : {f:1, s:3}; 
-    const allowedRows: TwoNumberArray = ( index < 2 ) ? {f:0, s:2} : {f:1, s:3};
+    const allowedCols: CoordinatePoint = ( index % 2 === 0 ) ? [0, 2] : [1,3]; 
+    const allowedRows: CoordinatePoint = ( index < 2 ) ? [0,2] : [1,3];
     
     return {
-      a: {row: allowedRows.f, col: allowedCols.f},
-      b: {row: allowedRows.f, col: allowedCols.s},
-      c: {row: allowedRows.s, col: allowedCols.f},
-      d: {row: allowedRows.s, col: allowedCols.s},
+      a: {row: allowedRows[0], col: allowedCols[0]},
+      b: {row: allowedRows[0], col: allowedCols[1]},
+      c: {row: allowedRows[1], col: allowedCols[0]},
+      d: {row: allowedRows[1], col: allowedCols[1]},
     };
   }
 

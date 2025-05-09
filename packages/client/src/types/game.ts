@@ -12,7 +12,7 @@ import {ProofData, Collision} from 'zklib/types';
 //
 // Each number shown in the matrix, is an index of the Coordinates array. 
 // Each value in every index is the quantity of agents deployed in that square.
-export type Coordinates = number[];
+export type Coordinates = [number, number, number, number];
 
 // Represents the agent placements allowed game's board in the UI.
 // This depends on the player index, and it's constrained as such:
