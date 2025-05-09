@@ -27,8 +27,9 @@ export interface GamePayload {
 }
 
 export interface GameDeployPayload extends GamePayload {
-  queries: ProofData;
+  deploys: ProofData;
 }
+
 export interface GameQueryPayload extends GamePayload {
   queries: ProofData[];
 }

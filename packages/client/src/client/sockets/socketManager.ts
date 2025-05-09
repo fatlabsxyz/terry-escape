@@ -43,8 +43,6 @@ export class SocketManager extends EventEmitter {
   constructor(options: SocketManagerOptions) {
     super();
     
-    // get token and assign to 
-
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
       auth: {
         token: options.token
@@ -144,8 +142,8 @@ export class SocketManager extends EventEmitter {
     }).filter(x => x !== undefined))
   }
 
-  lookLogForDeploys(turn: number, fromTo: Set<FromTo>): GameDeployMsg[] {
-    return this.lookLogForEvent(turn, GameMsg.DEPLOY, fromTo) as GameDeployMsg[]
+  lookLogForDeploys(fromTo: Set<FromTo>): GameDeployMsg[] {
+    return this.lookLogForEvent(0, GameMsg.DEPLOY, fromTo) as GameDeployMsg[]
   }
 
   lookLogForQueries(turn: number, fromTo: Set<FromTo>): GameQueryMsg[] {
@@ -171,12 +169,11 @@ export class SocketManager extends EventEmitter {
     return playerIndex;
   }
 
-  async broadcastDeploy(turn: number, to: string, payload: GameDeployPayload) {
+  async broadcastDeploy(payload: GameDeployPayload) {
     const deployMsg = {
-      turn,
+      turn: 0,
       event: GameMsg.DEPLOY,
       sender: this.sender,
-      to,
       payload
     };
     await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.DEPLOY, deployMsg);
@@ -225,7 +222,7 @@ export class SocketManager extends EventEmitter {
     await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.REPORT, reportMsg);
   }
 
-  async waitForDeploy(turn: number, activePlayer: string, players: Player[]): Promise<Map<string, GameDeployPayload>> {
+  async waitForDeploy(activePlayer: string, players: Player[]): Promise<Map<string, GameDeployPayload>> {
     const playerSet = new Set(players);
     const deploys: Map<Player, GameDeployPayload> = new Map();
     return new Promise(async (res, rej) => {
@@ -235,7 +232,7 @@ export class SocketManager extends EventEmitter {
         const missingPlayers = new Set(playerSet.difference(new Set(deploys.keys()))
           .values()
           .map(from => [from, activePlayer] as FromTo))
-        const loggedMsgs = this.lookLogForDeploys(turn, missingPlayers);
+        const loggedMsgs = this.lookLogForDeploys(missingPlayers);
         loggedMsgs.forEach(msg => deploys.set(msg.sender, msg.payload));
         const enough = setEqual(playerSet, new Set(deploys.keys()));
         if (!enough) { await passTime(100); } else { break; }
