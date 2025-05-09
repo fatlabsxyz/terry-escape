@@ -29,38 +29,14 @@ export async function initCli() {
       gameId: gameId, 
     });
 
-    await sockets.socketsReady();
-
-    // 
+    await sockets.socketsReady(); 
     
     const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
 
-    await client.play();
+    // submit agent coordinates to game and start playing
+    await client.play(mockAddAgents(client));
 
-    // create board after player index is defined by gameMachine
-    // const board = new Board(client.playerIndex);
-    // const allowedCoordinates = board.allowedPlacements();
-    // const agents = {
-    //   agents: [
-    //     {
-    //       row: allowedCoordinates.a.row, 
-    //       column: allowedCoordinates.a.col,
-    //     }, {
-    //       row: allowedCoordinates.b.row, 
-    //       column: allowedCoordinates.b.row
-    //     }, {
-    //       row: allowedCoordinates.c.row, 
-    //       column: allowedCoordinates.c.row
-    //     }, {
-    //       row: allowedCoordinates.d.row, 
-    //       column: allowedCoordinates.d.row
-    //     }
-    //   ]};
-    //
-    // const coordinates = board.addAgents(agents);
-
-    // submit agent coordinates to game
-  } else {
+      } else {
     console.log("Could not get user token from gamemaster in /auth")
   } 
 }
@@ -69,3 +45,27 @@ initCli().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+export function mockAddAgents(client: GameClient) {
+    // create board after player index is known
+    const board = new Board(client.initialPlayerIndex);
+    const allowedCoordinates = board.allowedPlacements();
+    const agents = {
+      agents: [
+        {
+          row: allowedCoordinates.a.row, 
+          column: allowedCoordinates.a.col,
+        }, {
+          row: allowedCoordinates.b.row, 
+          column: allowedCoordinates.b.row
+        }, {
+          row: allowedCoordinates.c.row, 
+          column: allowedCoordinates.c.row
+        }, {
+          row: allowedCoordinates.d.row, 
+          column: allowedCoordinates.d.row
+        }
+      ]};
+
+    return board.addAgents(agents);
+}

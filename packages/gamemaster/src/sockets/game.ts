@@ -70,7 +70,7 @@ function registerGameHandlers(socket: GameSocket) {
     const game = getGameOrNewOne(socket.nsp);
     const playerIndex = game.readyPlayer(socket.id as Player);
     ack( playerIndex );
-  })
+  });
 
 }
 

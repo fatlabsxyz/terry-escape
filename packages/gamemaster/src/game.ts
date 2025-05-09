@@ -66,6 +66,7 @@ interface Context {
   minPlayers: number;
   players: Map<Player, PlayerStatus>;
   turn: number;
+  round: Player[];
   activePlayer: Player | null;
   nextPlayer: Player | null;
   turnInfo: TurnInfo
@@ -142,10 +143,6 @@ export class Game {
     return this._activePlayer!;
   }
 
-  get activePlayerIndex() {
-    return this.players;
-  }
-
   addPlayer(player: Player) {
     this.gameMachine.send({ type: Events.AddPlayer, data: { player } });
   }
@@ -171,9 +168,10 @@ export class Game {
   }
 
   static turnInfoFromContext(context: Omit<Context, 'turnInfo'>): TurnInfo {
-    const { turn, activePlayer, nextPlayer } = context;
+    const { turn, round, activePlayer, nextPlayer } = context;
     return {
       turn,
+      round,
       activePlayer: activePlayer!,
       nextPlayer: nextPlayer!,
     }
@@ -263,7 +261,6 @@ export class Game {
           id: playerId,
           waiting: false
         }
-        this.players.set(playerId, players.size);
         players.set(playerId, playerStatus);
         return { players }
       } else return context
