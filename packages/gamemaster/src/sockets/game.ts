@@ -1,4 +1,4 @@
-import { GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg } from 'client/types';
+import { GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg } from 'client/types';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
@@ -34,13 +34,21 @@ function registerGameHandlers(socket: GameSocket) {
   /*///////////////////////////////////////////////////////////////
                           BROADCASTING
   //////////////////////////////////////////////////////////////*/
+  socket.on(GameMsg.DEPLOY, async (p: GameDeployMsg, ack: Ack) => {
+    await socket
+      .broadcast
+      .timeout(TIMEOUT)
+      .emitWithAck(GameMsg.DEPLOY, p);
+    ack();
+  }); 
+ 
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
     await socket
       .broadcast
       .timeout(TIMEOUT)
       .emitWithAck(GameMsg.QUERY, p);
     ack();
-  })
+  });
 
   socket.on(GameMsg.ANSWER, async (p: GameAnswerMsg, ack: Ack) => {
     await socket

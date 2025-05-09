@@ -7,7 +7,7 @@ export enum GameMsg {
   DUMMY = "game:dummy",
 
   SALUTE = "game:salute",
-
+  
   STARTED = "game:started",
   FINISHED = "game:finished",
   READY = "game:player_ready",
@@ -15,7 +15,8 @@ export enum GameMsg {
 
   TURN_START = "game:turn_start",
   TURN_END = "game:turn_end",
-
+  
+  DEPLOY = "game:deploy",
   QUERY = "game:query",
   ANSWER = "game:answer",
   UPDATE = "game:update",
@@ -25,6 +26,9 @@ export enum GameMsg {
 export interface GamePayload {
 }
 
+export interface GameDeployPayload extends GamePayload {
+  queries: ProofData;
+}
 export interface GameQueryPayload extends GamePayload {
   queries: ProofData[];
 }
@@ -48,6 +52,10 @@ export interface IGameMessage extends Message {
   to?: Player
 }
 
+export interface GameDeployMsg extends IGameMessage {
+  payload: GameDeployPayload
+}
+
 export interface GameQueryMsg extends IGameMessage {
   payload: GameQueryPayload
 }
@@ -65,4 +73,4 @@ export interface GameReportMsg extends IGameMessage {
   payload: GameReportPayload
 }
 
-export type GameMessage = GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg
+export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg
