@@ -1,6 +1,5 @@
-import { GameMsg } from 'client/types';
+import { GameMsg, TurnInfo } from 'client/types';
 import { GameNsp, GameSocket } from './sockets/game.js';
-import { TurnInfo } from '../../client/dist/types/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent } from 'xstate';
 
 /// STATE MACHINE TYPES
