@@ -30,14 +30,14 @@ export class ZkLib implements IZkLib {
   }
 
   setup(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean } = { mockProof: false }) {
-    if (this._isSetup === false){
+    if (this._isSetup === true){
       return;
     }
-    this._isSetup = true;
     this.own_seat = id;
     this.secret_key = sk;
     this.public_keys = pks;
     this.options = options;
+    this._isSetup = true;
   }
 
   async createDeploys(agents: number[]): Promise<{ proof: ProofData; }> {
@@ -58,12 +58,13 @@ export class ZkLib implements IZkLib {
     this.temp_values.tiles_salt = Array.from(Array(16), random_Field);
     this.temp_values.veils = Array.from(Array(16), random_bool);
     this.temp_values.veils_salt = Array.from(Array(16), random_Field);
-    for (let tile_index = 0; tile_index < 16; tile_index++) {
-      if (this.public_keys[mover] === undefined) {
-        throw Error("Public keys undefined");
-      }
-      const { params, key_set } = this.public_keys[mover];
 
+    if (this.public_keys[mover] === undefined) {
+      throw Error("Public keys undefined");
+    }
+    const { params, key_set } = this.public_keys[mover];
+
+    for (let tile_index = 0; tile_index < 16; tile_index++) {
       const inputs = {
         tile_used: tiles[tile_index],
         tile_salt: this.temp_values.tiles_salt[tile_index],
