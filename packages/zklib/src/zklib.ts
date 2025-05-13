@@ -15,15 +15,28 @@ export class ZkLib implements IZkLib {
   temp_proofs: { queries?: ProofData[], answers?: ProofData[] }
   temp_values: { veils?: boolean[], action?: Action, action_salt?: Field, tiles_salt?: Field[], veils_salt?: Field[] }
   options: { mockProof: boolean };
-
-  constructor(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean } = { mockProof: false }) {
+  _isSetup: boolean;
+  
+  constructor() {
+    this._isSetup = false;
     this.round = 0;
+    this.own_seat = 0;
+    this.secret_key = [];
+    this.public_keys = [];
+    this.temp_proofs = {};
+    this.temp_values = {};
+    this.all_states = Array(4).fill(undefined);
+    this.options = { mockProof: false };
+  }
+
+  setup(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean } = { mockProof: false }) {
+    if (this._isSetup === false){
+      return;
+    }
+    this._isSetup = true;
     this.own_seat = id;
     this.secret_key = sk;
     this.public_keys = pks;
-    this.temp_proofs = {};
-    this.temp_values = {};
-    this.all_states = Array(4);
     this.options = options;
   }
 

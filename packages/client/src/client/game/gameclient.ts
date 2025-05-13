@@ -1,10 +1,11 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Coordinates} from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib } from 'zklib/types';
+import { secretKeySample, publicKeySample } from 'keypairs';
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -136,7 +137,8 @@ export class GameClient {
     return this.sockets.game!.id!
   }
 
-  async play(agents: Coordinates) {
+
+  async play(agents: Locations) {
 
     await this.setupGame(agents);
 
@@ -204,11 +206,19 @@ export class GameClient {
     this.log(this.activeStatus, ...args);
   }
 
-  async setupGame(agents: Coordinates) {
+  async setupGame(agents: Locations) {
     this.log("Setting up game...")
-    
-    await this.setupAgents(agents);
 
+    const sk = secretKeySample(this.initialPlayerIndex);
+    const pks = this.zklib.all_states.map( (_, i) => publicKeySample(i) );
+
+
+    // this.log(`\nSETUP: SECRET-KEY: ${JSON.stringify(sk)}\n`);
+    // this.log(`\nSETUP: PUBLIC-KEYS: ${JSON.stringify(pks)}\n`);
+    this.log(`\nSETUP: PUBLIy-KEYS (1,2,3,4): ${pks[0]},\n${pks[1]},\n${pks[2]},\n${pks[3]}`);
+
+    this.zklib.setup(this.initialPlayerIndex, sk, pks, {mockProof: true}); 
+    await this.setupAgents(agents);
     // TODO find out where I can run validateDeploys()
   }
 
@@ -216,11 +226,13 @@ export class GameClient {
 
     const otherPlayers = this.round.filter(x => x !== this.playerId);
     
+
     // STEP 2
     // wait for queries | take action
     await Promise.all([
       this.waitForQuery(otherPlayers),
-      this.takeAction({reason: 8, target: 9, trap: true})
+      this.takeAction()
+      // based on the player's deployed agents, select a valid spot
     ])
 
     // STEP 3
@@ -287,8 +299,14 @@ export class GameClient {
   /*///////////////////////////////////////////////////////////////
                           NON-ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
-  async getQuery(): Promise<GameQueryPayload> { 
-    const query = await this.zklib.createQueries(this.activePlayerIndex);  
+  async getQuery(): Promise<GameQueryPayload> {
+
+    this.gameLog(`\nWITNESS: QUERY(PLAYER-INDEX): ${this.activePlayerIndex}\n`);
+
+    const query = await this.zklib.createQueries(Number(this.activePlayerIndex)); 
+    
+    this.gameLog(`\nPROOFDATA: QUERY: ${query}\n`);
+
     return {queries: query.proof}
   }
 
@@ -310,6 +328,7 @@ export class GameClient {
     
     this.turnData.updates.set(this.playerId, data);
     
+
     return {proof: data.proof};
   }
 
@@ -323,14 +342,14 @@ export class GameClient {
                           ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
   
-  async setupAgents(agentsLocations: Coordinates) {
+  async setupAgents(agentsLocations: Locations) {
     // Deploy your agents
+    this.log(`\nWITNESS: AGENTS-LOCATIONS: ${agentsLocations}\n`);
     const myDeploys = await this.zklib.createDeploys(agentsLocations);
-    console.log(`myDeploys: ${myDeploys.proof}`);
+    this.log(`\nPROOFDATA: MY-DEPLOYS: ${myDeploys.proof}\n`);
 
     // Broadcast your deployment proofs
     this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
-
   }
 
   // Wait for other deploys and validate them
@@ -350,9 +369,33 @@ export class GameClient {
     this.zklib.verifyDeploys(enemyDeploysArray);
   }
 
-  async takeAction(action: TurnAction) {
-    console.log(action); 
-    this.turnData.action = action;
+  async takeAction(
+    //action: TurnAction
+    ) {
+    // console.log(action); 
+
+    const playerSeed = { 
+      0: 0,
+      1: 1,
+      2: 4,
+      3: 5
+    };
+
+    const reason = playerSeed[this.initialPlayerIndex as 0|1|2|3];
+    
+    let target: number = 0;
+    if (reason === 0) {
+      target = 1;
+    } else if (reason === 1) {
+      target = 5;
+    } else if (reason === 2) {
+      target = 4;
+    } else if (reason === 3) { 
+      target = 5;
+    }
+
+    this.turnData.action = { reason, target, trap:true };
+    // this.turnData.action = action;
   }
 
   async waitForQuery(players: Player[]) {
@@ -366,8 +409,12 @@ export class GameClient {
   async createAnswers(): Promise<GameAnswerPayload[]> {
     const payloads: GameAnswerPayload[] = [];
 
+    this.log(`\nWITNESS: QUERIES: ${Object.values(this.turnData.queries)}\n`);
+    
     const answers = await this.zklib.createAnswers(Object.values(this.turnData.queries), this.turnData.action);
     
+    this.log(`\nPROOFDATA: ANSWERS: ${answers}\n`);
+
     const nonActivePlayersRound = this.round
       .filter(x => x !== this.activePlayer);
 
@@ -383,9 +430,9 @@ export class GameClient {
 
   
   async waitForUpdates(players: Player[]) {
-    this.gameLog("Waiting for updates");
+    this.log("Waiting for updates");
     const updates = await this.sockets.waitForUpdates(this.turn, this.activePlayer, players);
-    this.gameLog("Returned updates", stringify(updates));
+    this.log("Returned updates", stringify(updates));
     updates.forEach((value, key) => {
       this.turnData.updates.set(key, value) 
     });
@@ -396,8 +443,10 @@ export class GameClient {
     const nonActivePlayerUpdates = Object.entries(this.turnData.updates)
       .filter(([x,_]) => x !== this.activePlayer).map(([_,y]) => y );
     
+    this.log(`\nWITNESS: REPORTS(NON-ACTIVE-PLAYER-UPDATES): ${nonActivePlayerUpdates}\n`);
     const report = await this.zklib.createReports(nonActivePlayerUpdates);
-    
+     
+    this.log(`\nPROOFDATA: REPORT: ${report}\n`);
     this.turnData.report = {proof: report.proof, impacted: report.impacted};
 
     return { proof: report.proof };
