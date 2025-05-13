@@ -13,6 +13,9 @@ export interface IZkLib {
   temp_proofs: { queries?: ProofData[], answers?: ProofData[] }
   temp_values: { veils?: boolean[], action?: Action, action_salt?: Field, tiles_salt?: Field[], veils_salt?: Field[] }
   options: { mockProof: boolean };
+  _isSetup: boolean; 
+
+  setup(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean }): void;
 
   // new(id: number, sk: Secret_Key, pks: Public_Key[], options: { mockProof: boolean } = { mockProof: false });
   createDeploys(agents: number[]): Promise<{ proof: ProofData; }>;

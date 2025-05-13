@@ -2,12 +2,15 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { ZkLib } from "../../src/zklib.js";
 
-import { publicKeySample, secretKeySample } from '../../../keypairs/src/data/index.js';
+import { publicKeySample, secretKeySample } from 'keypairs';
 
 /// ALICIA (ACTIVE PLAYER)
-const zkAlicia = new ZkLib(0, secretKeySample(0), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
+const zkAlicia = new ZkLib();
+zkAlicia.setup(0, secretKeySample(0), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
+
 /// BRENDA
-const zkBrenda = new ZkLib(1, secretKeySample(1), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
+const zkBrenda = new ZkLib();
+zkBrenda.setup(1, secretKeySample(1), [publicKeySample(0), publicKeySample(1)], { mockProof: true });
 
 async function flow() {
 
@@ -36,7 +39,6 @@ async function flow() {
   console.log("reportProof", reportProof)
 
   return 1;
-
 }
 
 describe("Full flow 2 users", () => {

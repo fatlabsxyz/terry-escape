@@ -12,27 +12,15 @@ import {ProofData, Collision} from 'zklib/types';
 //
 // Each number shown in the matrix, is an index of the Coordinates array. 
 // Each value in every index is the quantity of agents deployed in that square.
-export type Coordinates = [number, number, number, number];
+export type Locations = [number, number, number, number];
+
+export type IJ = [number, number];
 
 // Represents the agent placements allowed game's board in the UI.
-export interface AllowedPlacements {
-  a: Placement;
-  b: Placement;
-  c: Placement;
-  d: Placement;
-};
-
-// A placement is a set of absolute board coordinates
-export interface Placement {
-  row: number;
-  col: number;
-};
+export type AllowedPlacements = [IJ, IJ, IJ, IJ];
 
 // The absolute coordinate of an agent on the board
-export type Agent = {
-  row: number, 
-  column: number
-};
+export type Agent = IJ;
 
 // List of agent placements on the board
 export type Placements = {

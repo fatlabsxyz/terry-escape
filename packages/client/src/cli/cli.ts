@@ -19,7 +19,6 @@ export async function initCli() {
   const name = args[1]!;
   const gameId = args[2]!;
 
-
   const data: AuthRequestData = { name: name, url: url };
   const newToken = await getAuthToken(data);
 
@@ -32,13 +31,19 @@ export async function initCli() {
 
     await sockets.socketsReady(); 
     
-    const client = new GameClient(sockets.token, sockets, ZkLibMock.newMock());
+    const zklib = new ZkLib();
+    // const zklib = new ZkLibMock();
+
+    const client = new GameClient(sockets.token, sockets, zklib);
 
     // submit agent coordinates to game and start playing
     await client.play(mockAddAgents(client));
 
-      } else {
-    console.log("Could not get user token from gamemaster in /auth")
+    // client.takeAction();
+    // take action continues if the player submits a valid action before 30s
+
+    } else {
+      console.log("Could not get user token from gamemaster in /auth")
   } 
 }
 
@@ -50,23 +55,7 @@ initCli().catch((e) => {
 export function mockAddAgents(client: GameClient) {
     // create board after player index is known
     const board = new Board(client.initialPlayerIndex);
-    const allowedCoordinates = board.allowedPlacements();
-    const agents = {
-      agents: [
-        {
-          row: allowedCoordinates.a.row, 
-          column: allowedCoordinates.a.col,
-        }, {
-          row: allowedCoordinates.b.row, 
-          column: allowedCoordinates.b.row
-        }, {
-          row: allowedCoordinates.c.row, 
-          column: allowedCoordinates.c.row
-        }, {
-          row: allowedCoordinates.d.row, 
-          column: allowedCoordinates.d.row
-        }
-      ]};
+    const allowedCoordinates = [board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0]];
 
-    return board.addAgents(agents);
+    return board.addAgents({agents: allowedCoordinates});
 }
