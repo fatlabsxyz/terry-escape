@@ -29,8 +29,8 @@ export type GameSocket = Socket<
 
 function registerGameHandlers(socket: GameSocket) {
 
-  const TIMEOUT = 3_000;
-
+  const TIMEOUT = 300_000;
+  console.log("GAME HANDLERS GOING"); // TODO remove
   /*///////////////////////////////////////////////////////////////
                           BROADCASTING
   //////////////////////////////////////////////////////////////*/
@@ -43,6 +43,7 @@ function registerGameHandlers(socket: GameSocket) {
   }); 
  
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
+    console.log("THE QUERY HAS ARRIVED:", JSON.stringify(p.payload.queries).slice(0, 100)); // todo remove
     await socket
       .broadcast
       .timeout(TIMEOUT)
@@ -116,8 +117,12 @@ export function addGameNamespace(server: Server): Server {
 
     game.addPlayer(socket.id as Player);
     console.log(`welcome ${socket.data.name} with id ${socket.data.id} :\)`);
+    
+    socket.on("disconnect", async (reason) => {
+      console.log("SOCKET DISCONNECT: ", reason);
+    });
   });
-
+  
   return server;
 }
 
