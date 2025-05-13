@@ -63,6 +63,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
+      keypairs:
+        specifier: workspace:*
+        version: link:../keypairs
       nanoid:
         specifier: ^5.1.5
         version: 5.1.5
@@ -123,11 +126,7 @@ importers:
         specifier: ^22.13.5
         version: 22.13.5
 
-  packages/keypairs:
-    dependencies:
-      zklib:
-        specifier: workspace:*
-        version: link:../zklib
+  packages/keypairs: {}
 
   packages/noir: {}
 

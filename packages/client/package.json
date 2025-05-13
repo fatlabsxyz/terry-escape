@@ -41,6 +41,7 @@
     "eventemitter3": "^5.0.1",
     "jsonwebtoken": "^9.0.2",
     "nanoid": "^5.1.5",
+    "keypairs": "workspace:*",
     "zklib": "workspace:*"
   }
 }
