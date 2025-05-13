@@ -1,6 +1,5 @@
-import { GameMsg } from 'client/types';
+import { GameMsg, TurnInfo } from 'client/types';
 import { GameNsp, GameSocket } from './sockets/game.js';
-import { TurnInfo } from '../../client/dist/types/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent } from 'xstate';
 
 /// STATE MACHINE TYPES
@@ -65,8 +64,8 @@ function isPlayerReadyEvent(event: EventsSm): event is PlayerReadyEvent {
 interface Context {
   minPlayers: number;
   players: Map<Player, PlayerStatus>;
-  round: Player[];
   turn: number;
+  round: Player[];
   activePlayer: Player | null;
   nextPlayer: Player | null;
   turnInfo: TurnInfo
@@ -99,8 +98,6 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 
 export class Game {
 
-  round: Player[] = [];
-
   private _activePlayer: Player | null = null;
   private _nextPlayer: Player | null = null;
   nsp: GameNsp;
@@ -112,8 +109,8 @@ export class Game {
   constructor(readonly id: string, nsp: GameNsp, options?: {}) {
     this.id = id
     this.nsp = nsp;
-    this.broadcastTimeout = 2_000;
-    this.minPlayers = 5;
+    this.broadcastTimeout = 30_000; //originally 2_000
+    this.minPlayers = 4;
 
     this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
     this.gameMachine.start();
@@ -142,7 +139,7 @@ export class Game {
   }
 
   get activePlayer() {
-    return this._activePlayer!
+    return this._activePlayer!;
   }
 
   addPlayer(player: Player) {
@@ -150,7 +147,9 @@ export class Game {
   }
 
   readyPlayer(player: Player) {
+    const playerIndex: number = this.gameMachine.getSnapshot().context.players.get(player)!.place;
     this.gameMachine.send({ type: Events.PlayerReady, data: { player } });
+    return playerIndex;
   }
 
   static nextPlayers(finishingPlayer: Player, round: Player[]): [Player, Player] {
