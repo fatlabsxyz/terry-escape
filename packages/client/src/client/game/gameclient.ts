@@ -1,6 +1,6 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations} from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
@@ -240,7 +240,7 @@ export class GameClient {
     const answers = await this.createAnswers();
     // broadcast answers
     await Promise.all(answers.map(async (answer) => {
-      this.gameLog("Broadcasting answers")
+      this.gameLog("Broadcasting answers");
       await this.sockets.broadcastAnswer(this.turn, answer.to, answer);
     }))
     this.gameLog("NO MORE ANSWERS TO BROADCAST");
@@ -253,7 +253,7 @@ export class GameClient {
     // STEP 7
     // broadcast reports
     const report = await this.createReport();
-    this.gameLog("Broadcasting report")
+    this.gameLog("Broadcasting report");
     await this.sockets.broadcastReport(this.turn, report);
 
     this.gameLog("Finishing turn.");
@@ -401,18 +401,22 @@ export class GameClient {
 
   async waitForQuery(players: Player[]) {
     const queries = await this.sockets.waitForQuery(this.turn, this.activePlayer, players);
-    this.log("QUERIES THAT WE WAITED ALL THIS TIME FOR: ", JSON.stringify(queries));
+    this.log("QUERIES WE'VE BEEN WAITING FOR");
     queries.forEach((payload, player) => {
-      this.turnData.queries.set(player, payload);
+      this.log(`QUERY NUMBER: ${player}, QUERY VALUE: ${payload.queries}`);
+      this.turnData.queries.set(player, {queries: payload.queries});
     })
+    this.log("TURNDATA, QUERIES: ", this.turnData.queries);
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
     const payloads: GameAnswerPayload[] = [];
 
-    this.log(`\nWITNESS: QUERIES: ${Object.values(this.turnData.queries)}\n`);
+    const queryData = Array.from(this.turnData.queries.values()).map((x) => x.queries);
+
+    this.log(`\nWITNESS: QUERIES: ${queryData}`);
     
-    const answers = await this.zklib.createAnswers(Object.values(this.turnData.queries), this.turnData.action);
+    const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
     
     this.log(`\nPROOFDATA: ANSWERS: ${answers}\n`);
 
