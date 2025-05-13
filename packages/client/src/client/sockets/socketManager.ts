@@ -20,7 +20,7 @@ import { passTime, setEqual } from "../../utils.js";
 import { MessageLog } from "../messageLog.js";
 import { SetupSocketOptions } from "../setup.js";
 
-const TIMEOUT = 3_000;
+const TIMEOUT = 300_000;
 
 type FromTo = [string, string];
 
@@ -191,6 +191,7 @@ export class SocketManager extends EventEmitter {
   }
 
   async broadcastQuery(turn: number, to: string, payload: GameQueryPayload) {
+    console.log(`BROADCAST QUERY BEFORE: timeout=${TIMEOUT}`);
     const queryMsg = {
       turn,
       event: GameMsg.QUERY,
@@ -198,7 +199,9 @@ export class SocketManager extends EventEmitter {
       to,
       payload
     };
-    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.QUERY, queryMsg);
+    let r = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.QUERY, queryMsg);
+    // TODO remove
+    console.log(`BROADCAST QUERY = ${r}`);
   }
 
   async broadcastUpdate(turn: number, to: string, payload: GameUpdatePayload) {

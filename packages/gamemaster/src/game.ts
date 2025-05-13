@@ -109,7 +109,7 @@ export class Game {
   constructor(readonly id: string, nsp: GameNsp, options?: {}) {
     this.id = id
     this.nsp = nsp;
-    this.broadcastTimeout = 2_000;
+    this.broadcastTimeout = 30_000; //originally 2_000
     this.minPlayers = 4;
 
     this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
