@@ -4,7 +4,7 @@ import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg, Gam
 
 type Ack = () => void;
 
-type AckPlayerIndex = (playerIndex: number) => void;
+type AckPlayerIndex = (playerIndex: number | undefined) => void;
 
 export interface GameNspClientToServerEvents {
   [GameMsg.DUMMY]: (...args: any[]) => void;
@@ -37,6 +37,8 @@ export interface GameNspClientToServerEvents {
   * This is the client side typing
   */
   [GameMsg.REPORT]: (p: GameReportMsg, cb: Ack) => void;
+
+  [GameMsg.GET_PLAYER_INDEX]: (cb: AckPlayerIndex) => void;
 }
 
 export interface GameNspServerToClientEvents {

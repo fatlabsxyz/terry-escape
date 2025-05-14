@@ -21,6 +21,7 @@ export enum GameMsg {
   ANSWER = "game:answer",
   UPDATE = "game:update",
   REPORT = "game:report",
+  GET_PLAYER_INDEX = "game:get_player_index"
 }
 
 export interface GamePayload {

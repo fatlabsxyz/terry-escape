@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 
 type Ack = () => void;
 
-type AckPlayerIndex = (playerIndex: number) => void;
+type AckPlayerIndex = (playerIndex: number | undefined) => void;
 
 interface InterServerEvents { }
 interface SocketData {
@@ -78,6 +78,12 @@ function registerGameHandlers(socket: GameSocket) {
   socket.on(GameMsg.READY, async (ack: AckPlayerIndex) => {
     const game = getGameOrNewOne(socket.nsp);
     const playerIndex = game.readyPlayer(socket.id as Player);
+    ack( playerIndex );
+  });
+
+  socket.on(GameMsg.GET_PLAYER_INDEX, async (ack: AckPlayerIndex) => {
+    const game = getGameOrNewOne(socket.nsp);
+    const playerIndex = game.getPlayerIndex(socket.data.id as Player);
     ack( playerIndex );
   });
 

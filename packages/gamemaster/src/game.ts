@@ -152,6 +152,15 @@ export class Game {
     return playerIndex;
   }
 
+  getPlayerIndex(playerId: Player): number | undefined {
+    const playerStatus = this.gameMachine
+      .getSnapshot()
+      .context
+      .players
+      .get(playerId);
+    return playerStatus?.place;
+  }
+
   static nextPlayers(finishingPlayer: Player, round: Player[]): [Player, Player] {
     let activePlayer: Player, nextPlayer: Player;
     const activeIndex = round.indexOf(finishingPlayer);
