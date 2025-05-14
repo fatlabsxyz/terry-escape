@@ -2,8 +2,10 @@ import { ZkLibMock } from "../client/zklib-mock.js";
 import { ZkLib } from "zklib";
 import { GameClient } from "./../client/game/gameclient.js";
 import { Board } from "./../client/game/board.js";
+
 import { SocketManager } from "./../client/sockets/socketManager.js";
 import { getAuthToken, AuthRequestData } from "./../utils.js";
+import { IJ } from "../types/game.js";
 
 const args = process.argv.splice(2)
 
@@ -54,8 +56,17 @@ initCli().catch((e) => {
 
 export function mockAddAgents(client: GameClient) {
     // create board after player index is known
-    const board = new Board(client.initialPlayerIndex);
-    const allowedCoordinates = [board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0]];
-
-    return board.addAgents({agents: allowedCoordinates});
+  const index = client.initialPlayerIndex;
+  const board = new Board(index);
+  
+  console.log(`CLI: ALLOWED LOCS FOR INDEX (${index}):${board.computeAllowedPlacements()}`);
+  
+  let agents: IJ[];
+  if (index % 2 === 0) {
+    agents = [board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0]];
+  } else {
+    agents = [board.allowedPlacements[3], board.allowedPlacements[3], board.allowedPlacements[3], board.allowedPlacements[3]];
+  }
+  console.log("CLI: AGENTS:", agents);
+  return board.addAgents({agents});
 }
