@@ -1,6 +1,6 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData} from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
@@ -74,6 +74,7 @@ type Events = AnyEventObject
   | WaitingEvent
   | QueryWaitingEvent
 
+
 function isTurnStartEvent(event: Events): event is TurnStartEvent {
   return event.type === GameMsg.TURN_START;
 }
@@ -111,7 +112,8 @@ export class GameClient {
   turnsData: TurnData[];
   turnData: TurnData;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
-  private initialPlayerIndexNow: number;
+  private initialPlayerIndexNow: 0|1|2|3;
+  activePlayerLocation: undefined | AgentLocation;
 
   constructor(token: string, sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
@@ -120,6 +122,7 @@ export class GameClient {
     this.log = _createLogger(token, sockets.sender);
     this.token = token;
     this.initialPlayerIndexNow = 0;
+    this.activePlayerLocation = undefined;
   }
 
   static _emptyTurnData(): TurnData {
@@ -215,7 +218,7 @@ export class GameClient {
 
     // this.log(`\nSETUP: SECRET-KEY: ${JSON.stringify(sk)}\n`);
     // this.log(`\nSETUP: PUBLIC-KEYS: ${JSON.stringify(pks)}\n`);
-    this.log(`\nSETUP: PUBLIy-KEYS (1,2,3,4): ${pks[0]},\n${pks[1]},\n${pks[2]},\n${pks[3]}`);
+    this.log(`\nSETUP: PUBLIC-KEYS (1,2,3,4): ${pks[0]},\n${pks[1]},\n${pks[2]},\n${pks[3]}`);
 
     this.zklib.setup(this.initialPlayerIndex, sk, pks, {mockProof: true}); 
     await this.setupAgents(agents);
@@ -374,29 +377,47 @@ export class GameClient {
     //action: TurnAction
     ) {
     // console.log(action); 
-
-    const playerSeed = { 
+  
+    // for now:
+    // each player goes from left to right infinitely
+    // starting here:
+    // 0 _ _ _   
+    // 2 _ _ _   
+    // _ 1 _ _   
+    // _ 3 _ _
+    const playerStartLoc = { 
       0: 0,
-      1: 1,
+      1: 9,
       2: 4,
-      3: 5
+      3: 13
     };
 
-    const reason = playerSeed[this.initialPlayerIndex as 0|1|2|3];
+    let direction: number = 1;
+    const index = this.initialPlayerIndex;
+    const loc = this.activePlayerLocation;
+
+    this.activePlayerLocation = loc || (playerStartLoc[index] as AgentLocation);
     
+    const reason = this.activePlayerLocation;
     let target: number = 0;
-    if (reason === 0) {
-      target = 1;
-    } else if (reason === 1) {
-      target = 5;
-    } else if (reason === 2) {
-      target = 4;
-    } else if (reason === 3) { 
-      target = 5;
+
+    switch (index) {
+      case 0: ( {target, direction} = this.bounce(reason, 0, 3, direction) );
+      case 1: ( {target, direction} = this.bounce(reason, 8, 11, direction) );
+      case 2: ( {target, direction} = this.bounce(reason, 4, 7, direction) );
+      case 3: ( {target, direction} = this.bounce(reason, 12, 15, direction) );    
     }
 
-    this.turnData.action = { reason, target, trap:true };
+    this.log(`ACTION FOR PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
+
+    this.turnData.action = { reason, target, trap: false };
     // this.turnData.action = action;
+  }
+
+  bounce(current: number, min: number, max: number, direction: number): {target: number, direction: number}{
+    if (current === max && direction === 1) return { target: max - 1, direction: -1 };
+    if (current === min && direction === -1) return { target: min + 1, direction: 1 };
+    return { target: current + direction, direction };
   }
 
   async waitForQuery(players: Player[]) {
