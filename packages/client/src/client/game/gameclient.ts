@@ -1,10 +1,10 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerIndex, IJ} from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerIndex, IJ, AnswerData} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
-import { IZkLib } from 'zklib/types';
+import { IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
 import { Board } from './board.js';
 
@@ -335,15 +335,26 @@ export class GameClient {
     // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
     const answers = await this.sockets.waitForAnswer(this.turn, this.activePlayer, players);
 
-    this.gameLog("ANSWER RECIEVED")
+    this.gameLog("WAIT FOR ANSWERS RECIEVED:", answers);
     
     answers.forEach( (payload, id) => {
-      this.turnData.answers.set(id, {proof: payload.proof})
+      this.turnData.answers.set(id, {proof: payload.proof});
     });
   }
 
   async createUpdate(): Promise<GameUpdatePayload> {
-    const answer = this.turnData.answers.get(this.playerId)!;
+    const answers = this.turnData.answers;
+
+    this.gameLog("all answers UPDATE:", answers);
+    
+    const pid = this.playerId;
+    
+    this.gameLog("PID UPDATE:", pid);
+
+    const answer = answers.get(this.playerId) as AnswerData;
+
+    this.gameLog("ANSWER FOR UPDATE:", answer);
+
     const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex);
     
     this.turnData.updates.set(this.playerId, data);
@@ -448,14 +459,22 @@ export class GameClient {
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
     const payloads: GameAnswerPayload[] = [];
+    const queryValues = Array.from(this.turnData.queries.values());
+    
+    queryValues.forEach( (x) => {
+      this.log(`\nWITNESS: QUERY-VALUES: ${x.queries}`);
+    });
 
-    const queryData = Array.from(this.turnData.queries.values()).map((x) => x.queries);
+    const queryData = queryValues.map((x) => x.queries);
 
     this.log(`\nWITNESS: QUERIES: ${queryData}`);
     
     const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
     
-    this.log(`\nPROOFDATA: ANSWERS: ${answers}\n`);
+    answers.playerProofs.forEach( (value) => {      
+      this.log(`\nPROOFDATA: ANSWERS: ${value}\n`);
+    });
+
 
     const nonActivePlayersRound = this.round
       .filter(x => x !== this.activePlayer);
