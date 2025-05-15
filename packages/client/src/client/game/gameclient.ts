@@ -475,7 +475,6 @@ export class GameClient {
       this.log(`\nPROOFDATA: ANSWERS: ${value}\n`);
     });
 
-
     const nonActivePlayersRound = this.round
       .filter(x => x !== this.activePlayer);
 
@@ -493,7 +492,15 @@ export class GameClient {
   async waitForUpdates(players: Player[]) {
     this.log("WAITING FOR UPDATES");
     const updates = await this.sockets.waitForUpdates(this.turn, this.activePlayer, players);
-    this.log("UPDATES RECEIVED");
+
+    this.log("UPDATES RECEIVED: ", updates);
+
+    const updateValues = Array.from(updates.values());
+    
+    updateValues.forEach( (x) => {
+      this.log(`\nUPDATES: UPDATE-VALUES: ${x.proof}`);
+    });
+
     updates.forEach((value, key) => {
       this.turnData.updates.set(key, value) 
     });
