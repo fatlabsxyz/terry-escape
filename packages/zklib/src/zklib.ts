@@ -92,7 +92,7 @@ export class ZkLib implements IZkLib {
 
   async createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }> {
     let proofs = [];
-    for (let player_index = 0; player_index < 2; player_index++) {
+    for (let player_index = 0; player_index < 3; player_index++) {
 
       if (player_index == this.own_seat) {
         queries.splice(player_index, 0, []);
