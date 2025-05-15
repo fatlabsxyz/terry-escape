@@ -144,6 +144,8 @@ export class GameClient {
 
   async play() {
     
+    this.log("GET-PLAYER-INDEX (PLAY):", this.sockets.getPlayerIndex());
+
     setTimeout(async () => {
       await this.setupGame();
     }, 1000)
@@ -215,6 +217,8 @@ export class GameClient {
   async setupGame() {
     this.log("Setting up game...")
  
+    this.log("GET-PLAYER-INDEX (SETUP):", this.sockets.getPlayerIndex());
+
     // const index = await this.sockets.getPlayerIndex() as PlayerIndex;
     const index = this.initialPlayerIndex as PlayerIndex;
 
@@ -507,12 +511,21 @@ export class GameClient {
   }
 
   async createReport(): Promise<GameReportPayload> {
-
-    const nonActivePlayerUpdates = Object.entries(this.turnData.updates)
-      .filter(([x,_]) => x !== this.activePlayer).map(([_,y]) => y );
     
+    const turnUpdates = Object.entries(this.turnData.updates);
+
+    this.log(`\nWITNESS: REPORTS(TURN-UPDATES): ${turnUpdates}\n`);
+    
+    const nonActivePlayerUpdates = turnUpdates.filter(([x,_]) => x !== this.activePlayer)
+
     this.log(`\nWITNESS: REPORTS(NON-ACTIVE-PLAYER-UPDATES): ${nonActivePlayerUpdates}\n`);
-    const report = await this.zklib.createReports(nonActivePlayerUpdates);
+    
+    const updates = nonActivePlayerUpdates.map(([_,y]) => y );
+    
+    this.log(`\nWITNESS: REPORTS(UPDATES): ${updates}\n`);
+    // rn prints empty
+
+    const report = await this.zklib.createReports(updates);
      
     this.log(`\nPROOFDATA: REPORT: ${report}\n`);
     this.turnData.report = {proof: report.proof, impacted: report.impacted};
