@@ -16,6 +16,7 @@ export class ZkLib implements IZkLib {
   temp_values: { veils?: boolean[], action?: Action, action_salt?: Field, tiles_salt?: Field[], veils_salt?: Field[] }
   options: { mockProof: boolean };
   _isSetup: boolean;
+  readonly NUMBER_OF_PLAYERS: number = 4;
   
   constructor() {
     this._isSetup = false;
@@ -25,7 +26,7 @@ export class ZkLib implements IZkLib {
     this.public_keys = [];
     this.temp_proofs = {};
     this.temp_values = {};
-    this.all_states = Array(4).fill(undefined);
+    this.all_states = Array(this.NUMBER_OF_PLAYERS).fill(undefined);
     this.options = { mockProof: false };
   }
 
@@ -92,7 +93,7 @@ export class ZkLib implements IZkLib {
 
   async createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }> {
     let proofs = [];
-    for (let player_index = 0; player_index < 3; player_index++) {
+    for (let player_index = 0; player_index < this.NUMBER_OF_PLAYERS - 1; player_index++) {
 
       if (player_index == this.own_seat) {
         queries.splice(player_index, 0, []);
