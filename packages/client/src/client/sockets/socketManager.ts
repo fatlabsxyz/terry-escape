@@ -96,7 +96,6 @@ export class SocketManager extends EventEmitter {
       this.msgLog.register(msg);
       ack();
     });
-
   }
 
   // emitWithAck(event: string, ...args: any[]) {
@@ -161,11 +160,19 @@ export class SocketManager extends EventEmitter {
   lookLogForReport(turn: number, from: string): GameReportMsg | undefined {
     return this.msgLog.find(turn, GameMsg.REPORT, from) as GameReportMsg | undefined
   }
+    
+  async getPlayerIndex(){
+    const playerIndex = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.GET_PLAYER_INDEX);
+
+    console.log("GET-PLAYER-INDEX", playerIndex);
+    
+    return playerIndex;
+  }
 
   async advertisePlayerAsReady() {
     const playerIndex = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
 
-    console.log(playerIndex);
+    console.log("READY: PLAYER-INDEX", playerIndex);
     return playerIndex;
   }
 
