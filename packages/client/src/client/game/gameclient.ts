@@ -1,11 +1,12 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation} from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerIndex, IJ} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
+import { Board } from './board.js';
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -112,7 +113,7 @@ export class GameClient {
   turnsData: TurnData[];
   turnData: TurnData;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
-  private initialPlayerIndexNow: 0|1|2|3;
+  private initialPlayerIndexNow: undefined | PlayerIndex;
   activePlayerLocation: undefined | AgentLocation;
 
   constructor(token: string, sockets: SocketManager, readonly zklib: IZkLib) {
@@ -121,7 +122,7 @@ export class GameClient {
     this.turnData = GameClient._emptyTurnData();
     this.log = _createLogger(token, sockets.sender);
     this.token = token;
-    this.initialPlayerIndexNow = 0;
+    this.initialPlayerIndexNow = undefined;
     this.activePlayerLocation = undefined;
   }
 
@@ -141,10 +142,12 @@ export class GameClient {
   }
 
 
-  async play(agents: Locations) {
-
-    await this.setupGame(agents);
-
+  async play() {
+    
+    setTimeout(async () => {
+      await this.setupGame();
+    }, 1000)
+    
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
   }
@@ -209,19 +212,33 @@ export class GameClient {
     this.log(this.activeStatus, ...args);
   }
 
-  async setupGame(agents: Locations) {
+  async setupGame() {
     this.log("Setting up game...")
+ 
+    // const index = await this.sockets.getPlayerIndex() as PlayerIndex;
+    const index = this.initialPlayerIndex as PlayerIndex;
 
-    const sk = secretKeySample(this.initialPlayerIndex);
+    const board = new Board(index);
+  
+    this.log(`SETUP: ALLOWED PLACEMENTS FOR INDEX (${index}):${board.computeAllowedPlacements()}`);
+  
+    let agents: IJ[];
+    if (index % 2 === 0) {
+      agents = [board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0]];
+    } else {
+      agents = [board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2]];
+    }
+
+    this.log("SETUP: PROPOSED AGENTS:", agents);
+
+    const deployedAgents = board.addAgents({agents})
+    const sk = secretKeySample(index);
     const pks = this.zklib.all_states.map( (_, i) => publicKeySample(i) );
 
+    this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${pks[0]},\n${pks[1]},\n${pks[2]},\n${pks[3]}`);
 
-    // this.log(`\nSETUP: SECRET-KEY: ${JSON.stringify(sk)}\n`);
-    // this.log(`\nSETUP: PUBLIC-KEYS: ${JSON.stringify(pks)}\n`);
-    this.log(`\nSETUP: PUBLIC-KEYS (1,2,3,4): ${pks[0]},\n${pks[1]},\n${pks[2]},\n${pks[3]}`);
-
-    this.zklib.setup(this.initialPlayerIndex, sk, pks, {mockProof: true}); 
-    await this.setupAgents(agents);
+    this.zklib.setup(index, sk, pks, {mockProof: true}); 
+    await this.setupAgents(deployedAgents);
     // TODO find out where I can run validateDeploys()
   }
 
@@ -229,7 +246,6 @@ export class GameClient {
 
     const otherPlayers = this.round.filter(x => x !== this.playerId);
     
-
     // STEP 2
     // wait for queries | take action
     await Promise.all([
@@ -393,7 +409,7 @@ export class GameClient {
     };
 
     let direction: number = 1;
-    const index = this.initialPlayerIndex;
+    const index = this.initialPlayerIndex as PlayerIndex;
     const loc = this.activePlayerLocation;
 
     this.activePlayerLocation = loc || (playerStartLoc[index] as AgentLocation);
