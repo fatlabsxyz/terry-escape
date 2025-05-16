@@ -1,4 +1,4 @@
-import { Player } from "./game.js"
+import { Player, PlayerIndex } from "./game.js"
 import { Message } from "./messages.js"
 import { ProofData, Collision } from "zklib/types"
 
@@ -21,7 +21,8 @@ export enum GameMsg {
   ANSWER = "game:answer",
   UPDATE = "game:update",
   REPORT = "game:report",
-  GET_PLAYER_INDEX = "game:get_player_index"
+  GET_PLAYER_INDEX = "game:get_player_index",
+  PLAYER_SEAT = "game:player_seat"
 }
 
 export interface GamePayload {
@@ -29,6 +30,10 @@ export interface GamePayload {
 
 export interface GameDeployPayload extends GamePayload {
   deploys: ProofData;
+}
+
+export interface GamePlayerSeatPayload extends GamePayload {
+  seat: PlayerIndex;
 }
 
 export interface GameQueryPayload extends GamePayload {
@@ -62,6 +67,10 @@ export interface GameQueryMsg extends IGameMessage {
   payload: GameQueryPayload
 }
 
+export interface GamePlayerSeatMsg extends IGameMessage {
+  payload: GamePlayerSeatPayload;
+}
+
 export interface GameAnswerMsg extends IGameMessage {
   payload: GameAnswerPayload
   to: Player
@@ -75,4 +84,4 @@ export interface GameReportMsg extends IGameMessage {
   payload: GameReportPayload
 }
 
-export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg
+export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg | GamePlayerSeatMsg

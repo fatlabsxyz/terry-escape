@@ -1,7 +1,7 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
 import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerIndex, IJ, AnswerData} from "../../types/game.js";
-import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
+import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib, ProofData } from 'zklib/types';
@@ -143,15 +143,25 @@ export class GameClient {
 
 
   async play() {
-    
-    this.log("GET-PLAYER-INDEX (PLAY):", this.sockets.getPlayerIndex());
-
-    setTimeout(async () => {
-      await this.setupGame();
-    }, 1000)
+     
+    this.initialPlayerIndexNow = await this.waitForPlayerIndex();
+    this.log("GET-PLAYER-INDEX (PLAY):", this.initialPlayerIndexNow);
+    await this.setupGame();
     
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
+  }
+  
+  async waitForPlayerIndex(): Promise<PlayerIndex> {
+    return new Promise(async (res, rej) => {
+      setTimeout(rej, 10_000);
+        this.log("WAITING FOR PLAYER INDEX NOW");
+        this.sockets.game.once(GameMsg.PLAYER_SEAT, (msg: GamePlayerSeatMsg, ack: () => void ) => {
+          ack();
+          this.log("SEAT RECIEVED: ", msg.payload.seat);
+          res(msg.payload.seat);
+        });
+    });
   }
 
   async notifyPlayerReady() {
@@ -217,9 +227,6 @@ export class GameClient {
   async setupGame() {
     this.log("Setting up game...")
  
-    this.log("GET-PLAYER-INDEX (SETUP):", this.sockets.getPlayerIndex());
-
-    // const index = await this.sockets.getPlayerIndex() as PlayerIndex;
     const index = this.initialPlayerIndex as PlayerIndex;
 
     const board = new Board(index);

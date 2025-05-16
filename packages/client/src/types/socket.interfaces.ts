@@ -1,6 +1,6 @@
 import { Socket } from "socket.io-client";
 import { TurnInfo } from "./game.js";
-import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg } from "./gameMessages.js";
+import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, GamePlayerSeatMsg } from "./gameMessages.js";
 
 type Ack = () => void;
 
@@ -37,6 +37,8 @@ export interface GameNspClientToServerEvents {
   * This is the client side typing
   */
   [GameMsg.REPORT]: (p: GameReportMsg, cb: Ack) => void;
+  
+  [GameMsg.PLAYER_SEAT]: (p: GamePlayerSeatMsg, cb: Ack) => void;
 
   [GameMsg.GET_PLAYER_INDEX]: (cb: AckPlayerIndex) => void;
 }
@@ -76,6 +78,8 @@ export interface GameNspServerToClientEvents {
   * This is the server side typing
   */
   [GameMsg.REPORT]: (p: GameReportMsg, cb: Ack) => void;
+
+  [GameMsg.PLAYER_SEAT]: (p: GamePlayerSeatMsg, cb: Ack) => void;
 }
 
 export type GameSocket = Socket<GameNspServerToClientEvents, GameNspClientToServerEvents>;
