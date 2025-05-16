@@ -38,7 +38,7 @@ fn main(
     params: BigNumParams<Limbs, Bits>,
     decryption_key: [Field; Limbs],
     hit_reports: [[Field; Limbs]; Players - 1],
-) -> pub (Field, Field, Field, Field) {
+) -> pub (Field, Field, Field, bool, Field) {
     let old_board_digest = hash([old_board_salt, hash(board_used)]);
     let action_digest = hash(
         [action_salt, reason as Field, target as Field, trap as Field],
@@ -65,6 +65,7 @@ fn main(
 
     let _ = unsafe { output_board(board_used) };
     let new_board_digest = hash([new_board_salt, hash(board_used)]);
+    let ded = board_used.all(|v| (v == 0) | (v == 1));
 
-    (old_board_digest, new_board_digest, action_digest, decryption_key_digest)
+    (old_board_digest, new_board_digest, action_digest, ded, decryption_key_digest)
 }

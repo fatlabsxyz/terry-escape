@@ -36,7 +36,7 @@ fn main(
     veils_used: [bool; Size],
     veils_salt: [Field; Size],
     responses: [bool; 2 * Size],
-) -> pub (Field, Field, [Field; Size], [Field; Limbs]) {
+) -> pub (Field, Field, [Field; Size], bool, [Field; Limbs]) {
     let old_board_digest = hash([old_board_salt, hash(board_used)]);
 
     let mut tiles_used = [false; Size];
@@ -75,6 +75,7 @@ fn main(
 
     let _ = unsafe { output_board(board_used) };
     let new_board_digest = hash([new_board_salt, hash(board_used)]);
+    let ded = board_used.all(|v| (v == 0) | (v == 1));
 
-    (old_board_digest, new_board_digest, veil_digests, encrypted_report)
+    (old_board_digest, new_board_digest, veil_digests, ded, encrypted_report)
 }
