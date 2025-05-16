@@ -80,7 +80,8 @@ function registerGameHandlers(socket: GameSocket) {
     const playerIndex = game.readyPlayer(socket.id as Player);
     ack( playerIndex );
   });
-
+  
+  // TODO: deprecate
   socket.on(GameMsg.GET_PLAYER_INDEX, async (ack: AckPlayerIndex) => {
     const game = getGameOrNewOne(socket.nsp);
     const playerIndex = game.getPlayerIndex(socket.data.id as Player);

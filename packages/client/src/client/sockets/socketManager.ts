@@ -96,6 +96,7 @@ export class SocketManager extends EventEmitter {
       this.msgLog.register(msg);
       ack();
     });
+
   }
 
   // emitWithAck(event: string, ...args: any[]) {
