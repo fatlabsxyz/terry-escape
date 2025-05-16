@@ -57,7 +57,7 @@ export class zklib {
         selectors: compute_selectors(this.round, this.own_seat, tile_index),
         params,
         key_set,
-        entropy: Array.from(Array(1290), random_bool)
+        entropy: Array.from(Array(1289), random_bool)
       };
       const result = await generate_proof(circuits['offline_queries'], inputs, this.options);
       proofs.push(result.payload);
@@ -127,7 +127,7 @@ export class zklib {
       new_board_salt: random_Field(),
       params,
       key_set,
-      entropy: Array.from(Array(1290), random_bool),
+      entropy: Array.from(Array(1289), random_bool),
       veils_used: this.temp_values.veils,
       veils_salt: this.temp_values.veils_salt,
       responses,
