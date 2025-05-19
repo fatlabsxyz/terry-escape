@@ -237,13 +237,19 @@ export class Game {
     return await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.WAITING);
   }
 
-  async returnPlayerIndex(playerIndex: PlayerIndex): Promise<void> {
-    return await this.nsp.timeout(this.broadcastTimeout)
+  async returnPlayerIndex(playerIndex: PlayerIndex, playerId: string): Promise<void> {
+    // TODO: fix problem with index being sent to the wrong player because of timing issues
+    // could add the pindex to a structure Map<PlayerId, PlayerIndex>
+    // return that to the specific player I need
+    //
+    const shortTimeout = 2_000;
+    return await this.nsp.timeout(shortTimeout)
+      .to(playerId)
       .emitWithAck(GameMsg.PLAYER_SEAT, 
       {
         event: GameMsg.PLAYER_SEAT,
-        sender:"GOD",
-        to:"the people",
+        sender:"gamemaster",
+        to: playerId,
         turn:0,
         payload: {seat: playerIndex}
       }
@@ -269,13 +275,16 @@ export class Game {
     return { ...context, players: context.players }
   }
 
-  setPlayerIndex(seat: PlayerIndex) {
+  setPlayerIndex(seat: PlayerIndex, playerId: string) {
     this.playerSeat = seat;
-    this.log("OMG PLAYER SEAT IS: ", seat);
-    this.returnPlayerIndex(seat).then(result => {
-      this.log("return-player-index result: ", result);
-    }).catch( error => {
-      console.error(error);
+    this.log("Sending player index to client");
+    this.returnPlayerIndex(seat, playerId).then((ack) => {
+      this.log("return-player-index result: ", ack);
+    }).catch( (err) => {
+      console.error("Error sending player index, retrying. Err: ", err);
+      setTimeout( () => {
+        this.returnPlayerIndex(seat,playerId);
+      }, 5_00);
     });
   }
 
@@ -294,9 +303,8 @@ export class Game {
           waiting: false
         }
         players.set(playerId, playerStatus);
-        this.log("PLAYER SEAT: ",playerStatus.seat);
-        this.setPlayerIndex(playerStatus.seat as PlayerIndex);
-
+        this.log("New player seat: ",playerStatus.seat);
+        this.setPlayerIndex(playerStatus.seat as PlayerIndex, playerStatus.id);
 
         return { players }
       } else return context

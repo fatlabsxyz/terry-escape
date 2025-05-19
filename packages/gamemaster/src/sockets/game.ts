@@ -11,6 +11,7 @@ interface InterServerEvents { }
 interface SocketData {
     id: string,
     name: string,
+    socketId: string,
 }
 
 export type GameNsp = Namespace<
@@ -112,6 +113,7 @@ export function addGameNamespace(server: Server): Server {
       const data = decoded as JwtPayload; 
       socket.data.name = data.name;
       socket.data.id = data.id;
+      socket.data.socketId = socket.id;
       next();
     });
   });
@@ -123,7 +125,7 @@ export function addGameNamespace(server: Server): Server {
     console.log(`[${socket.id}] User connection`);
 
     game.addPlayer(socket.id as Player);
-    console.log(`welcome ${socket.data.name} with id ${socket.data.id} :\)`);
+    console.log(`welcome ${socket.data.name} with id ${socket.data.id} :\) \n and socketId ${socket.id}`);
     
     socket.on("disconnect", async (reason) => {
       console.log("SOCKET DISCONNECT: ", reason);
