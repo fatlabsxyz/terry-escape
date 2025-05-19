@@ -513,24 +513,24 @@ export class GameClient {
     });
 
     updates.forEach((value, key) => {
+      this.log(`\nUPDATES: UPDATE-VALUES-SET: KEY:${key}, VALUE:${value}, `);
       this.turnData.updates.set(key, value) 
     });
   }
 
   async createReport(): Promise<GameReportPayload> {
-    
-    const turnUpdates = Object.entries(this.turnData.updates);
+     
+    // TODO evaluate collisions?
+
+    const turnUpdates = this.turnData.updates;
 
     this.log(`\nWITNESS: REPORTS(TURN-UPDATES): ${turnUpdates}\n`);
     
-    const nonActivePlayerUpdates = turnUpdates.filter(([x,_]) => x !== this.activePlayer)
+    const updates: ProofData[] = Array.from(turnUpdates.entries())
+      .filter(([id]) => id !== this.activePlayer)
+      .map(([, { proof }]) => proof);
 
-    this.log(`\nWITNESS: REPORTS(NON-ACTIVE-PLAYER-UPDATES): ${nonActivePlayerUpdates}\n`);
-    
-    const updates = nonActivePlayerUpdates.map(([_,y]) => y );
-    
-    this.log(`\nWITNESS: REPORTS(UPDATES): ${updates}\n`);
-    // rn prints empty
+    this.log(`\nWITNESS: REPORT: (UPDATES): ${updates}\n`);
 
     const report = await this.zklib.createReports(updates);
      
