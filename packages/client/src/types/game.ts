@@ -36,6 +36,11 @@ export type BoardLocation = Map<PlayerIndex, AgentLocation>
 
 /// -- --- --- Game --- --- -- ///
 
+export interface JwtPayload {
+  id: string;
+  name: string;
+}
+
 // Represents a socket-id
 export type Player = string;
 

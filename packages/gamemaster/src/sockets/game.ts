@@ -1,4 +1,4 @@
-import { GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg } from 'client/types';
+import { GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload } from 'client/types';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
@@ -31,7 +31,6 @@ export type GameSocket = Socket<
 function registerGameHandlers(socket: GameSocket) {
 
   const TIMEOUT = 300_000;
-  console.log("GAME HANDLERS GOING"); // TODO remove
   /*///////////////////////////////////////////////////////////////
                           BROADCASTING
   //////////////////////////////////////////////////////////////*/
@@ -42,7 +41,7 @@ function registerGameHandlers(socket: GameSocket) {
       .emitWithAck(GameMsg.DEPLOY, p);
     ack();
   }); 
- 
+
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
     console.log("THE QUERY HAS ARRIVED:", JSON.stringify(p.payload.queries).slice(0, 100)); // todo remove
     await socket
@@ -91,11 +90,6 @@ function registerGameHandlers(socket: GameSocket) {
 
 }
 
-interface JwtPayload {
-  id: string;
-  name: string;
-}
-
 export function addGameNamespace(server: Server): Server {
   // nsp ~ /game/V1StGXR8_Z5jdHi6B2myT
   const gameNsp: GameNsp = server.of(/^\/game\/[a-zA-Z0-9_\-]+$/);
@@ -119,7 +113,7 @@ export function addGameNamespace(server: Server): Server {
   });
 
   gameNsp.on('connection', async (socket) => {
-  
+    
     const game = getGameOrNewOne(socket.nsp);
     registerGameHandlers(socket);
     console.log(`[${socket.id}] User connection`);
