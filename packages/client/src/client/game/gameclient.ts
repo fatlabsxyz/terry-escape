@@ -1,12 +1,13 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerIndex, IJ, AnswerData} from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerIndex, IJ, AnswerData, JwtPayload} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
 import { Board } from './board.js';
+import jwt from 'jsonwebtoken';
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -113,8 +114,10 @@ export class GameClient {
   turnsData: TurnData[];
   turnData: TurnData;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
-  private initialPlayerIndexNow: undefined | PlayerIndex;
+  private initialPlayerIndexValue: undefined | PlayerIndex;
   activePlayerLocation: undefined | AgentLocation;
+  private playerIdValue: undefined | string = undefined;
+  private playerSocketIdValue: undefined | string = undefined;
 
   constructor(token: string, sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
@@ -122,14 +125,14 @@ export class GameClient {
     this.turnData = GameClient._emptyTurnData();
     this.log = _createLogger(token, sockets.sender);
     this.token = token;
-    this.initialPlayerIndexNow = undefined;
+    this.initialPlayerIndexValue = undefined;
     this.activePlayerLocation = undefined;
   }
 
   static _emptyTurnData(): TurnData {
     return {
       activePlayer: "",
-      action: {reason: 0, target: 0,trap: false },
+      action: { reason: 0, target: 0, trap: false },
       queries: new Map(),
       answers: new Map(),
       updates: new Map(),
@@ -138,14 +141,25 @@ export class GameClient {
   }
 
   get playerId(): string {
-    return this.sockets.game!.id!
+    if (this.playerIdValue === undefined) {
+      // const decoded = jwt.verify(this.token, "test-key");
+      // const data = decoded as JwtPayload; 
+      //
+      // const pid = data.id;
+      const pid = this.sockets.game!.id!;
+      // TODO should we be using socket-id or just player-id?
+      // socket-id is inconsistent (maybe because of disconnects)
+      this.log("PLAYER-ID: GOT FROM SOCKETS-GAME: ", pid);
+      this.playerIdValue = pid;
+    }
+    return this.playerIdValue;
   }
 
 
   async play() {
      
-    this.initialPlayerIndexNow = await this.waitForPlayerIndex();
-    this.log("GET-PLAYER-INDEX (PLAY):", this.initialPlayerIndexNow);
+    this.initialPlayerIndexValue = await this.waitForPlayerIndex();
+    this.log("PLAY: GET-PLAYER-INDEX:", this.initialPlayerIndexValue);
     await this.setupGame();
     
     this.gameMachine = createActor(this.stateMachine());
@@ -167,8 +181,8 @@ export class GameClient {
   async notifyPlayerReady() {
     const playerIndex = await this.sockets.advertisePlayerAsReady();
 
-    console.log("player index:, " + playerIndex);
-    this.initialPlayerIndexNow = playerIndex;
+    console.log("NOTIFY-PLAYER-READY: PLAYER-INDEX:", playerIndex);
+    this.initialPlayerIndexValue = playerIndex;
     
     this.log("We are ready!");
   }
@@ -217,7 +231,7 @@ export class GameClient {
   }
 
   get initialPlayerIndex() {
-    return this.initialPlayerIndexNow;
+    return this.initialPlayerIndexValue;
   }
 
   gameLog(...args: any[]) {
@@ -231,7 +245,7 @@ export class GameClient {
 
     const board = new Board(index);
   
-    this.log(`SETUP: ALLOWED PLACEMENTS FOR INDEX (${index}):${board.computeAllowedPlacements()}`);
+    this.log(`SETUP: ALLOWED-PLACEMENTS-FOR-INDEX (${index}):${board.computeAllowedPlacements()}`);
   
     let agents: IJ[];
     if (index % 2 === 0) {
@@ -240,16 +254,18 @@ export class GameClient {
       agents = [board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2]];
     }
 
-    this.log("SETUP: PROPOSED AGENTS:", agents);
+    this.log("SETUP: PROPOSED-AGENTS:", agents);
 
     const deployedAgents = board.addAgents({agents})
     const sk = secretKeySample(index);
     const pks = this.zklib.all_states.map( (_, i) => publicKeySample(i) );
 
-    this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${pks[0]},\n${pks[1]},\n${pks[2]},\n${pks[3]}`);
+    this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${!!pks[0]},${!!pks[1]},${!!pks[2]},${!!pks[3]}`);
 
     this.zklib.setup(index, sk, pks, {mockProof: true}); 
     await this.setupAgents(deployedAgents);
+
+
     // TODO find out where I can run validateDeploys()
   }
 
@@ -306,6 +322,7 @@ export class GameClient {
       this.sockets.broadcastQuery(this.turn, this.activePlayer, query),
       this.waitForQuery(otherNonActivePlayers),  // we have our query, but we need the other NA-players'
     ]);
+
     this.gameLog("NO MORE QUERIES TO BROADCAST");
 
     // STEP 4
@@ -332,11 +349,11 @@ export class GameClient {
   //////////////////////////////////////////////////////////////*/
   async getQuery(): Promise<GameQueryPayload> {
 
-    this.gameLog(`\nWITNESS: QUERY(PLAYER-INDEX): ${this.activePlayerIndex}\n`);
+    this.gameLog(`\nGET-QUERY: PLAYER-INDEX: ${this.activePlayerIndex}\n`);
 
     const query = await this.zklib.createQueries(Number(this.activePlayerIndex)); 
-    this.gameLog(`\n\n\n QUERY_LEN: ${JSON.stringify(query).length}\n`);
-    this.gameLog(`\nPROOFDATA: QUERY: ${query}\n`);
+    this.gameLog(`\n\n\n GET-QUERY: QUERY-LENGTH: ${JSON.stringify(query).length}\n`);
+    this.gameLog(`\nGET-QUERY: QUERY-PROOF: ${query}\n`);
 
     return {queries: query.proof}
   }
@@ -346,7 +363,7 @@ export class GameClient {
     // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
     const answers = await this.sockets.waitForAnswer(this.turn, this.activePlayer, players);
 
-    this.gameLog("WAIT FOR ANSWERS RECIEVED:", answers);
+    this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);
     
     answers.forEach( (payload, id) => {
       this.turnData.answers.set(id, {proof: payload.proof});
@@ -356,15 +373,16 @@ export class GameClient {
   async createUpdate(): Promise<GameUpdatePayload> {
     const answers = this.turnData.answers;
 
-    this.gameLog("all answers UPDATE:", answers);
+    this.gameLog("CREATE-UPDATE: ALL-ANSWERS:", answers);
     
     const pid = this.playerId;
     
-    this.gameLog("PID UPDATE:", pid);
+    this.gameLog("CREATE-UPDATE: THIS-PID:", pid);
 
-    const answer = answers.get(this.playerId) as AnswerData;
+    const answer = answers.get(pid)!;
+    // const answer = answers.get(pid) as AnswerData;
 
-    this.gameLog("ANSWER FOR UPDATE:", answer);
+    this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${JSON.stringify(answer).slice(0, 20)} ...`);
 
     const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex);
     
@@ -386,9 +404,11 @@ export class GameClient {
   
   async setupAgents(agentsLocations: Locations) {
     // Deploy your agents
-    this.log(`\nWITNESS: AGENTS-LOCATIONS: ${agentsLocations}\n`);
+    this.log(`\nSETUP-AGENTS: AGENTS-LOCATIONS: ${agentsLocations}\n`);
     const myDeploys = await this.zklib.createDeploys(agentsLocations);
-    this.log(`\nPROOFDATA: MY-DEPLOYS: ${myDeploys.proof}\n`);
+    this.log(`\nSETUP-AGENTS: MY-DEPLOYS-PROOF: ${myDeploys.proof}\n`);
+    
+    this.log(this.zklib.own_state.board_used);
 
     // Broadcast your deployment proofs
     this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
@@ -434,6 +454,8 @@ export class GameClient {
     const index = this.initialPlayerIndex as PlayerIndex;
     const loc = this.activePlayerLocation;
 
+    this.log("TAKE-ACTION: ACTIVE-PLAYER-LOCATION: ", this.activePlayerLocation);
+
     this.activePlayerLocation = loc || (playerStartLoc[index] as AgentLocation);
     
     const reason = this.activePlayerLocation;
@@ -446,7 +468,7 @@ export class GameClient {
       case 3: ( {target, direction} = this.bounce(reason, 12, 15, direction) );    
     }
 
-    this.log(`ACTION FOR PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
+    this.log(`TAKE-ACTION: PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
 
     this.turnData.action = { reason, target, trap: false };
     // this.turnData.action = action;
@@ -473,17 +495,17 @@ export class GameClient {
     const queryValues = Array.from(this.turnData.queries.values());
     
     queryValues.forEach( (x) => {
-      this.log(`\nWITNESS: QUERY-VALUES: ${x.queries}`);
+      this.log(`\nCREATE-ANSWERS: QUERY-VALUES: ${x.queries}`);
     });
 
     const queryData = queryValues.map((x) => x.queries);
 
-    this.log(`\nWITNESS: QUERIES: ${queryData}`);
+    this.log(`\nCREATE-ANSWERS: QUERIES: ${queryData}`);
     
     const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
     
     answers.playerProofs.forEach( (value) => {      
-      this.log(`\nPROOFDATA: ANSWERS: ${value}\n`);
+      this.log(`\nCREATE-DATA: ANSWERS: ${value}\n`);
     });
 
     const nonActivePlayersRound = this.round

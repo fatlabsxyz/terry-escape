@@ -199,7 +199,9 @@ export class SocketManager extends EventEmitter {
   }
 
   async broadcastQuery(turn: number, to: string, payload: GameQueryPayload) {
-    console.log(`BROADCAST QUERY BEFORE: timeout=${TIMEOUT}`);
+    console.log(`BROADCAST-QUERY: TIMEOUT:${TIMEOUT}`);
+    console.log(`BROADCAST-QUERY: TO:${to}, PAYLOAD: ${payload}`);
+
     const queryMsg = {
       turn,
       event: GameMsg.QUERY,
@@ -207,9 +209,7 @@ export class SocketManager extends EventEmitter {
       to,
       payload
     };
-    let r = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.QUERY, queryMsg);
-    // TODO remove
-    console.log(`BROADCAST QUERY = ${r}`);
+    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.QUERY, queryMsg);
   }
 
   async broadcastUpdate(turn: number, to: string, payload: GameUpdatePayload) {
