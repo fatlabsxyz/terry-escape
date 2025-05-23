@@ -1,6 +1,6 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
-import { Player, TurnInfo, UpdatesData } from "../../types/game.js";
+import { JwtPayload, Player, TurnInfo, UpdatesData } from "../../types/game.js";
 import {
   GameAnswerMsg,
   GameAnswerPayload,
@@ -20,6 +20,8 @@ import { passTime, setEqual } from "../../utils.js";
 import { MessageLog } from "../messageLog.js";
 import { SetupSocketOptions } from "../setup.js";
 
+import jwt from 'jsonwebtoken';
+
 const TIMEOUT = 300_000;
 
 type FromTo = [string, string];
@@ -36,6 +38,7 @@ export class SocketManager extends EventEmitter {
   lobby: Socket;
   gameId: string;
   token: string;
+  playerId: string;
 
   private _ready: boolean;
   msgLog: MessageLog<GameMessage>;
@@ -59,6 +62,11 @@ export class SocketManager extends EventEmitter {
     this.gameId = options.gameId;
     this._ready = false;
     this.msgLog = new MessageLog();
+
+    const decoded = jwt.verify(this.token, "test-key");
+    const data = decoded as JwtPayload; 
+    this.playerId = data.id;
+
 
     const self = this;
 
@@ -117,7 +125,8 @@ export class SocketManager extends EventEmitter {
   get sender(): Player {
     // return this.name;
     // XXX: we are returning the socket.id until we can identify users based on their auths
-    return this.game.id!
+    // return this.game.id!
+    return this.playerId;
   }
   _lobbyReady(): boolean {
     return this.lobby.connected

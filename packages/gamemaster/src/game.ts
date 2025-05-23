@@ -1,6 +1,7 @@
 import { GameMsg, TurnInfo, PlayerIndex } from 'client/types';
 import { GameNsp, GameSocket } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent } from 'xstate';
+import { PlayerId, PlayerProps, PlayerStorage } from './playerStorage.js';
 
 /// STATE MACHINE TYPES
 enum GameState {
@@ -75,8 +76,6 @@ interface ActionInput {
   event: EventsSm,
   context: Context
 }
-///
-
 
 export type Player = string & { readonly __brand: unique symbol };
 
@@ -102,6 +101,7 @@ export class Game {
   private _nextPlayer: Player | null = null;
   nsp: GameNsp;
   id: number = 10;
+  playerStorage: PlayerStorage;
 
   gameMachine!: Actor<ReturnType<Game['stateMachine']>>;
   broadcastTimeout: number;
@@ -113,6 +113,7 @@ export class Game {
     this.nsp = nsp;
     this.broadcastTimeout = 30_000; //originally 2_000
     this.minPlayers = 4;
+    this.playerStorage = PlayerStorage.getInstance();
 
     this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
     this.gameMachine.start();
@@ -142,6 +143,10 @@ export class Game {
 
   get activePlayer() {
     return this._activePlayer!;
+  }
+    
+  storedPlayerId(player: Player) {
+    return this.playerStorage.getSocketId(player) as string;
   }
 
   addPlayer(player: Player) {
@@ -238,21 +243,19 @@ export class Game {
     return await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.WAITING);
   }
 
-  async returnPlayerIndex(playerIndex: PlayerIndex, playerId: string): Promise<void> {
-    // TODO: fix problem with index being sent to the wrong player because of timing issues
-    // could add the pindex to a structure Map<PlayerId, PlayerIndex>
-    // return that to the specific player I need
-    //
+  async returnPlayerIndex(playerId: string): Promise<void> {
+    const player = this.playerStorage.getPlayer(playerId) as PlayerProps;
     const shortTimeout = 2_000;
+
     return await this.nsp.timeout(shortTimeout)
-      .to(playerId)
+      .to(player.sid)
       .emitWithAck(GameMsg.PLAYER_SEAT, 
       {
         event: GameMsg.PLAYER_SEAT,
         sender:"gamemaster",
-        to: playerId,
+        to: player.sid,
         turn:0,
-        payload: {seat: playerIndex}
+        payload: {seat: player.seat as PlayerIndex}
       }
     );
   }
@@ -276,15 +279,14 @@ export class Game {
     return { ...context, players: context.players }
   }
 
-  setPlayerIndex(seat: PlayerIndex, playerId: string) {
-    this.playerSeat = seat;
+  setPlayerIndex(playerId: string) {
     this.log("Sending player index to client");
-    this.returnPlayerIndex(seat, playerId).then((ack) => {
+    this.returnPlayerIndex(playerId).then((ack) => {
       this.log("return-player-index result: ", ack);
     }).catch( (err) => {
       console.error("Error sending player index, retrying. Err: ", err);
       setTimeout( () => {
-        this.returnPlayerIndex(seat,playerId);
+        this.returnPlayerIndex(playerId);
       }, 5_00);
     });
   }
@@ -292,10 +294,16 @@ export class Game {
   machineSetup() {
 
     const addPlayerAction = ({ event, context }: ActionInput) => {
+      
+
       if (isAddPlayerEvent(event)) {
         this.log("Adding player!", event.data.player, stringify(context));
+        
         const players = context.players;
         const playerId = event.data.player;
+ 
+        this.playerStorage.updatePlayerSeat(playerId, players.size as PlayerIndex)
+
         const playerStatus: PlayerStatus = {
           eliminated: false,
           ready: false,
@@ -305,7 +313,7 @@ export class Game {
         }
         players.set(playerId, playerStatus);
         this.log("New player seat: ",playerStatus.seat);
-        this.setPlayerIndex(playerStatus.seat as PlayerIndex, playerStatus.id);
+        this.setPlayerIndex(playerId as PlayerId);
 
         return { players }
       } else return context
