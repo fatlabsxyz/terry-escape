@@ -68,7 +68,7 @@ export function init_circuits() : Record<CircuitType, Circuit> {
     return {
       abi: abi as Abi,
       noir: new Noir({ bytecode, abi: abi as Abi }),
-      backend: new UltraHonkBackend(bytecode, { threads: 8 })
+      backend: new UltraHonkBackend(bytecode, { threads: 1 })
     };
   };
 

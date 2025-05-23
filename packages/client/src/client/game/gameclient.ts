@@ -7,7 +7,6 @@ import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
 import { Board } from './board.js';
-import jwt from 'jsonwebtoken';
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -146,7 +145,7 @@ export class GameClient {
       // const data = decoded as JwtPayload; 
       //
       // const pid = data.id;
-      const pid = this.sockets.game!.id!;
+      const pid = this.sockets.playerId;
       // TODO should we be using socket-id or just player-id?
       // socket-id is inconsistent (maybe because of disconnects)
       this.log("PLAYER-ID: GOT FROM SOCKETS-GAME: ", pid);

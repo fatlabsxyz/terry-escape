@@ -24,7 +24,7 @@ export function addIoSockets(server: HttpServer): Server {
       if (err) {
         console.log('Invalid Token')
       }
-      const data = decoded as JwtPayload; 
+      const data = decoded as JwtPayload;
       console.log(`id: ${data.id}`);
       console.log(`username: ${data.name}`);
     });

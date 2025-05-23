@@ -2,6 +2,7 @@ import { GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToCli
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
+import { Err, PlayerProps, PlayerStorage } from '../playerStorage.js';
 
 type Ack = () => void;
 
@@ -27,6 +28,8 @@ export type GameSocket = Socket<
   InterServerEvents,
   SocketData
 >
+
+const playerStorage: PlayerStorage = PlayerStorage.getInstance();
 
 function registerGameHandlers(socket: GameSocket) {
 
@@ -77,7 +80,7 @@ function registerGameHandlers(socket: GameSocket) {
 
   socket.on(GameMsg.READY, async (ack: AckPlayerIndex) => {
     const game = getGameOrNewOne(socket.nsp);
-    const playerIndex = game.readyPlayer(socket.id as Player);
+    const playerIndex = game.readyPlayer(socket.data.id as Player);
     ack( playerIndex );
   });
   
@@ -93,6 +96,7 @@ function registerGameHandlers(socket: GameSocket) {
 export function addGameNamespace(server: Server): Server {
   // nsp ~ /game/V1StGXR8_Z5jdHi6B2myT
   const gameNsp: GameNsp = server.of(/^\/game\/[a-zA-Z0-9_\-]+$/);
+
   
   const SECRET_KEY = 'test-key';
   gameNsp.use((socket, next) => {
@@ -117,12 +121,32 @@ export function addGameNamespace(server: Server): Server {
     const game = getGameOrNewOne(socket.nsp);
     registerGameHandlers(socket);
     console.log(`[${socket.id}] User connection`);
+    
+    const playerId = socket.data.id;
+        
 
-    game.addPlayer(socket.id as Player);
-    console.log(`welcome ${socket.data.name} with id ${socket.data.id} :\) \n and socketId ${socket.id}`);
+    let player: string | PlayerProps = playerStorage.getPlayer(playerId);
+    if (player === Err.NOTFOUND){
+      player = {
+        id: playerId,
+        sid: socket.id,
+        name: socket.data.name,
+        seat: undefined,
+      }
+      console.log("player connected for the first time: ", player);
+      playerStorage.addPlayer(player);
+    } else {
+      console.log("player reconnected: ", player)
+      playerStorage.updatePlayerSid(playerId, socket.id);
+    }
+
+    player = player as PlayerProps;
+
+    game.addPlayer(player.id as Player);
+    console.log(`welcome ${player.name} with id ${player.id} :\) \n and socketId ${player.sid}`);
     
     socket.on("disconnect", async (reason) => {
-      console.log("SOCKET DISCONNECT: ", reason);
+      console.log(`SOCKET ${socket.id}, ${socket.data.name}, DISCONNECT: ${reason}`);
     });
   });
   
