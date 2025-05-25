@@ -1,22 +1,5 @@
-import { PlayerIndex } from 'client/types';
+import { PlayerIndex, StoredPlayers, PlayerProps, Err, PlayerId, SocketId } from './../types/game.js';
 
-export type PlayerId = string;
-export type SocketId = string;
-type Name = string;
-export enum Err {
-  NOTFOUND = "not_found",
-  EXISTING = "already_exists",
-  DISREGARDED = "update_diregarded",
-}
-
-export type PlayerProps = {
-  id: PlayerId;                   // unique id
-  sid: SocketId;                  // changes each session
-  name: Name;                     // just the player name
-  seat: undefined | PlayerIndex;  // changes each game
-};
-
-type StoredPlayers = Map<PlayerId, PlayerProps>;
 
 export class PlayerStorage {
   private static instance: PlayerStorage;
@@ -69,7 +52,7 @@ export class PlayerStorage {
       if (player.sid === currentSid) {
         console.log("PLAYER-SID-UPDATE: disregarded");
         return Err.DISREGARDED;
-      }
+   }
       console.log(`PLAYER-SID-UPDATE: sid updated from ${player.sid} to ${currentSid}`);
       player.sid = currentSid;
 
@@ -79,7 +62,7 @@ export class PlayerStorage {
   }
 
   updatePlayerSeat(id: PlayerId, seat: PlayerIndex): Err | void {
-    // take player id, update their sid if needed
+    // take player id, update their seat if needed
     let player: Err| PlayerProps = this.getPlayer(id);
     if (player === Err.NOTFOUND) {
       return player;

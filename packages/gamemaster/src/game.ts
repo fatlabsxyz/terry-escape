@@ -1,7 +1,7 @@
-import { GameMsg, TurnInfo, PlayerIndex } from 'client/types';
+import { PlayerId, PlayerProps, GameMsg, TurnInfo, PlayerIndex } from 'client/types';
 import { GameNsp, GameSocket } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent } from 'xstate';
-import { PlayerId, PlayerProps, PlayerStorage } from './playerStorage.js';
+import { PlayerStorage } from 'client';
 
 /// STATE MACHINE TYPES
 enum GameState {
