@@ -5,7 +5,7 @@
     ".": {
       "import": "./dist/client/index.js",
       "types": "./dist/client/index.d.ts"
-    },
+    }, 
     "./cli": {
       "import": "./dist/cli/index.js",
       "types": "./dist/cli/index.d.ts"

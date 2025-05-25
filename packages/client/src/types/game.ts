@@ -34,6 +34,29 @@ export type AgentLocation = 0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15;
 
 export type BoardLocation = Map<PlayerIndex, AgentLocation>
 
+
+/// -- --- --- Storage --- --- -- ///
+
+export type PlayerId = string;
+export type SocketId = string;
+export type Name = string;
+
+export enum Err {
+  NOTFOUND = "not_found",
+  EXISTING = "already_exists",
+  DISREGARDED = "update_diregarded",
+}
+
+export type PlayerProps = {
+  id: PlayerId;                   // unique id
+  sid: SocketId;                  // changes each session
+  name: Name;                     // just the player name
+  seat: undefined | PlayerIndex;  // changes each game
+};
+
+export type StoredPlayers = Map<PlayerId, PlayerProps>;
+
+
 /// -- --- --- Game --- --- -- ///
 
 export interface JwtPayload {
