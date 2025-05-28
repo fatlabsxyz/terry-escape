@@ -100,7 +100,6 @@ export class Game {
   private _activePlayer: Player | null = null;
   private _nextPlayer: Player | null = null;
   nsp: GameNsp;
-  id: number = 10;
   playerStorage: PlayerStorage;
 
   gameMachine!: Actor<ReturnType<Game['stateMachine']>>;
@@ -108,8 +107,7 @@ export class Game {
   minPlayers: number;
   playerSeat: undefined | number = undefined;
 
-  constructor(readonly sarasangapanga: string, nsp: GameNsp, options?: {}) {
-    this.sarasangapanga = sarasangapanga
+  constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
     this.broadcastTimeout = 30_000; //originally 2_000
     this.minPlayers = 4;
@@ -120,7 +118,7 @@ export class Game {
   }
 
   log(...args: any[]) {
-    const prefix = `game:${this.sarasangapanga}`
+    const prefix = `game:${this.playerId}`
     const now = () => Number(new Date());
     const _log = (...args: any[]) => console.log(`${now()} [${prefix}]`, ...args);
     return _log(...args);

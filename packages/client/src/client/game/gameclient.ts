@@ -7,6 +7,8 @@ import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
 import { Board } from './board.js';
+import { PlayerStorage } from '../playerStorage.js';
+
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -117,12 +119,13 @@ export class GameClient {
   activePlayerLocation: undefined | AgentLocation;
   private playerIdValue: undefined | string = undefined;
   private playerSocketIdValue: undefined | string = undefined;
+  private playerNameValue: undefined | string = undefined;
 
   constructor(token: string, sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
-    this.log = _createLogger(token, sockets.sender);
+    this.log = _createLogger(sockets.playerName, sockets.sender);
     this.token = token;
     this.initialPlayerIndexValue = undefined;
     this.activePlayerLocation = undefined;
@@ -141,19 +144,20 @@ export class GameClient {
 
   get playerId(): string {
     if (this.playerIdValue === undefined) {
-      // const decoded = jwt.verify(this.token, "test-key");
-      // const data = decoded as JwtPayload; 
-      //
-      // const pid = data.id;
-      const pid = this.sockets.playerId;
-      // TODO should we be using socket-id or just player-id?
-      // socket-id is inconsistent (maybe because of disconnects)
+      const pid = this.sockets.playerId; // sockets.playerId is the playerId from token
       this.log("PLAYER-ID: GOT FROM SOCKETS-GAME: ", pid);
       this.playerIdValue = pid;
     }
     return this.playerIdValue;
   }
-
+  
+  get playerName(): string {
+    if (this.playerNameValue === undefined) {
+      const name = this.sockets.playerName;
+      this.playerNameValue = name;
+    }
+    return this.playerNameValue;
+  }
 
   async play() {
      
@@ -264,7 +268,6 @@ export class GameClient {
     this.zklib.setup(index, sk, pks, {mockProof: true}); 
     await this.setupAgents(deployedAgents);
 
-
     // TODO find out where I can run validateDeploys()
   }
 
@@ -274,6 +277,7 @@ export class GameClient {
     
     // STEP 2
     // wait for queries | take action
+    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR QUERIES (3)\n\n");
     await Promise.all([
       this.waitForQuery(otherPlayers),
       this.takeAction()
@@ -282,27 +286,28 @@ export class GameClient {
 
     // STEP 3
     // create answer
+    this.gameLog("\n\nACTIVE-PLAYER - CREATE ANSWERS (3)\n\n");
     const answers = await this.createAnswers();
+
     // broadcast answers
     await Promise.all(answers.map(async (answer) => {
-      this.gameLog("Broadcasting answers");
+      this.gameLog("\nACTIVE-PLAYER - Broadcasting answers\n");
       await this.sockets.broadcastAnswer(this.turn, answer.to, answer);
     }))
-    this.gameLog("NO MORE ANSWERS TO BROADCAST");
+    this.gameLog("\nACTIVE-PLAYER - NO MORE ANSWERS TO BROADCAST\n");
 
     // STEP 6
     // wait for updates
-
+    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR UPDATES (3)\n\n");
     await this.waitForUpdates(otherPlayers);
 
     // STEP 7
     // broadcast reports
     const report = await this.createReport();
-    this.gameLog("Broadcasting report");
+    this.gameLog("\n\nACTIVE-PLAYER - BROADCASTING REPORT \n\n");
     await this.sockets.broadcastReport(this.turn, report);
 
-    this.gameLog("Finishing turn.");
-    this.gameLog("No more duties.");
+    this.gameLog("\n\nACTIVE-PLAYER - FINISHING TURN\n\n");
   }
 
   async processNonActivePlayer() {
@@ -315,30 +320,35 @@ export class GameClient {
     
     // STEP 1
     // if query ready, broadcast query
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE QUERY\n\n");
     const query = await this.getQuery();
 
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST QUERY (1) AND WAIT FOR QUERIES (2)\n\n");
     await Promise.all([
       this.sockets.broadcastQuery(this.turn, this.activePlayer, query),
       this.waitForQuery(otherNonActivePlayers),  // we have our query, but we need the other NA-players'
     ]);
-
-    this.gameLog("NO MORE QUERIES TO BROADCAST");
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - NO MORE QUERIES TO BROADCAST\n\n");
 
     // STEP 4
     // wait for answer
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR ANSWERS (2)\n\n");
     await this.waitForAnswer(nonActivePlayers);
 
     // STEP 5
     // process update
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE UPDATE\n\n");
     const update = await this.createUpdate();
     // broadcast update
     await Promise.all([
       await this.sockets.broadcastUpdate(this.turn, this.activePlayer, update),
       await this.waitForUpdates(otherNonActivePlayers),
     ]);
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST UPDATE (1) AND WAIT FOR UPDATES (2)\n\n");
 
     // STEP 8
     // wait for report
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (2)\n\n");
     await this.waitForReport();
     this.gameLog("No more duties.")
   }
@@ -441,7 +451,7 @@ export class GameClient {
     // 0 _ _ _   
     // 2 _ _ _   
     // _ 1 _ _   
-    // _ 3 _ _
+    // _ 3 _ _   
     const playerStartLoc = { 
       0: 0,
       1: 9,

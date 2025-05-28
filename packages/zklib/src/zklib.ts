@@ -3,6 +3,8 @@ import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
 import { Collision, IZkLib } from './zklib.interface.js';
 import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, verification_failed_halt } from './utils.js';
 const circuits = await init_circuits();
+import { writeFileSync } from 'fs';
+
 
 export class ZkLib implements IZkLib {
   round: number;
@@ -98,7 +100,7 @@ export class ZkLib implements IZkLib {
         queries.splice(player_index, 0, []);
         continue;
       }
-
+  
       const ourKeys = this.public_keys[this.own_seat];
       if (ourKeys === undefined) {
         throw Error("Public keys not set for own_seat");
@@ -121,6 +123,9 @@ export class ZkLib implements IZkLib {
         selectors: Array.from(Array(16), (_, i) => compute_selectors(this.round, player_index, i)),
         queries: playerQuery.slice(0, -1).map(({ publicInputs }) => publicInputs.slice(-9))
       };
+    
+      writeFileSync(`buggy-inputs-answers`, JSON.stringify(inputs))
+
       this.temp_values.action = action;
       this.temp_values.action_salt = inputs.action_salt;
       const result = await generate_proof(circuits['blinded_answers'], inputs, this.options);
@@ -176,6 +181,9 @@ export class ZkLib implements IZkLib {
       decryption_key: this.secret_key,
       hit_reports: reports.map(({ publicInputs }) => publicInputs.slice(-9))
     };
+
+    writeFileSync(`buggy-inputs-reports`, JSON.stringify(inputs))
+
     const result = await generate_proof(circuits['reports_updates'], inputs, this.options);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
     const informed_detect = result.private_outputs.informed_detect;
