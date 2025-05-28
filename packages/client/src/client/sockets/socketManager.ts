@@ -20,6 +20,8 @@ import { passTime, setEqual } from "../../utils.js";
 import { MessageLog } from "../messageLog.js";
 import { SetupSocketOptions } from "../setup.js";
 
+import { PlayerStorage } from '../playerStorage.js';
+
 import jwt from 'jsonwebtoken';
 
 const TIMEOUT = 300_000;
@@ -39,12 +41,16 @@ export class SocketManager extends EventEmitter {
   gameId: string;
   token: string;
   playerId: string;
+  playerName: string;
 
   private _ready: boolean;
   msgLog: MessageLog<GameMessage>;
+  playerStorage: PlayerStorage;
 
   constructor(options: SocketManagerOptions) {
     super();
+
+    this.playerStorage = PlayerStorage.getInstance(); 
     
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
       auth: {
@@ -66,7 +72,14 @@ export class SocketManager extends EventEmitter {
     const decoded = jwt.verify(this.token, "test-key");
     const data = decoded as JwtPayload; 
     this.playerId = data.id;
-
+    this.playerName = data.name;
+    
+    this.playerStorage.addPlayer({
+      name: data.name,
+      id: data.id,
+      sid: this.game.id!,
+      seat: undefined,
+    }); 
 
     const self = this;
 
@@ -122,12 +135,10 @@ export class SocketManager extends EventEmitter {
   //   })
   // }
 
-  get sender(): Player {
-    // return this.name;
-    // XXX: we are returning the socket.id until we can identify users based on their auths
-    // return this.game.id!
-    return this.playerId;
+  get sender(): Player {;
+    return this.playerId; // Player id (NOT socket id)
   }
+
   _lobbyReady(): boolean {
     return this.lobby.connected
   }

@@ -42,6 +42,14 @@ export class PlayerStorage {
     return player.sid;
   }
 
+  getAllSocketIds(): Map<PlayerId, SocketId> {
+    let allSocketIds = new Map();
+    this.players.forEach( (player, playerId) => {
+      allSocketIds.set(playerId, player.sid);
+    });
+    return allSocketIds;
+  }
+
   updatePlayerSid(id: PlayerId, currentSid: SocketId): Err | void {
     // take player id, update their sid if needed
     let player: Err| PlayerProps = this.getPlayer(id);
