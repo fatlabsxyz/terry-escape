@@ -46,6 +46,7 @@ import initNoirC from "@noir-lang/noirc_abi";
 import { abiEncode, Abi } from '@noir-lang/noirc_abi';
 import { ProofData, UltraHonkBackend } from '@aztec/bb.js';
 import { Noir } from '@noir-lang/noir_js';
+import { BigNum } from './types.js';
 
 interface Circuit {
   abi: Abi,
@@ -115,4 +116,33 @@ export async function verify_proof(circuit: Circuit, proof: ProofData) {
 export async function verification_failed_halt() {
   // postMessage("Verification failed!");
   await new Promise(() => { });
+}
+
+
+///////////////////////////////
+
+function to_big_int(big_num : BigNum) : bigint {
+	return BigInt('0x'+big_num.map(limb => limb.slice(2).slice(-30).padStart(30,'0')).reverse().join(''));
+}
+function to_big_num(n : bigint) : BigNum {
+	let limbs = [];
+	while (n > 0) {
+		limbs.push('0x'+(n % (2n**120n)).toString(16));
+		n /= (2n**120n);
+	}
+	while (limbs.length < 9) { limbs.push('0x0'); }
+	return limbs;
+}
+
+export function encrypt(key_set: BigNum[], entropy: boolean[], message: boolean) : BigNum {
+	let sum = key_set.slice(1).map(to_big_int).filter((_,i) => entropy[i]).reduce((a,b) => a+b);
+	if (message) { sum += to_big_int(key_set[1]!)/BigInt(2); }
+	return to_big_num(sum % to_big_int(key_set[0]!));
+}
+
+export function bits(n : number) : boolean[] {
+	let result = [];
+	while (n > 0) { result.push(n%2 == 0); n = Math.floor(n/2); }
+	result.length = 8;
+	return Array.from(result, bit => bit ?? false);
 }

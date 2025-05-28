@@ -3,6 +3,7 @@ use cheon_stehle::encrypt;
 use std::hash::pedersen_hash as hash;
 
 global Size: u32 = 16;
+global Side: u32 = 4;
 global Limbs: u32 = 9;
 global Bits: u32 = 1031;
 global Tau: u32 = 1289;
@@ -31,17 +32,28 @@ fn main(
     new_board_salt: Field,
     params: pub BigNumParams<Limbs, Bits>,
     key_set: pub [[Field; Limbs]; Tau + 1],
-    entropy: [bool; Tau + 1],
+    entropy: [bool; Tau],
     veils_used: [bool; Size],
     veils_salt: [Field; Size],
-    responses: [bool; 2 * Size],
-) -> pub (Field, Field, [Field; Size], [Field; Limbs]) {
+    responses: pub [bool; 2 * Size],
+) -> pub (Field, Field, [Field; Size], bool, [Field; Limbs]) {
     let old_board_digest = hash([old_board_salt, hash(board_used)]);
 
-    let mut tiles_used = Vec::new();
-    for position in 0..Size {
-        tiles_used.push(tile_has_agent(board_used[position]) | tile_has_trap(board_used[position]));
-        // TODO: also query for tiles that neighbors an agent
+    let mut tiles_used = [false; Size];
+    for i in 0..Size {
+        tiles_used[i] = tile_has_agent(board_used[i]) | tile_has_trap(board_used[i]);
+        if (i > 0) {
+            tiles_used[i] |= tile_has_agent(board_used[i - 1]);
+        }
+        if (i != Size - 1) {
+            tiles_used[i] |= (i % 4 != 3) & tile_has_agent(board_used[i + 1]);
+        }
+        if (i >= Side) {
+            tiles_used[i] |= tile_has_agent(board_used[i - Side]);
+        }
+        if (i < Size - Side) {
+            tiles_used[i] |= tile_has_agent(board_used[i + Side]);
+        }
     }
 
     let mut veil_digests_vec = Vec::new();
@@ -52,7 +64,7 @@ fn main(
 
     let mut got_hit = false;
     for position in 0..Size {
-        if responses[position * 2 + tiles_used.get(position) as u32] != veils_used[position] {
+        if responses[position * 2 + tiles_used[position] as u32] != veils_used[position] {
             got_hit = tile_has_agent(board_used[position]) | tile_has_trap(board_used[position]);
             board_used[position] = 1; // Void tile
             let _ = unsafe { output_detect(position) };
@@ -63,6 +75,7 @@ fn main(
 
     let _ = unsafe { output_board(board_used) };
     let new_board_digest = hash([new_board_salt, hash(board_used)]);
+    let ded = board_used.all(|v| (v == 0) | (v == 1));
 
-    (old_board_digest, new_board_digest, veil_digests, encrypted_report)
+    (old_board_digest, new_board_digest, veil_digests, ded, encrypted_report)
 }

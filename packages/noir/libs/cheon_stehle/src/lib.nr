@@ -2,7 +2,7 @@ use dep::bignum::{params::BigNumParams, RuntimeBigNum};
 
 pub fn encrypt<let Tau: u32, let Num: u32, let Bits: u32>(
     params: BigNumParams<Num, Bits>,
-    key_set: [[Field; Num]; Tau],
+    key_set: [[Field; Num]; Tau + 1],
     entropy: [bool; Tau],
     message: bool,
 ) -> RuntimeBigNum<Num, Bits> {
@@ -10,7 +10,7 @@ pub fn encrypt<let Tau: u32, let Num: u32, let Bits: u32>(
     for i in 0..Tau {
         terms.push(
             if entropy[i] {
-                RuntimeBigNum::from_array(params, key_set[i])
+                RuntimeBigNum::from_array(params, key_set[i+1])
             } else {
                 RuntimeBigNum::new(params)
             }
@@ -35,7 +35,7 @@ pub fn encrypt<let Tau: u32, let Num: u32, let Bits: u32>(
     if message {
         let _1 = RuntimeBigNum::one(params);
         let _2 = _1 + _1;
-        sum += RuntimeBigNum::from_array(params, key_set[0]).udiv(_2);
+        sum += RuntimeBigNum::from_array(params, key_set[1]).udiv(_2);
     }
     sum
 }
@@ -59,7 +59,7 @@ fn test_encrypt_decrypt() {
     let dec_key_limbs = [1, 4, 2, 8, 5, 7, 0, 0, 0];
     let dec_key = RuntimeBigNum::from_array(MC1031_params, dec_key_limbs);
     let enc_key = [dec_key_limbs; 1289 + 1];
-    let mut entropy = [false; 1289 + 1];
+    let mut entropy = [false; 1289];
     for i in 0..123 {
         entropy[(i * 456) % 1289 + 1] = true;
     }

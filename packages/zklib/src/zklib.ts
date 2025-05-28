@@ -1,6 +1,7 @@
+import crypto from 'crypto';
 import { ProofData } from '@aztec/bb.js';
 import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
-import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, verification_failed_halt } from './utils.js';
+import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, verification_failed_halt, bits, encrypt } from './utils.js';
 const circuits = await init_circuits();
 
 export class zklib {
@@ -54,10 +55,10 @@ export class zklib {
         tile_salt: this.temp_values.tiles_salt[tile_index],
         veil_used: this.temp_values.veils[tile_index],
         veil_salt: this.temp_values.veils_salt[tile_index],
-        selectors: compute_selectors(this.round, this.own_seat, tile_index),
-        params,
+        selectors: await this.compute_selectors(this.round, this.own_seat, tile_index),
+	params,
         key_set,
-        entropy: Array.from(Array(1290), random_bool)
+        entropy: Array.from(Array(1289), random_bool)
       };
       const result = await generate_proof(circuits['offline_queries'], inputs, this.options);
       proofs.push(result.payload);
@@ -93,6 +94,7 @@ export class zklib {
         throw Error("Player queries dont exist");
       }
 
+      let selectors = Array.from(Array(16), async (_, i) => await this.compute_selectors(this.round, player_index, i));
       const inputs = {
         board_used: this.own_state.board_used,
         board_salt: this.own_state.board_salt,
@@ -102,7 +104,7 @@ export class zklib {
         action_salt: random_Field(),
         params: ourKeys.params,
         decryption_key: this.secret_key,
-        selectors: Array.from(Array(16), (_, i) => compute_selectors(this.round, player_index, i)),
+        selectors: await Promise.all(selectors),
         queries: playerQuery.slice(0, -1).map(({ publicInputs }) => publicInputs.slice(-9))
       };
       this.temp_values.action = action;
@@ -114,7 +116,7 @@ export class zklib {
     return { proof: proofs };
   };
 
-  async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; detected?: number; }> {
+  async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; detected?: number; died: boolean }> {
     const responses = answers.publicInputs.slice(-32);
     const moverKeys = this.public_keys[mover]
     if (moverKeys === undefined) {
@@ -127,18 +129,19 @@ export class zklib {
       new_board_salt: random_Field(),
       params,
       key_set,
-      entropy: Array.from(Array(1290), random_bool),
+      entropy: Array.from(Array(1289), random_bool),
       veils_used: this.temp_values.veils,
       veils_salt: this.temp_values.veils_salt,
       responses,
     };
     const result = await generate_proof(circuits['answers_updates'], inputs, this.options);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
+    const died = Boolean(result.payload.publicInputs.slice(-10)[0]);
     // (note: verify answers before publishing)
-    return { proof: result.payload, detected: result.private_outputs.informed_detect }
+    return { proof: result.payload, detected: result.private_outputs.informed_detect, died }
   };
 
-  async createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: Boolean; }> {
+  async createReports(reports: ProofData[]): Promise<{ proof: ProofData, impacted: boolean, died: boolean }> {
     const action = this.temp_values.action
     if (action === undefined) {
       throw Error("Action is undefiend")
@@ -163,14 +166,27 @@ export class zklib {
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
     const informed_detect = result.private_outputs.informed_detect;
     const impacted = informed_detect !== undefined;
+    const died = Boolean(result.payload.publicInputs.slice(-2)[0]);
     // (note: verify reports before publishing)
-    return { proof: result.payload, impacted }
+    return { proof: result.payload, impacted, died }
   };
 
   verifyDeploys(deploys: ProofData[]) { };
   verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData) { };
-};
 
-function compute_selectors(round: number, player: number, tile: number) {
-  return [[0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0]];
-}
+  async compute_selectors(round: number, player: number, tile: number) {
+    let selectors = [];
+    for (let i of [true,false]) {
+      let entropy_pool : boolean[][] = [];
+      for (let chunk = 0; chunk < Math.ceil(1289/256); chunk++) {
+        let seed = {r:round, p:player, t:tile, c:chunk, i};
+        let sha = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(seed)));
+        (new Uint8Array(sha)).map(v => entropy_pool.push(bits(v)));
+      }
+      const entropy = entropy_pool.flat().slice(0,1289);
+      let ciphertext = encrypt(this.public_keys[player]!.key_set, entropy, i);
+      selectors.push(ciphertext);
+    }
+    return selectors;
+  }
+};
