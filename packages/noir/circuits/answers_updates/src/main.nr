@@ -35,7 +35,7 @@ fn main(
     entropy: [bool; Tau],
     veils_used: [bool; Size],
     veils_salt: [Field; Size],
-    responses: [bool; 2 * Size],
+    responses: pub [bool; 2 * Size],
 ) -> pub (Field, Field, [Field; Size], bool, [Field; Limbs]) {
     let old_board_digest = hash([old_board_salt, hash(board_used)]);
 

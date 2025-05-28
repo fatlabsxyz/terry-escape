@@ -35,9 +35,9 @@ fn main(
     target: u32,
     trap: bool,
     action_salt: Field,
-    params: BigNumParams<Limbs, Bits>,
+    params: pub BigNumParams<Limbs, Bits>,
     decryption_key: [Field; Limbs],
-    hit_reports: [[Field; Limbs]; Players - 1],
+    hit_reports: pub [[Field; Limbs]; Players - 1],
 ) -> pub (Field, Field, Field, bool, Field) {
     let old_board_digest = hash([old_board_salt, hash(board_used)]);
     let action_digest = hash(
