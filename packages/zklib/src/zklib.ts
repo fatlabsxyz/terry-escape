@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { ProofData } from '@aztec/bb.js';
 import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
 import { Collision, IZkLib } from './zklib.interface.js';
-import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, verification_failed_halt } from './utils.js';
+import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, verification_failed_halt, bits, encrypt } from './utils.js';
 const circuits = await init_circuits();
 import { writeFileSync } from 'fs';
 
@@ -196,8 +196,8 @@ export class ZkLib implements IZkLib {
     return { proof: result.payload, impacted, died }
   };
 
-  verifyDeploys(deploys: ProofData[]) { };
-  verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData) { };
+  verifyDeploys(deploys: ProofData[]) { return true };
+  verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData) { return true };
 
   async compute_selectors(round: number, player: number, tile: number) {
     let selectors = [];
