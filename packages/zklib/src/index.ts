@@ -2,4 +2,4 @@ import {
   initial_deploys_json
 } from 'noir/circuits';
 
-export { zklib } from "./zklib.js"
+export { ZkLib } from "./zklib.js"

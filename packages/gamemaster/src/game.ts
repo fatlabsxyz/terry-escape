@@ -1,7 +1,7 @@
-import { GameMsg } from 'client/types';
+import { PlayerId, PlayerProps, GameMsg, TurnInfo, PlayerIndex } from 'client/types';
 import { GameNsp, GameSocket } from './sockets/game.js';
-import { TurnInfo } from '../../client/dist/types/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent } from 'xstate';
+import { PlayerStorage } from 'client';
 
 /// STATE MACHINE TYPES
 enum GameState {
@@ -65,8 +65,8 @@ function isPlayerReadyEvent(event: EventsSm): event is PlayerReadyEvent {
 interface Context {
   minPlayers: number;
   players: Map<Player, PlayerStatus>;
-  round: Player[];
   turn: number;
+  round: Player[];
   activePlayer: Player | null;
   nextPlayer: Player | null;
   turnInfo: TurnInfo
@@ -76,8 +76,6 @@ interface ActionInput {
   event: EventsSm,
   context: Context
 }
-///
-
 
 export type Player = string & { readonly __brand: unique symbol };
 
@@ -85,7 +83,7 @@ interface PlayerStatus {
   eliminated: boolean;
   ready: boolean;
   waiting: boolean;
-  place: number;
+  seat: number;
   id: Player;
 }
 
@@ -99,28 +97,28 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 
 export class Game {
 
-  round: Player[] = [];
-
   private _activePlayer: Player | null = null;
   private _nextPlayer: Player | null = null;
   nsp: GameNsp;
+  playerStorage: PlayerStorage;
 
   gameMachine!: Actor<ReturnType<Game['stateMachine']>>;
   broadcastTimeout: number;
   minPlayers: number;
+  playerSeat: undefined | number = undefined;
 
-  constructor(readonly id: string, nsp: GameNsp, options?: {}) {
-    this.id = id
+  constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
-    this.broadcastTimeout = 2_000;
-    this.minPlayers = 5;
+    this.broadcastTimeout = 30_000; //originally 2_000
+    this.minPlayers = 4;
+    this.playerStorage = PlayerStorage.getInstance();
 
     this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
     this.gameMachine.start();
   }
 
   log(...args: any[]) {
-    const prefix = `game:${this.id}`
+    const prefix = `game:${this.playerId}`
     const now = () => Number(new Date());
     const _log = (...args: any[]) => console.log(`${now()} [${prefix}]`, ...args);
     return _log(...args);
@@ -142,7 +140,11 @@ export class Game {
   }
 
   get activePlayer() {
-    return this._activePlayer!
+    return this._activePlayer!;
+  }
+    
+  storedPlayerId(player: Player) {
+    return this.playerStorage.getSocketId(player) as string;
   }
 
   addPlayer(player: Player) {
@@ -150,7 +152,18 @@ export class Game {
   }
 
   readyPlayer(player: Player) {
+    const playerIndex: number = this.gameMachine.getSnapshot().context.players.get(player)!.seat;
     this.gameMachine.send({ type: Events.PlayerReady, data: { player } });
+    return playerIndex;
+  }
+
+  getPlayerIndex(playerId: Player): number | undefined {
+    const playerStatus = this.gameMachine
+      .getSnapshot()
+      .context
+      .players
+      .get(playerId);
+    return playerStatus?.seat;
   }
 
   static nextPlayers(finishingPlayer: Player, round: Player[]): [Player, Player] {
@@ -183,7 +196,7 @@ export class Game {
 
     // we remove eliminated players
     const round = Array.from(players.values())
-      .sort((a, b) => b.place - a.place)
+      .sort((a, b) => b.seat - a.seat)
       .filter(x => !x.eliminated)
       .map(x => x.id);
 
@@ -228,6 +241,23 @@ export class Game {
     return await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.WAITING);
   }
 
+  async returnPlayerIndex(playerId: string): Promise<void> {
+    const player = this.playerStorage.getPlayer(playerId) as PlayerProps;
+    const shortTimeout = 2_000;
+
+    return await this.nsp.timeout(shortTimeout)
+      .to(player.sid)
+      .emitWithAck(GameMsg.PLAYER_SEAT, 
+      {
+        event: GameMsg.PLAYER_SEAT,
+        sender:"gamemaster",
+        to: player.sid,
+        turn:0,
+        payload: {seat: player.seat as PlayerIndex}
+      }
+    );
+  }
+
   async newTurn(context: Context): Promise<Context> {
     const newContext = Game.nextContext(context);
     this.log("oldContext", stringify(context), "newContext", stringify(newContext))
@@ -247,21 +277,42 @@ export class Game {
     return { ...context, players: context.players }
   }
 
+  setPlayerIndex(playerId: string) {
+    this.log("Sending player index to client");
+    this.returnPlayerIndex(playerId).then((ack) => {
+      this.log("return-player-index result: ", ack);
+    }).catch( (err) => {
+      console.error("Error sending player index, retrying. Err: ", err);
+      setTimeout( () => {
+        this.returnPlayerIndex(playerId);
+      }, 5_00);
+    });
+  }
+
   machineSetup() {
 
     const addPlayerAction = ({ event, context }: ActionInput) => {
+      
+
       if (isAddPlayerEvent(event)) {
         this.log("Adding player!", event.data.player, stringify(context));
+        
         const players = context.players;
         const playerId = event.data.player;
+ 
+        this.playerStorage.updatePlayerSeat(playerId, players.size as PlayerIndex)
+
         const playerStatus: PlayerStatus = {
           eliminated: false,
           ready: false,
-          place: players.size,
+          seat: players.size,
           id: playerId,
           waiting: false
         }
         players.set(playerId, playerStatus);
+        this.log("New player seat: ",playerStatus.seat);
+        this.setPlayerIndex(playerId as PlayerId);
+
         return { players }
       } else return context
     }

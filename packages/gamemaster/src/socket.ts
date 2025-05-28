@@ -8,6 +8,7 @@ import { FRONTEND_URLS } from  './app.js'
 
 export function addIoSockets(server: HttpServer): Server {
   let io = new Server(server, {
+      maxHttpBufferSize: 2e7, // 20 mb (2 * 7 zeroes)
       cors: {
         origin: FRONTEND_URLS[0],
         methods: ["GET", "POST"]
@@ -23,7 +24,7 @@ export function addIoSockets(server: HttpServer): Server {
       if (err) {
         console.log('Invalid Token')
       }
-      const data = decoded as JwtPayload; 
+      const data = decoded as JwtPayload;
       console.log(`id: ${data.id}`);
       console.log(`username: ${data.name}`);
     });

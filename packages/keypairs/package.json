@@ -10,9 +10,6 @@
       "types": "./dist/data/index.d.ts"
     }
   },
-  "dependencies": {
-    "zklib": "workspace:*"
-  },
   "scripts": {
     "build": "tsc -p ./tsconfig.json --outDir dist"
   }

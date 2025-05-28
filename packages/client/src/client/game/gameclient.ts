@@ -1,10 +1,14 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo } from "../../types/game.js";
-import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerIndex, IJ, AnswerData, JwtPayload} from "../../types/game.js";
+import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
-import { IZklib } from 'zklib/types';
+import { IZkLib, ProofData } from 'zklib/types';
+import { secretKeySample, publicKeySample } from 'keypairs';
+import { Board } from './board.js';
+import { PlayerStorage } from '../playerStorage.js';
+
 
 enum Actors {
   notifyReady = "notifyReady",
@@ -42,28 +46,28 @@ enum ClientEvent {
 }
 
 interface QueryWaitingEvent extends AnyEventObject {
-  type: ClientEvent.QueryWaiting
+  type: ClientEvent.QueryWaiting;
 }
 
 interface TurnStartEvent {
-  type: GameMsg.TURN_START
-  turnInfo: TurnInfo
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.TURN_START;
+  turnInfo: TurnInfo;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface TurnEndEvent {
-  type: GameMsg.TURN_END
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.TURN_END;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface WaitingEvent {
-  type: GameMsg.WAITING
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.WAITING;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface OutputEvent {
-  type: "ouptut"
-  output: any
+  type: "output";
+  output: any;
 }
 
 type Events = AnyEventObject
@@ -73,18 +77,19 @@ type Events = AnyEventObject
   | WaitingEvent
   | QueryWaitingEvent
 
+
 function isTurnStartEvent(event: Events): event is TurnStartEvent {
-  return event.type === GameMsg.TURN_START
+  return event.type === GameMsg.TURN_START;
 }
 
 interface Context {
-  turnInfo: TurnInfo
-  waiting: boolean
+  turnInfo: TurnInfo;
+  waiting: boolean;
 }
 
 interface ActionInput {
-  event: Events,
-  context: Context
+  event: Events;
+  context: Context;
 }
 
 function _createLogger(name: string, sender: string) {
@@ -110,18 +115,26 @@ export class GameClient {
   turnsData: TurnData[];
   turnData: TurnData;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
+  private initialPlayerIndexValue: undefined | PlayerIndex;
+  activePlayerLocation: undefined | AgentLocation;
+  private playerIdValue: undefined | string = undefined;
+  private playerSocketIdValue: undefined | string = undefined;
+  private playerNameValue: undefined | string = undefined;
 
-  constructor(token: string, sockets: SocketManager, readonly zklib: IZklib) {
+  constructor(token: string, sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
-    this.log = _createLogger(token, sockets.sender)
+    this.log = _createLogger(sockets.playerName, sockets.sender);
     this.token = token;
+    this.initialPlayerIndexValue = undefined;
+    this.activePlayerLocation = undefined;
   }
 
   static _emptyTurnData(): TurnData {
     return {
       activePlayer: "",
+      action: { reason: 0, target: 0, trap: false },
       queries: new Map(),
       answers: new Map(),
       updates: new Map(),
@@ -130,18 +143,50 @@ export class GameClient {
   }
 
   get playerId(): string {
-    return this.sockets.game!.id!
+    if (this.playerIdValue === undefined) {
+      const pid = this.sockets.playerId; // sockets.playerId is the playerId from token
+      this.log("PLAYER-ID: GOT FROM SOCKETS-GAME: ", pid);
+      this.playerIdValue = pid;
+    }
+    return this.playerIdValue;
+  }
+  
+  get playerName(): string {
+    if (this.playerNameValue === undefined) {
+      const name = this.sockets.playerName;
+      this.playerNameValue = name;
+    }
+    return this.playerNameValue;
   }
 
   async play() {
+     
+    this.initialPlayerIndexValue = await this.waitForPlayerIndex();
+    this.log("PLAY: GET-PLAYER-INDEX:", this.initialPlayerIndexValue);
     await this.setupGame();
-
+    
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
   }
+  
+  async waitForPlayerIndex(): Promise<PlayerIndex> {
+    return new Promise(async (res, rej) => {
+      setTimeout(rej, 10_000);
+        this.log("WAITING FOR PLAYER INDEX NOW");
+        this.sockets.game.once(GameMsg.PLAYER_SEAT, (msg: GamePlayerSeatMsg, ack: () => void ) => {
+          ack();
+          this.log("SEAT RECIEVED: ", msg.payload.seat);
+          res(msg.payload.seat);
+        });
+    });
+  }
 
   async notifyPlayerReady() {
-    await this.sockets.advertisePlayerAsReady();
+    const playerIndex = await this.sockets.advertisePlayerAsReady();
+
+    console.log("NOTIFY-PLAYER-READY: PLAYER-INDEX:", playerIndex);
+    this.initialPlayerIndexValue = playerIndex;
+    
     this.log("We are ready!");
   }
 
@@ -180,51 +225,89 @@ export class GameClient {
     }
   }
 
+  get activePlayerIndex() {
+    return this.round.indexOf(this.activePlayer);
+  }
+
+  get playerIndex() {
+    return this.round.indexOf(this.playerId);
+  }
+
+  get initialPlayerIndex() {
+    return this.initialPlayerIndexValue;
+  }
+
   gameLog(...args: any[]) {
     this.log(this.activeStatus, ...args);
   }
 
   async setupGame() {
     this.log("Setting up game...")
-    // query players/turn order
-    // setup pieces
-    // zk setup
-    // emit ready (or wrap setup within emitAck from master)
+ 
+    const index = this.initialPlayerIndex as PlayerIndex;
+
+    const board = new Board(index);
+  
+    this.log(`SETUP: ALLOWED-PLACEMENTS-FOR-INDEX (${index}):${board.computeAllowedPlacements()}`);
+  
+    let agents: IJ[];
+    if (index % 2 === 0) {
+      agents = [board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0]];
+    } else {
+      agents = [board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2]];
+    }
+
+    this.log("SETUP: PROPOSED-AGENTS:", agents);
+
+    const deployedAgents = board.addAgents({agents})
+    const sk = secretKeySample(index);
+    const pks = this.zklib.all_states.map( (_, i) => publicKeySample(i) );
+
+    this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${!!pks[0]},${!!pks[1]},${!!pks[2]},${!!pks[3]}`);
+
+    this.zklib.setup(index, sk, pks, {mockProof: true}); 
+    await this.setupAgents(deployedAgents);
+
+    // TODO find out where I can run validateDeploys()
   }
 
   async processActivePlayer() {
 
     const otherPlayers = this.round.filter(x => x !== this.playerId);
-
+    
     // STEP 2
     // wait for queries | take action
+    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR QUERIES (3)\n\n");
     await Promise.all([
       this.waitForQuery(otherPlayers),
       this.takeAction()
+      // based on the player's deployed agents, select a valid spot
     ])
 
     // STEP 3
     // create answer
+    this.gameLog("\n\nACTIVE-PLAYER - CREATE ANSWERS (3)\n\n");
     const answers = await this.createAnswers();
+
     // broadcast answers
     await Promise.all(answers.map(async (answer) => {
-      this.gameLog("Broadcasting answers")
+      this.gameLog("\nACTIVE-PLAYER - Broadcasting answers\n");
       await this.sockets.broadcastAnswer(this.turn, answer.to, answer);
     }))
-    this.gameLog("NO MORE ANSWERS TO BROADCAST", stringify(this.turnData.answers));
+    this.gameLog("\nACTIVE-PLAYER - NO MORE ANSWERS TO BROADCAST\n");
 
     // STEP 6
-    // wait for udpates
+    // wait for updates
+    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR UPDATES (3)\n\n");
     await this.waitForUpdates(otherPlayers);
 
     // STEP 7
     // broadcast reports
     const report = await this.createReport();
-    this.gameLog("Broadcasting report")
+    this.gameLog("\n\nACTIVE-PLAYER - BROADCASTING REPORT \n\n");
     await this.sockets.broadcastReport(this.turn, report);
 
-    this.gameLog("Finishing turn.");
-    this.gameLog("No more duties.");
+    this.gameLog("\n\nACTIVE-PLAYER - FINISHING TURN\n\n");
   }
 
   async processNonActivePlayer() {
@@ -234,31 +317,38 @@ export class GameClient {
 
     const otherNonActivePlayers = nonActivePlayers
       .filter(x => x !== this.playerId);
-
+    
     // STEP 1
     // if query ready, broadcast query
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE QUERY\n\n");
     const query = await this.getQuery();
+
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST QUERY (1) AND WAIT FOR QUERIES (2)\n\n");
     await Promise.all([
       this.sockets.broadcastQuery(this.turn, this.activePlayer, query),
       this.waitForQuery(otherNonActivePlayers),  // we have our query, but we need the other NA-players'
     ]);
-    this.gameLog("NO MORE QUERIES TO BROADCAST", stringify(this.turnData.queries));
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - NO MORE QUERIES TO BROADCAST\n\n");
 
     // STEP 4
     // wait for answer
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR ANSWERS (2)\n\n");
     await this.waitForAnswer(nonActivePlayers);
 
     // STEP 5
     // process update
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE UPDATE\n\n");
     const update = await this.createUpdate();
     // broadcast update
     await Promise.all([
       await this.sockets.broadcastUpdate(this.turn, this.activePlayer, update),
       await this.waitForUpdates(otherNonActivePlayers),
     ]);
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST UPDATE (1) AND WAIT FOR UPDATES (2)\n\n");
 
     // STEP 8
     // wait for report
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (2)\n\n");
     await this.waitForReport();
     this.gameLog("No more duties.")
   }
@@ -267,85 +357,218 @@ export class GameClient {
                           NON-ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
   async getQuery(): Promise<GameQueryPayload> {
-    const payload = {
-      mockQueryData: {
-        token: this.token,
-        turn: `Mock-Q${this.contextTurnInfo.turn}`,
-      }
-    };
-    this.turnData.queries.set(this.playerId, payload)
-    return payload
+
+    this.gameLog(`\nGET-QUERY: PLAYER-INDEX: ${this.activePlayerIndex}\n`);
+
+    const query = await this.zklib.createQueries(Number(this.activePlayerIndex)); 
+    this.gameLog(`\n\n\n GET-QUERY: QUERY-LENGTH: ${JSON.stringify(query).length}\n`);
+    this.gameLog(`\nGET-QUERY: QUERY-PROOF: ${query}\n`);
+
+    return {queries: query.proof}
   }
 
   async waitForAnswer(players: Player[]) {
     this.gameLog("STARTING WAIT FOR ANSWER");
     // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
     const answers = await this.sockets.waitForAnswer(this.turn, this.activePlayer, players);
-    this.gameLog("Returned answer", stringify(answers))
-    this.turnData.answers = answers
+
+    this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);
+    
+    answers.forEach( (payload, id) => {
+      this.turnData.answers.set(id, {proof: payload.proof});
+    });
   }
 
   async createUpdate(): Promise<GameUpdatePayload> {
-    this.gameLog("Creating update for active player");
-    const payload = {
-      mockUpdateData: {
-        token: this.token,
-        turn: `Mock-U${this.turn}`,
-      }
-    }
-    this.turnData.updates.set(this.playerId, payload)
-    return payload;
+    const answers = this.turnData.answers;
+
+    this.gameLog("CREATE-UPDATE: ALL-ANSWERS:", answers);
+    
+    const pid = this.playerId;
+    
+    this.gameLog("CREATE-UPDATE: THIS-PID:", pid);
+
+    const answer = answers.get(pid)!;
+    // const answer = answers.get(pid) as AnswerData;
+
+    this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${JSON.stringify(answer).slice(0, 20)} ...`);
+
+    const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex);
+    
+    this.turnData.updates.set(this.playerId, data);
+    
+
+    return {proof: data.proof};
   }
 
   async waitForReport() {
     const report = await this.sockets.waitForReport(this.turn, this.activePlayer);
-    this.gameLog("Returned report", stringify(report))
-    this.turnData.report = report
+    this.gameLog("REPORT RECIEVED");
+    this.turnData.report = report;
   }
 
   /*///////////////////////////////////////////////////////////////
                           ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
-  async takeAction() {
+  
+  async setupAgents(agentsLocations: Locations) {
+    // Deploy your agents
+    this.log(`\nSETUP-AGENTS: AGENTS-LOCATIONS: ${agentsLocations}\n`);
+    const myDeploys = await this.zklib.createDeploys(agentsLocations);
+    this.log(`\nSETUP-AGENTS: MY-DEPLOYS-PROOF: ${myDeploys.proof}\n`);
+    
+    this.log(this.zklib.own_state.board_used);
+
+    // Broadcast your deployment proofs
+    this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
+  }
+
+  // Wait for other deploys and validate them
+  async validateDeploys() {
+    
+    // TODO need info on other players to call waitForDeploy, but state machine 
+    // needs to be running and all players
+    // need to be connected for round to be defined
+    const otherPlayers = this.round.filter(x => x !== this.playerId);
+
+    const enemyDeploys = await this.sockets.waitForDeploy(
+      this.activePlayer, otherPlayers
+    );
+
+    const enemyDeploysArray = Array.from(enemyDeploys.values()).map(v => v.deploys);
+
+    this.zklib.verifyDeploys(enemyDeploysArray);
+  }
+
+  async takeAction(
+    //action: TurnAction
+    ) {
+    // console.log(action); 
+  
+    // for now:
+    // each player goes from left to right infinitely
+    // starting here:
+    // 0 _ _ _   
+    // 2 _ _ _   
+    // _ 1 _ _   
+    // _ 3 _ _   
+    const playerStartLoc = { 
+      0: 0,
+      1: 9,
+      2: 4,
+      3: 13
+    };
+
+    let direction: number = 1;
+    const index = this.initialPlayerIndex as PlayerIndex;
+    const loc = this.activePlayerLocation;
+
+    this.log("TAKE-ACTION: ACTIVE-PLAYER-LOCATION: ", this.activePlayerLocation);
+
+    this.activePlayerLocation = loc || (playerStartLoc[index] as AgentLocation);
+    
+    const reason = this.activePlayerLocation;
+    let target: number = 0;
+
+    switch (index) {
+      case 0: ( {target, direction} = this.bounce(reason, 0, 3, direction) );
+      case 1: ( {target, direction} = this.bounce(reason, 8, 11, direction) );
+      case 2: ( {target, direction} = this.bounce(reason, 4, 7, direction) );
+      case 3: ( {target, direction} = this.bounce(reason, 12, 15, direction) );    
+    }
+
+    this.log(`TAKE-ACTION: PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
+
+    this.turnData.action = { reason, target, trap: false };
+    // this.turnData.action = action;
+  }
+
+  bounce(current: number, min: number, max: number, direction: number): {target: number, direction: number}{
+    if (current === max && direction === 1) return { target: max - 1, direction: -1 };
+    if (current === min && direction === -1) return { target: min + 1, direction: 1 };
+    return { target: current + direction, direction };
   }
 
   async waitForQuery(players: Player[]) {
-    const queries = await this.sockets.waitForQuery(this.turn, this.activePlayer, players)
-    this.gameLog("Returned queries", stringify(queries))
+    const queries = await this.sockets.waitForQuery(this.turn, this.activePlayer, players);
+    this.log("QUERIES WE'VE BEEN WAITING FOR");
     queries.forEach((payload, player) => {
-      this.turnData.queries.set(player, payload)
+      this.log(`QUERY NUMBER: ${player}, QUERY VALUE: ${payload.queries}`);
+      this.turnData.queries.set(player, {queries: payload.queries});
     })
+    this.log("TURNDATA, QUERIES: ", this.turnData.queries);
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
-    const otherPlayers = this.round.filter(x => x !== this.playerId);
     const payloads: GameAnswerPayload[] = [];
-    for (const player of otherPlayers) {
-      const payload = {
-        from: this.token,
-        to: player,
-        data: `Mock-A${this.contextTurnInfo.turn}`,
-      }
-      payloads.push(payload);
-      this.turnData.answers.set(player, payload.data)
-    }
-    return payloads;
+    const queryValues = Array.from(this.turnData.queries.values());
+    
+    queryValues.forEach( (x) => {
+      this.log(`\nCREATE-ANSWERS: QUERY-VALUES: ${x.queries}`);
+    });
+
+    const queryData = queryValues.map((x) => x.queries);
+
+    this.log(`\nCREATE-ANSWERS: QUERIES: ${queryData}`);
+    
+    const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
+    
+    answers.playerProofs.forEach( (value) => {      
+      this.log(`\nCREATE-DATA: ANSWERS: ${value}\n`);
+    });
+
+    const nonActivePlayersRound = this.round
+      .filter(x => x !== this.activePlayer);
+
+    this.turnData.queries.forEach((_, player) => {
+      let nonActivePlayerIndex = nonActivePlayersRound.indexOf(player);
+      const playerProof = answers.playerProofs[nonActivePlayerIndex]!;
+      payloads.push({to: player, proof: playerProof });
+      this.turnData.answers.set(player, { proof: playerProof });
+    });
+
+    return payloads
   }
 
+  
   async waitForUpdates(players: Player[]) {
-    this.gameLog("Waiting for updates");
-    const updates = await this.sockets.waitForUpdates(this.turn, this.activePlayer, players)
-    this.gameLog("Returned updates", stringify(updates))
-    this.turnData.updates = updates;
+    this.log("WAITING FOR UPDATES");
+    const updates = await this.sockets.waitForUpdates(this.turn, this.activePlayer, players);
+
+    this.log("UPDATES RECEIVED: ", updates);
+
+    const updateValues = Array.from(updates.values());
+    
+    updateValues.forEach( (x) => {
+      this.log(`\nUPDATES: UPDATE-VALUES: ${x.proof}`);
+    });
+
+    updates.forEach((value, key) => {
+      this.log(`\nUPDATES: UPDATE-VALUES-SET: KEY:${key}, VALUE:${value}, `);
+      this.turnData.updates.set(key, value) 
+    });
   }
 
   async createReport(): Promise<GameReportPayload> {
-    return {
-      mockReportData: {
-        token: this.token,
-        turn: `Mock-R${this.contextTurnInfo.turn}`,
-      }
-    }
+     
+    // TODO evaluate collisions?
+
+    const turnUpdates = this.turnData.updates;
+
+    this.log(`\nWITNESS: REPORTS(TURN-UPDATES): ${turnUpdates}\n`);
+    
+    const updates: ProofData[] = Array.from(turnUpdates.entries())
+      .filter(([id]) => id !== this.activePlayer)
+      .map(([, { proof }]) => proof);
+
+    this.log(`\nWITNESS: REPORT: (UPDATES): ${updates}\n`);
+
+    const report = await this.zklib.createReports(updates);
+     
+    this.log(`\nPROOFDATA: REPORT: ${report}\n`);
+    this.turnData.report = {proof: report.proof, impacted: report.impacted};
+
+    return { proof: report.proof };
   }
 
   /*///////////////////////////////////////////////////////////////

@@ -8,6 +8,10 @@ export {
 } from "./connect.js"
 
 export {
+  PlayerStorage,
+} from "./playerStorage.js"
+
+export {
   type ClientSockets,
   type SetupSocketOptions
 } from "./setup.js"
