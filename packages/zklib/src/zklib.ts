@@ -94,8 +94,14 @@ export class ZkLib implements IZkLib {
   };
 
   async createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }> {
+
+    console.log(`\n\n\n QUERY LEN: ${queries.length}\n\n`);
+
     let proofs = [];
-    for (let player_index = 0; player_index < this.NUMBER_OF_PLAYERS - 1; player_index++) {
+    for (let player_index = 0; player_index < this.NUMBER_OF_PLAYERS; player_index++) {
+        
+      console.log(`\n\n HOLA SOY PLAYWER IDNSNEWKFJKLDFLJKDFJlk= ${player_index}`);
+
 
       if (player_index == this.own_seat) {
         queries.splice(player_index, 0, []);
@@ -126,7 +132,7 @@ export class ZkLib implements IZkLib {
         queries: playerQuery.slice(0, -1).map(({ publicInputs }) => publicInputs.slice(-9))
       };
     
-      writeFileSync(`buggy-inputs-answers`, JSON.stringify(inputs))
+      // writeFileSync(`buggy-inputs-answers`, JSON.stringify(inputs))
 
       this.temp_values.action = action;
       this.temp_values.action_salt = inputs.action_salt;
@@ -185,7 +191,7 @@ export class ZkLib implements IZkLib {
       hit_reports: reports.map(({ publicInputs }) => publicInputs.slice(-9))
     };
 
-    writeFileSync(`buggy-inputs-reports`, JSON.stringify(inputs))
+    // writeFileSync(`buggy-inputs-reports`, JSON.stringify(inputs))
 
     const result = await generate_proof(circuits['reports_updates'], inputs, this.options);
     this.own_state = { board_used: result.private_outputs.computed_board, board_salt: inputs.new_board_salt };
@@ -210,7 +216,8 @@ export class ZkLib implements IZkLib {
       }
       const entropy = entropy_pool.flat().slice(0,1289);
       let ciphertext = encrypt(this.public_keys[player]!.key_set, entropy, i);
-      selectors.push(ciphertext);
+      // selectors.push(ciphertext);
+      selectors.push(["0","0","0","0","0","0","0","0","0"]);
     }
     return selectors;
   }

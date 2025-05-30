@@ -513,6 +513,9 @@ export class GameClient {
     
     const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
     
+    this.log(`\nCREATE-DATA: ALL-ANSWERS: ${answers}\n`);
+    this.log(`\nCREATE-DATA: ANSWERS: ${answers.playerProofs}\n`);
+
     answers.playerProofs.forEach( (value) => {      
       this.log(`\nCREATE-DATA: ANSWERS: ${value}\n`);
     });
