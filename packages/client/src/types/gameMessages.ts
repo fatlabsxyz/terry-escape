@@ -21,8 +21,9 @@ export enum GameMsg {
   ANSWER = "game:answer",
   UPDATE = "game:update",
   REPORT = "game:report",
-  GET_PLAYER_INDEX = "game:get_player_index",
-  PLAYER_SEAT = "game:player_seat"
+
+  PLAYER_SEAT = "game:player_seat",
+  FETCH_PROOFS = "game:fetch_proofs"
 }
 
 export interface GamePayload {
@@ -83,5 +84,6 @@ export interface GameUpdateMsg extends IGameMessage {
 export interface GameReportMsg extends IGameMessage {
   payload: GameReportPayload
 }
+
 
 export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg | GamePlayerSeatMsg

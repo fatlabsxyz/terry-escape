@@ -8,7 +8,7 @@ import { FRONTEND_URLS } from  './app.js'
 
 export function addIoSockets(server: HttpServer): Server {
   let io = new Server(server, {
-      maxHttpBufferSize: 2e7, // 20 mb (2 * 7 zeroes)
+      maxHttpBufferSize: 8e7, // 80 mb (8 * 7 bytes)
       cors: {
         origin: FRONTEND_URLS[0],
         methods: ["GET", "POST"]

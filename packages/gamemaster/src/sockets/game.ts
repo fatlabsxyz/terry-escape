@@ -3,6 +3,7 @@ import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
 import { PlayerStorage } from 'client';
+import { MessageLog } from '../messageLog.js';
 
 type Ack = () => void;
 
@@ -28,54 +29,87 @@ export type GameSocket = Socket<
   InterServerEvents,
   SocketData
 >
-
 const playerStorage: PlayerStorage = PlayerStorage.getInstance();
 
 function registerGameHandlers(socket: GameSocket) {
+  const msgLog = new MessageLog();
 
   const TIMEOUT = 300_000;
+  const MAX_PLAYERS = 4; 
   /*///////////////////////////////////////////////////////////////
-                          BROADCASTING
+                          PROOF  GATHERING
+                          AND BROADCASTING
   //////////////////////////////////////////////////////////////*/
   socket.on(GameMsg.DEPLOY, async (p: GameDeployMsg, ack: Ack) => {
-    await socket
-      .broadcast
-      .timeout(TIMEOUT)
-      .emitWithAck(GameMsg.DEPLOY, p);
-    ack();
+    msgLog.register(p);
+
+    const allDeploys = msgLog.findMessageListForTurn(p.turn, p.event);
+
+    if ( allDeploys.length === MAX_PLAYERS - 1) {
+      await socket
+        .broadcast
+        .timeout(TIMEOUT)
+        .emitWithAck(GameMsg.DEPLOY, allDeploys.map(value => value as GameDeployMsg));
+       ack();
+    }
   }); 
 
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
+    msgLog.register(p);
+
     console.log("THE QUERY HAS ARRIVED:", JSON.stringify(p.payload.queries).slice(0, 100)); // todo remove
-    await socket
-      .broadcast
-      .timeout(TIMEOUT)
-      .emitWithAck(GameMsg.QUERY, p);
-    ack();
+
+    const allQueries = msgLog.findMessageListForTurn(p.turn, p.event);
+
+    if ( allQueries.length === MAX_PLAYERS - 1) {
+      await socket
+        .broadcast
+        .timeout(TIMEOUT)
+        .emitWithAck(GameMsg.QUERY, allQueries.map(value => value as GameQueryMsg));
+       ack();
+    }
   });
 
   socket.on(GameMsg.ANSWER, async (p: GameAnswerMsg, ack: Ack) => {
-    await socket
-      .broadcast
-      .timeout(TIMEOUT)
-      .emitWithAck(GameMsg.ANSWER, p);
-      ack();
+    msgLog.register(p);
+    
+    const allAnswers = msgLog.findMessageListForTurn(p.turn, p.event);
+
+    if ( allAnswers.length === MAX_PLAYERS - 1) {
+      await socket
+        .broadcast
+        .timeout(TIMEOUT)
+        .emitWithAck(GameMsg.ANSWER, allAnswers.map(value => value as GameAnswerMsg));
+       ack();
+    }
   });
 
   socket.on(GameMsg.UPDATE, async (p: GameUpdateMsg, ack: Ack) => {
-    await socket
-      .broadcast
-      .timeout(TIMEOUT)
-      .emitWithAck(GameMsg.UPDATE, p);
-    ack();
+    msgLog.register(p);
+
+    const allUpdates = msgLog.findMessageListForTurn(p.turn, p.event);
+
+    if ( allUpdates.length === MAX_PLAYERS - 1) {
+      await socket
+        .broadcast
+        .timeout(TIMEOUT)
+        .emitWithAck(GameMsg.UPDATE, allUpdates.map(value => value as GameUpdateMsg));
+       ack();
+    }
   });
 
   socket.on(GameMsg.REPORT, async (p: GameReportMsg, ack: Ack) => {
-    await socket
-      .broadcast
-      .timeout(TIMEOUT)
-      .emitWithAck(GameMsg.REPORT, p);
-    ack();
+    msgLog.register(p);
+
+    const allReports = msgLog.findMessageListForTurn(p.turn, p.event);
+
+    if ( allReports.length === MAX_PLAYERS - 1) {
+      await socket
+        .broadcast
+        .timeout(TIMEOUT)
+        .emitWithAck(GameMsg.REPORT, allReports.map(value => value as GameReportMsg));
+       ack();
+    }
   });
 
   socket.on(GameMsg.READY, async (ack: AckPlayerIndex) => {
@@ -84,20 +118,12 @@ function registerGameHandlers(socket: GameSocket) {
     ack( playerIndex );
   });
   
-  // TODO: deprecate
-  socket.on(GameMsg.GET_PLAYER_INDEX, async (ack: AckPlayerIndex) => {
-    const game = getGameOrNewOne(socket.nsp);
-    const playerIndex = game.getPlayerIndex(socket.data.id as Player);
-    ack( playerIndex );
-  });
-
 }
 
 export function addGameNamespace(server: Server): Server {
   // nsp ~ /game/V1StGXR8_Z5jdHi6B2myT
   const gameNsp: GameNsp = server.of(/^\/game\/[a-zA-Z0-9_\-]+$/);
-
-  
+ 
   const SECRET_KEY = 'test-key';
   gameNsp.use((socket, next) => {
     if (!socket.handshake.auth.token) {

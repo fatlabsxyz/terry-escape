@@ -152,9 +152,7 @@ export class Game {
   }
 
   readyPlayer(player: Player) {
-    const playerIndex: number = this.gameMachine.getSnapshot().context.players.get(player)!.seat;
     this.gameMachine.send({ type: Events.PlayerReady, data: { player } });
-    return playerIndex;
   }
 
   getPlayerIndex(playerId: Player): number | undefined {
@@ -253,7 +251,7 @@ export class Game {
         sender:"gamemaster",
         to: player.sid,
         turn:0,
-        payload: {seat: player.seat as PlayerIndex}
+        payload: {seat: player.seat as PlayerIndex, round: 0}
       }
     );
   }

@@ -1,4 +1,4 @@
-import { GameMessage, GameMsg } from "../types/index.js";
+import { GameDeployMsg, GameMessage, GameMsg } from "client/types";
 
 export class MessageKey {
 
@@ -38,6 +38,17 @@ export class MessageLog<M extends GameMessage> {
   find(turn: number, event: `${GameMsg}`, sender: string, to?: string): M | undefined {
     const msgKey = new MessageKey(turn, event, sender, to);
     return this.log[msgKey.toString()]
+  }
+
+  findMessageListForTurn(turn: number, event: `${GameMsg}`): M[] {
+    const msgKey = `${turn}-${event}`;
+
+    const result = Object.keys(this.log)
+      .filter(key => key.includes(msgKey))
+      .map(key => this.log[key])
+      .filter(value => value !== undefined);
+
+    return result
   }
 
   clear(msg: M) {
