@@ -30,11 +30,12 @@ export type GameSocket = Socket<
   SocketData
 >
 const playerStorage: PlayerStorage = PlayerStorage.getInstance();
+const msgLog = new MessageLog();
 
 function registerGameHandlers(socket: GameSocket) {
-  const msgLog = new MessageLog();
 
   const TIMEOUT = 300_000;
+  const BROADCAST_TIMEOUT = 1_000;
   const MAX_PLAYERS = 4; 
   /*///////////////////////////////////////////////////////////////
                           PROOF  GATHERING
@@ -45,42 +46,87 @@ function registerGameHandlers(socket: GameSocket) {
 
     const allDeploys = msgLog.findMessageListForTurn(p.turn, p.event);
 
-    if ( allDeploys.length === MAX_PLAYERS - 1) {
-      await socket
-        .broadcast
-        .timeout(TIMEOUT)
-        .emitWithAck(GameMsg.DEPLOY, allDeploys.map(value => value as GameDeployMsg));
-       ack();
+    // console.log(`\n\nGOT A DEPLOY FROM:${p.sender}\n\n`)
+    // console.log(`\n\nDEPLOYS LEN: ${allDeploys.length}`)
+    // allDeploys.forEach(deploy => {
+    //   console.log(`\nQUERY LIST ITEM: ${deploy}`);
+    // });
+    
+    if ( allDeploys.length === MAX_PLAYERS ) {
+      console.log(`\n\nBROADCASTING DEPLOYS\n\n`)
+      await new Promise(resolve => setTimeout(resolve, BROADCAST_TIMEOUT));
+      // TODO test emit to each player separately?
+      // await socket.emit(GameMsg.DEPLOY)
+      allDeploys.forEach((deploy) => {
+        const sender = deploy.sender
+        const playerSid = playerStorage.getSocketId(sender)
+        console.log(`\n\n DEPLOYS SENT TO: SID:${playerSid} ID:${sender} \n\n`)
+        socket.to(playerSid).timeout(TIMEOUT).emitWithAck(
+          GameMsg.DEPLOY, 
+          allDeploys
+            .filter(x => x.sender !== sender)
+            .map(x => x as GameDeployMsg))
+      })
+      // await socket
+      //   .broadcast
+      //   .timeout(TIMEOUT)
+      //   .emitWithAck(GameMsg.DEPLOY, allDeploys.map(value => value as GameDeployMsg));
     }
-  }); 
+    ack();
+  });
 
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
     msgLog.register(p);
 
-    console.log("THE QUERY HAS ARRIVED:", JSON.stringify(p.payload.queries).slice(0, 100)); // todo remove
-
     const allQueries = msgLog.findMessageListForTurn(p.turn, p.event);
 
+    // console.log(`\n\nQUERIES LEN: ${allQueries.length}`)
+    // allQueries.forEach(query => {
+    //   console.log(`\nQUERY LIST ITEM: ${query}\n\n`);
+    // });
+    // console.log(`\n\nGOT A QUERY FROM:${p.sender}\n\n`);
+
     if ( allQueries.length === MAX_PLAYERS - 1) {
-      await socket
-        .broadcast
-        .timeout(TIMEOUT)
-        .emitWithAck(GameMsg.QUERY, allQueries.map(value => value as GameQueryMsg));
-       ack();
+
+      console.log(`\n\nBROADCASTING QUERIES\n\n`)
+      await new Promise(resolve => setTimeout(resolve, BROADCAST_TIMEOUT));
+      
+      // TODO why not the third one??
+      allQueries.forEach( async (deploy) => {
+        const sender = deploy.sender
+        const playerSid = playerStorage.getSocketId(sender)
+        console.log(`\n\n QUERIES SENT TO: SID:${playerSid} ID:${sender} \n\n`)
+        await socket.to(playerSid).timeout(TIMEOUT).emitWithAck(
+          GameMsg.QUERY, 
+          allQueries
+            .filter(x => x.sender !== sender)
+            .map(x => x as GameQueryMsg))
+      })
+
+      // await socket
+      //   .broadcast
+      //   .timeout(TIMEOUT)
+      //   .emitWithAck(GameMsg.QUERY, allQueries.map(value => value as GameQueryMsg));
+      // ack();
     }
+    ack();
   });
 
   socket.on(GameMsg.ANSWER, async (p: GameAnswerMsg, ack: Ack) => {
     msgLog.register(p);
-    
+     
     const allAnswers = msgLog.findMessageListForTurn(p.turn, p.event);
 
+    console.log(`\n\nGOT AN ANSWER FROM:${p.sender}\n\n`)
+
     if ( allAnswers.length === MAX_PLAYERS - 1) {
+      console.log(`\n\nBROADCASTING ANSWERS\n\n`)
+      await new Promise(resolve => setTimeout(resolve, BROADCAST_TIMEOUT));
       await socket
         .broadcast
         .timeout(TIMEOUT)
         .emitWithAck(GameMsg.ANSWER, allAnswers.map(value => value as GameAnswerMsg));
-       ack();
+      ack();
     }
   });
 
@@ -90,6 +136,7 @@ function registerGameHandlers(socket: GameSocket) {
     const allUpdates = msgLog.findMessageListForTurn(p.turn, p.event);
 
     if ( allUpdates.length === MAX_PLAYERS - 1) {
+      await new Promise(resolve => setTimeout(resolve, BROADCAST_TIMEOUT));
       await socket
         .broadcast
         .timeout(TIMEOUT)
@@ -100,10 +147,12 @@ function registerGameHandlers(socket: GameSocket) {
 
   socket.on(GameMsg.REPORT, async (p: GameReportMsg, ack: Ack) => {
     msgLog.register(p);
-
+    
+    console.log("\n\nCREATE REPORT\n\n")
     const allReports = msgLog.findMessageListForTurn(p.turn, p.event);
 
     if ( allReports.length === MAX_PLAYERS - 1) {
+      await new Promise(resolve => setTimeout(resolve, BROADCAST_TIMEOUT));
       await socket
         .broadcast
         .timeout(TIMEOUT)
@@ -112,10 +161,10 @@ function registerGameHandlers(socket: GameSocket) {
     }
   });
 
-  socket.on(GameMsg.READY, async (ack: AckPlayerIndex) => {
+  socket.on(GameMsg.READY, async (ack: Ack) => {
     const game = getGameOrNewOne(socket.nsp);
     const playerIndex = game.readyPlayer(socket.data.id as Player);
-    ack( playerIndex );
+    ack();
   });
   
 }

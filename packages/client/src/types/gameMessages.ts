@@ -85,5 +85,11 @@ export interface GameReportMsg extends IGameMessage {
   payload: GameReportPayload
 }
 
+export interface RetrieveMsg {
+  event: `${GameMsg}`
+  turn: number
+}
 
 export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg | GamePlayerSeatMsg
+
+export type GameMessagePayload = GameDeployPayload | GameQueryPayload | GameAnswerPayload | GameUpdatePayload | GameReportPayload

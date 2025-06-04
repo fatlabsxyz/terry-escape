@@ -11,7 +11,7 @@ export class MessageKey {
   }
 
   toString() {
-    return `${this.turn}-${this.event}-${this.sender}-${this.recipient}`
+    return `${this.turn}~${this.event}~${this.sender}~${this.recipient}`
   }
 
   static fromMsg(msg: GameMessage) {
@@ -41,13 +41,20 @@ export class MessageLog<M extends GameMessage> {
   }
 
   findMessageListForTurn(turn: number, event: `${GameMsg}`): M[] {
-    const msgKey = `${turn}-${event}`;
+    const msgKey = `${turn}~${event}`;
 
-    const result = Object.keys(this.log)
-      .filter(key => key.includes(msgKey))
-      .map(key => this.log[key])
-      .filter(value => value !== undefined);
-
+    const messageKeyVals: string[] = Object.keys(this.log)
+    const messageKeyValsFiltered = messageKeyVals.filter(key => key.includes(msgKey))
+    const messageMapped = messageKeyValsFiltered.map(key => this.log[key]);
+    const result = messageMapped.filter(value => value !== undefined);
+  
+    //TODO: remove this later (variables and prints)
+    console.log(`\n\n\n\nMSGKEY: ${msgKey} \n`);
+    console.log(`\nMESSAGE KEY VALUES: ${messageKeyVals}, LEN: ${messageKeyVals.length} \n`);
+    console.log(`\nMESSAGE KEY VALUES FILTERED: ${messageKeyValsFiltered}, LEN: ${messageKeyValsFiltered.length} \n`);
+    console.log(`\nMESSAGE MAPPED: ${messageMapped} \n`);
+    console.log(`\nMESSAGE RESULT: ${result} \n\n\n\n`);
+    
     return result
   }
 

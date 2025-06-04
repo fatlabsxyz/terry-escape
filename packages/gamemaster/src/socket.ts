@@ -8,12 +8,14 @@ import { FRONTEND_URLS } from  './app.js'
 
 export function addIoSockets(server: HttpServer): Server {
   let io = new Server(server, {
-      maxHttpBufferSize: 8e7, // 80 mb (8 * 7 bytes)
-      cors: {
-        origin: FRONTEND_URLS[0],
-        methods: ["GET", "POST"]
-      }
-    })
+    maxHttpBufferSize: 8e7, // 80 mb (8 * 7 bytes)
+    pingTimeout: 60000,
+    pingInterval: 30000,
+    cors: {
+      origin: FRONTEND_URLS[0],
+      methods: ["GET", "POST"]
+    }
+  })
 
   io.on('connection', (socket: Socket) => {
     // console.log("User connection", socket.id)
