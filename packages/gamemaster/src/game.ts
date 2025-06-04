@@ -239,9 +239,9 @@ export class Game {
     return await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.WAITING);
   }
 
-  async returnPlayerIndex(playerId: string): Promise<void> {
+  async returnPlayerSeat(playerId: string): Promise<void> {
     const player = this.playerStorage.getPlayer(playerId) as PlayerProps;
-    const shortTimeout = 2_000;
+    const shortTimeout = 5_000;
 
     return await this.nsp.timeout(shortTimeout)
       .to(player.sid)
@@ -251,7 +251,7 @@ export class Game {
         sender:"gamemaster",
         to: player.sid,
         turn:0,
-        payload: {seat: player.seat as PlayerIndex, round: 0}
+        payload: {seat: player.seat as PlayerIndex}
       }
     );
   }
@@ -277,13 +277,12 @@ export class Game {
 
   setPlayerIndex(playerId: string) {
     this.log("Sending player index to client");
-    this.returnPlayerIndex(playerId).then((ack) => {
+    this.returnPlayerSeat(playerId).then((ack) => {
       this.log("return-player-index result: ", ack);
     }).catch( (err) => {
-      console.error("Error sending player index, retrying. Err: ", err);
       setTimeout( () => {
-        this.returnPlayerIndex(playerId);
-      }, 5_00);
+        this.returnPlayerSeat(playerId);
+      }, 5_000);
     });
   }
 
@@ -353,13 +352,13 @@ export class Game {
 
     const self = this;
     function allPlayersReadyGuard(context: Context): boolean {
-      self.log("Checking all players ready", stringify(context));
+      // self.log("Checking all players ready", stringify(context));
       return context.players.size >= context.minPlayers &&
         Array.from(context.players.values()).every(x => x.ready)
     }
 
     function allPlayersWaitingGuard(context: Context): boolean {
-      self.log("Checking all players waiting", stringify(context));
+      // self.log("Checking all players waiting", stringify(context));
       const nonEliminated = Array.from(context.players.values()).filter(x => !x.eliminated);
       return nonEliminated.every(x => x.waiting)
     }

@@ -13,7 +13,9 @@ import {
   GameReportMsg,
   GameReportPayload,
   GameUpdateMsg,
-  GameUpdatePayload
+  GameUpdatePayload,
+  GameMessagePayload,
+  RetrieveMsg
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
@@ -27,16 +29,15 @@ const TIMEOUT = 300_000;
 
 type FromTo = [string, string];
  
-type Message = GameMessage;
-type Turn = string;
+type Turn = number;
 
 export type MessageBox = {
-  deploys: Map<Turn, GameDeployMsg[]>;
+  deploys: GameDeployMsg[];
   queries: Map<Turn, GameQueryMsg[]>;   
   updates: Map<Turn, GameUpdateMsg[]>;
   answers: Map<Turn, GameAnswerMsg[]>;
   reports: Map<Turn, GameReportMsg[]>;
-}
+} 
 
 export interface SocketManagerOptions {
   serverUrl: string;
@@ -63,7 +64,7 @@ export class SocketManager extends EventEmitter {
     this.playerStorage = PlayerStorage.getInstance();
 
     this.messageBox = { 
-      deploys: new Map(),
+      deploys: new Array(),
       queries: new Map(),
       updates: new Map(),
       answers: new Map(),
@@ -71,12 +72,14 @@ export class SocketManager extends EventEmitter {
     };
     
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
+      timeout: 30000,
       auth: {
         token: options.token
       }
     });
 
     this.lobby = io(options.serverUrl, {
+      timeout: 30000,
       auth: {
         token: options.token
       }
@@ -111,8 +114,7 @@ export class SocketManager extends EventEmitter {
     })
 
     this.game.on(GameMsg.DEPLOY, (msg: GameDeployMsg[], ack: () => void) => {
-      const turn = msg[0]?.turn as number;
-      this.messageBox.deploys.set(turn.toString(), msg);
+      this.messageBox.deploys = msg;
 
       console.log("\n\nDEPLOY MSG:", msg);
       ack();
@@ -120,16 +122,17 @@ export class SocketManager extends EventEmitter {
 
     this.game.on(GameMsg.QUERY, (msg: GameQueryMsg[], ack: () => void) => {
       const turn = msg[0]?.turn as number;
-      this.messageBox.queries.set(turn.toString(), msg);
+      this.messageBox.queries.set(turn, msg);
 
       console.log("\n\nQUERY MSG:", msg);
+      console.log(`LEN:${msg.length}\n\n`);
       ack();
     });
 
     this.game.on(GameMsg.ANSWER, (msg: GameAnswerMsg[], ack: () => void) => {
 
       const turn = msg[0]?.turn as number;
-      this.messageBox.answers.set(turn.toString(), msg);
+      this.messageBox.answers.set(turn, msg);
 
       console.log("\n\nANSWER MSG:", msg);
       ack();
@@ -137,7 +140,7 @@ export class SocketManager extends EventEmitter {
 
     this.game.on(GameMsg.UPDATE, (msg: GameUpdateMsg[], ack: () => void) => {
       const turn = msg[0]?.turn as number;
-      this.messageBox.updates.set(turn.toString(), msg);
+      this.messageBox.updates.set(turn, msg);
 
       console.log("\n\nUPDATE MSG:", msg);
       ack();
@@ -145,7 +148,7 @@ export class SocketManager extends EventEmitter {
 
     this.game.on(GameMsg.REPORT, (msg: GameReportMsg[], ack: () => void) => {
       const turn = msg[0]?.turn as number;
-      this.messageBox.reports.set(turn.toString(), msg);
+      this.messageBox.reports.set(turn, msg);
 
       console.log("\n\nREPORT MSG:", msg);
       ack();
@@ -234,22 +237,50 @@ export class SocketManager extends EventEmitter {
     await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.REPORT, reportMsg);
   }
 
-  async waitForDeploy(activePlayer: string, players: Player[], turn: number): Promise<Map<string, GameDeployPayload>> {
-    // const playerSet = new Set(players);
+  // async retrieveMissedValues(turn: number, event: GameMsg): Promise<Map<string, GameMessage>> {
+  //     const message: RetrieveMsg = {
+  //     turn,
+  //     event 
+  //   };
+  //   await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.FETCH_PROOFS, message);
+  //
+  //   const values: Map<Player, GameMessagePayload> = new Map();
+  //   return new Promise(async (res, rej) => {
+  //     setTimeout(rej, TIMEOUT);
+  //     console.log("WAITING FOR MISSED MESSAGE OF TYPE: ", event);
+  //     while (true) {
+  //       await passTime(100);
+  //
+  //       const recieved = !!this.messageBox.deploys;
+  //
+  //       if (!recieved) { 
+  //         await passTime(100); 
+  //       } else {
+  //         const valuesInTurn = this.messageBox.deploys!;
+  //         valuesInTurn.forEach(msg => values.set(msg.sender, msg.payload));
+  //         break;
+  //       }
+  //     }
+  //     //TODO FIX THIS maybe I'll have to write different methods idk
+  //     res(values)
+  //   });
+  //
+  // }
+
+  async waitForDeploys(): Promise<Map<string, GameDeployPayload>> {
     const deploys: Map<Player, GameDeployPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
+      console.log("WAITING FOR DEPLOYS");
       while (true) {
         await passTime(100);
-        
-        // TODO: CHECK STORAGE OR SOMETHING
-           
-        const recieved = this.messageBox.deploys.has(turn.toString());
+         
+        const recieved = !!this.messageBox.deploys;
 
         if (!recieved) { 
           await passTime(100); 
         } else {
-          const valuesInTurn = this.messageBox.deploys.get(turn.toString())!;
+          const valuesInTurn = this.messageBox.deploys!;
           valuesInTurn.forEach(msg => deploys.set(msg.sender, msg.payload));
           break;
         }
@@ -258,74 +289,90 @@ export class SocketManager extends EventEmitter {
     });
   }
 
-  async waitForQuery(turn: number, activePlayer: string, players: Player[]): Promise<Map<string, GameQueryPayload>> {
-    const playerSet = new Set(players);
+  async waitForQueries(turn: number): Promise<Map<string, GameQueryPayload>> {
     const queries: Map<Player, GameQueryPayload> = new Map();
     return new Promise(async (res, rej) => {
+      console.log("WAITING FOR QUERIES");
       setTimeout(rej, TIMEOUT);
       while (true) {
         await passTime(100);
-        const missingPlayers = new Set(playerSet.difference(new Set(queries.keys()))
-          .values()
-          .map(from => [from, activePlayer] as FromTo))
-        const loggedMsgs = this.lookLogForQueries(turn, missingPlayers);
-        loggedMsgs.forEach(msg => queries.set(msg.sender, msg.payload));
-        const enough = setEqual(playerSet, new Set(queries.keys()));
-        if (!enough) { await passTime(100); } else { break; }
+        
+        const recieved = this.messageBox.queries.has(turn);
+
+        // console.log("FOUND SOME QUERIES: ", recieved);
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valuesInTurn = this.messageBox.queries.get(turn)!;
+          valuesInTurn.forEach(msg => queries.set(msg.sender, msg.payload));
+          break;
+        }      
       }
       res(queries)
     });
   }
 
-  async waitForAnswer(turn: number, activePlayer: Player, players: Player[]): Promise<Map<string, GameAnswerPayload>> {
-    const playerSet = new Set(players);
+  async waitForAnswers(turn: number): Promise<Map<string, GameAnswerPayload>> {
     const answers: Map<Player, GameAnswerPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
-        const missingPlayers = new Set(playerSet.difference(new Set(answers.keys()))
-          .values()
-          .map(to => [activePlayer, to] as FromTo))
-        const loggedMsgs = this.lookLogForAnswer(turn, missingPlayers);
-        loggedMsgs.forEach(msg => answers.set(msg.to, msg.payload));
-        const enough = setEqual(playerSet, new Set(answers.keys()));
-        if (!enough) { await passTime(100); } else { break; }
+        await passTime(100);
+        
+        const recieved = this.messageBox.answers.has(turn);
+
+        console.log("FOUND SOME ANSWERS: ", recieved);
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valuesInTurn = this.messageBox.answers.get(turn)!;
+          valuesInTurn.forEach(msg => answers.set(msg.sender, msg.payload));
+          break;
+        }      
       }
       res(answers)
     });
   }
 
-  async waitForUpdates(turn: number, activePlayer: string, players: Player[]): Promise<Map<string, GameUpdatePayload>> {
-    const playerSet = new Set(players);
+  async waitForUpdates(turn: number): Promise<Map<string, GameUpdatePayload>> {
     const updates: Map<Player, GameUpdatePayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
         await passTime(100);
-        const missingPlayers = new Set(playerSet.difference(new Set(updates.keys()))
-          .values()
-          .map(from => [from, activePlayer] as FromTo))
-        const loggedMsgs = this.lookLogForUpdates(turn, missingPlayers);
-        loggedMsgs.forEach(msg => updates.set(
-          msg.sender, { proof: msg.payload.proof }
-        ));
-        let enough = setEqual(playerSet, new Set(updates.keys()));
-        if (!enough) { await passTime(100); } else { break; }
+        
+        const recieved = this.messageBox.updates.has(turn);
+
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valuesInTurn = this.messageBox.updates.get(turn)!;
+          valuesInTurn.forEach(msg => updates.set(msg.sender, msg.payload));
+          break;
+        }      
       }
       res(updates)
     });
   }
 
-  async waitForReport(turn: number, from: Player): Promise<GameReportPayload> {
-    let report: GameReportPayload | undefined = undefined;
+  async waitForReports(turn: number): Promise<Map<string, GameReportPayload>> {
+    let reports: Map<Player, GameReportPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
-      while (report === undefined) {
+      while (true) {
         await passTime(100);
-        const reportMsg = this.lookLogForReport(turn, from);
-        report = reportMsg?.payload;
+        
+        const recieved = this.messageBox.reports.has(turn);
+
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valuesInTurn = this.messageBox.reports.get(turn)!;
+          valuesInTurn.forEach(msg => reports.set(msg.sender, msg.payload));
+          break;
+        }
       }
-      res(report)
+      res(reports)
     });
   }
 

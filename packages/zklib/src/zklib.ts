@@ -99,8 +99,9 @@ export class ZkLib implements IZkLib {
 
     let proofs = [];
     for (let player_index = 0; player_index < this.NUMBER_OF_PLAYERS; player_index++) {
-        
-      console.log(`\n\n HOLA SOY PLAYWER IDNSNEWKFJKLDFLJKDFJlk= ${player_index}`);
+      
+      //TODO REMOVE
+      console.log(`\n\n CREATE ANSWERS FOR PLAYER NUMBER= ${player_index}`);
 
 
       if (player_index == this.own_seat) {
