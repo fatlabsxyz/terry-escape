@@ -83,8 +83,8 @@ export function init_circuits() : Record<CircuitType, Circuit> {
 };
 
 export async function generate_proof(circuit: Circuit, inputs: any, options: { mockProof: boolean } = { mockProof: false }) {
-  let computed_board;
-  let informed_detect;
+  let computed_board = undefined;
+  let informed_detect = undefined;
   const oracle_handler = async (name: string, _inputs: any) => {
     if (name == "oracle_board") { computed_board = _inputs[0]; }
     if (name == "oracle_detect") { informed_detect = _inputs[0]; }
@@ -108,14 +108,8 @@ export async function generate_proof(circuit: Circuit, inputs: any, options: { m
 
 export async function verify_proof(circuit: Circuit, proof: ProofData) {
   const validity = await circuit.backend.verifyProof(proof);
-  if (!validity) { await verification_failed_halt(); }
-  // postMessage("Verified isolated proof");
+  if (!validity) { throw Error("Proof verification failed!"); }
   return proof.publicInputs;
-}
-
-export async function verification_failed_halt() {
-  // postMessage("Verification failed!");
-  await new Promise(() => { });
 }
 
 
@@ -134,10 +128,10 @@ function to_big_num(n : bigint) : BigNum {
 	return limbs;
 }
 
-export function encrypt(key_set: BigNum[], entropy: boolean[], message: boolean) : BigNum {
+export function selector(key_set: BigNum[], entropy: boolean[], message: boolean) : BigNum {
 	let sum = key_set.slice(1).map(to_big_int).filter((_,i) => entropy[i]).reduce((a,b) => a+b);
 	if (message) { sum += to_big_int(key_set[1]!)/BigInt(2); }
-	return to_big_num(sum % to_big_int(key_set[0]!));
+	return to_big_num((sum % to_big_int(key_set[0]!)) / (2n**512n));
 }
 
 export function bits(n : number) : boolean[] {
