@@ -15,7 +15,8 @@ import {
   GameUpdateMsg,
   GameUpdatePayload,
   GameMessagePayload,
-  RetrieveMsg
+  RetrieveMsg,
+  GameProofsPayload
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
@@ -113,47 +114,77 @@ export class SocketManager extends EventEmitter {
       ack();
     })
 
-    this.game.on(GameMsg.DEPLOY, (msg: GameDeployMsg[], ack: () => void) => {
-      this.messageBox.deploys = msg;
+    // this.game.on(GameMsg.DEPLOY, (msg: GameDeployMsg[], ack: () => void) => {
+    //   this.messageBox.deploys = msg;
+    //
+    //   console.log("\n\nDEPLOY MSG:", msg);
+    //   ack();
+    // });
+    //
+    // this.game.on(GameMsg.QUERY, (msg: GameQueryMsg[], ack: () => void) => {
+    //   const turn = msg[0]?.turn as number;
+    //   this.messageBox.queries.set(turn, msg);
+    //
+    //   console.log("\n\nQUERY MSG:", msg);
+    //   console.log(`LEN:${msg.length}\n\n`);
+    //   ack();
+    // });
+    //
+    // this.game.on(GameMsg.ANSWER, (msg: GameAnswerMsg[], ack: () => void) => {
+    //
+    //   const turn = msg[0]?.turn as number;
+    //   this.messageBox.answers.set(turn, msg);
+    //
+    //   console.log("\n\nANSWER MSG:", msg);
+    //   ack();
+    // });
+    //
+    // this.game.on(GameMsg.UPDATE, (msg: GameUpdateMsg[], ack: () => void) => {
+    //   const turn = msg[0]?.turn as number;
+    //   this.messageBox.updates.set(turn, msg);
+    //
+    //   console.log("\n\nUPDATE MSG:", msg);
+    //   ack();
+    // });
+    //
+    // this.game.on(GameMsg.REPORT, (msg: GameReportMsg[], ack: () => void) => {
+    //   const turn = msg[0]?.turn as number;
+    //   this.messageBox.reports.set(turn, msg);
+    //
+    //   console.log("\n\nREPORT MSG:", msg);
+    //   ack();
+    // });
 
-      console.log("\n\nDEPLOY MSG:", msg);
+    this.game.on(GameMsg.PROOFS, (msg: GameProofsPayload, ack: () => void) => {
+
+      const turn = msg.messages[0]?.turn as number;
+      
+      console.log(`\n\nRECIEVED MSG: type: ${msg.type}, value: ${msg.messages}`);
+      
+      switch (msg.type) {
+        case GameMsg.DEPLOY: { 
+          this.messageBox.deploys = msg.messages.map(x => x as GameDeployMsg);
+          break;
+        }; 
+        case GameMsg.QUERY: { 
+          this.messageBox.queries.set(turn, msg.messages.map(x => x as GameQueryMsg));
+          break;
+        };
+        case GameMsg.ANSWER: { 
+          this.messageBox.answers.set(turn, msg.messages.map(x => x as GameAnswerMsg));
+          break;
+        };
+        case GameMsg.UPDATE: { 
+          this.messageBox.updates.set(turn, msg.messages.map(x => x as GameUpdateMsg));
+          break;
+        };
+        case GameMsg.REPORT: { 
+          this.messageBox.reports.set(turn, msg.messages.map(x => x as GameReportMsg));
+          break;
+        };
+      }
       ack();
-    });
-
-    this.game.on(GameMsg.QUERY, (msg: GameQueryMsg[], ack: () => void) => {
-      const turn = msg[0]?.turn as number;
-      this.messageBox.queries.set(turn, msg);
-
-      console.log("\n\nQUERY MSG:", msg);
-      console.log(`LEN:${msg.length}\n\n`);
-      ack();
-    });
-
-    this.game.on(GameMsg.ANSWER, (msg: GameAnswerMsg[], ack: () => void) => {
-
-      const turn = msg[0]?.turn as number;
-      this.messageBox.answers.set(turn, msg);
-
-      console.log("\n\nANSWER MSG:", msg);
-      ack();
-    });
-
-    this.game.on(GameMsg.UPDATE, (msg: GameUpdateMsg[], ack: () => void) => {
-      const turn = msg[0]?.turn as number;
-      this.messageBox.updates.set(turn, msg);
-
-      console.log("\n\nUPDATE MSG:", msg);
-      ack();
-    });
-
-    this.game.on(GameMsg.REPORT, (msg: GameReportMsg[], ack: () => void) => {
-      const turn = msg[0]?.turn as number;
-      this.messageBox.reports.set(turn, msg);
-
-      console.log("\n\nREPORT MSG:", msg);
-      ack();
-    });
-
+    })
   }
 
   get sender(): Player {;

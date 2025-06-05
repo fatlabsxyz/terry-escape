@@ -23,10 +23,16 @@ export enum GameMsg {
   REPORT = "game:report",
 
   PLAYER_SEAT = "game:player_seat",
-  FETCH_PROOFS = "game:fetch_proofs"
+  FETCH_PROOFS = "game:fetch_proofs",
+  PROOFS = "game:proofs"
 }
 
 export interface GamePayload {
+}
+
+export interface GameProofsPayload extends GamePayload {
+  type: `${GameMsg}`,
+  messages: GameMessage[]
 }
 
 export interface GameDeployPayload extends GamePayload {
@@ -83,6 +89,10 @@ export interface GameUpdateMsg extends IGameMessage {
 
 export interface GameReportMsg extends IGameMessage {
   payload: GameReportPayload
+}
+
+export interface GameProofsMsg extends IGameMessage {
+  payload: GameProofsPayload
 }
 
 export interface RetrieveMsg {
