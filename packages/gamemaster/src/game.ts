@@ -241,7 +241,7 @@ export class Game {
 
   async returnPlayerSeat(playerId: string): Promise<void> {
     const player = this.playerStorage.getPlayer(playerId) as PlayerProps;
-    const shortTimeout = 5_000;
+    const shortTimeout = 4_000;
 
     return await this.nsp.timeout(shortTimeout)
       .to(player.sid)
