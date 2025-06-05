@@ -182,6 +182,7 @@ export class GameClient {
   }
 
   async notifyPlayerReady() {
+    // <<< get seat >>>
     await this.sockets.advertisePlayerAsReady(); 
     this.log("We are ready!");
   }
