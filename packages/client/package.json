@@ -27,13 +27,13 @@
     "clean": "rm -rf dist",
     "build": "tsc -p ./tsconfig.json --outDir dist",
     "client": "node ./dist/client/index.js",
-    "cli": "node ./dist/client/cli.js",
+    "cli": "node ./dist/cli/cli.js",
     "test": "vitest run --config vitest.config.ts --passWithNoTests",
-    "andres": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:2448' 'Andres' 0 | tee -a /tmp/game_0 /tmp/andres.log",
-    "barto": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:2448' 'Bartolomeo' 0 | tee -a /tmp/game_0 /tmp/barto.log",
-    "felipe": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:2448' 'Felipe' 0 | tee -a /tmp/game_0 /tmp/felipe.log",
-    "pedro": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:2448' 'Pedro' 0 | tee -a /tmp/game_0 /tmp/pedro.log",
-    "juan": "node --trace-uncaught ./dist/client/cli.js 'http://127.0.0.1:2448' 'Juan' 0 | tee -a /tmp/game_0 /tmp/juan.log"
+    "andres": "node --trace-uncaught ./dist/cli/cli.js 'http://127.0.0.1:2448' 'Andres' 0 | tee -a /tmp/game_0 /tmp/andres.log",
+    "barto": "node --trace-uncaught ./dist/cli/cli.js 'http://127.0.0.1:2448' 'Bartolomeo' 0 | tee -a /tmp/game_0 /tmp/barto.log",
+    "felipe": "node --trace-uncaught ./dist/cli/cli.js 'http://127.0.0.1:2448' 'Felipe' 0 | tee -a /tmp/game_0 /tmp/felipe.log",
+    "pedro": "node --trace-uncaught ./dist/cli/cli.js 'http://127.0.0.1:2448' 'Pedro' 0 | tee -a /tmp/game_0 /tmp/pedro.log",
+    "juan": "node --trace-uncaught ./dist/cli/cli.js 'http://127.0.0.1:2448' 'Juan' 0 | tee -a /tmp/game_0 /tmp/juan.log"
   },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.9",
