@@ -15,7 +15,8 @@ enum Actors {
   advertiseWaiting = "advertiseWaiting",
   processActivePlayer = "processActivePlayer",
   processNonActivePlayer = "processNonActivePlayer",
-  processEliminated = "processEliminated"
+  processEliminated = "processEliminated",
+  preparePlayer = "preparePlayer"
 }
 
 enum Guards {
@@ -26,6 +27,7 @@ enum Guards {
 }
 
 enum PlayerStates {
+  Prepare = "PREPARE",
   Ready = "READY",
   UpdateTurnInfo = "UPDATE_TURN_INFO",
   SelectActive = "SELECT_ACTIVE",
@@ -160,11 +162,6 @@ export class GameClient {
   }
 
   async play() {
-     
-    this.initialPlayerIndexValue = await this.waitForPlayerIndex();
-    this.log("PLAY: GET-PLAYER-INDEX:", this.initialPlayerIndexValue);
-    await this.setupGame();
-    
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
   }
@@ -179,6 +176,14 @@ export class GameClient {
           res(msg.payload.seat);
         });
     });
+  }
+
+  async prepareSetup() {
+    while (this.initialPlayerIndex === undefined) {
+      this.initialPlayerIndexValue = await this.waitForPlayerIndex();
+    }
+    this.log("PLAY: GET-PLAYER-INDEX:", this.initialPlayerIndexValue);
+    await this.setupGame(); 
   }
 
   async notifyPlayerReady() {
@@ -649,9 +654,8 @@ export class GameClient {
         [Guards.isNonActivePlayer]: ({ context }) => this.isNonActivePlayer(context.turnInfo),
       },
       actors: {
+        [Actors.preparePlayer]: fromPromise<void, void>(this.prepareSetup.bind(this)),
         [Actors.notifyReady]: fromPromise<void, void>(this.notifyPlayerReady.bind(this)),
-        // [Actors.processActivePlayer]: fromPromise<void, void>(async () => { await passTime(3_000); this.log("Finished Active") } ),
-        // [Actors.processNonActivePlayer]: fromPromise<void, void>(async () => { await passTime(3_000); this.log("Finished NonActive") }),
         [Actors.processActivePlayer]: fromPromise<void, void>(this.processActivePlayer.bind(this)),
         [Actors.processNonActivePlayer]: fromPromise<void, void>(this.processNonActivePlayer.bind(this)),
       },
@@ -667,6 +671,10 @@ export class GameClient {
         context: { turnInfo: null as any as TurnInfo, waiting: false },
         initial: PlayerStates.Ready,
         states: {
+          [PlayerStates.Prepare]: {
+            entry: [{ type: Actions.log, params: PlayerStates.Prepare }],
+            invoke: { src: Actors.preparePlayer, onDone: { target: PlayerStates.Ready } }
+          },         
           [PlayerStates.Ready]: {
             entry: [{ type: Actions.log, params: PlayerStates.Ready }],
             invoke: { src: Actors.notifyReady, onDone: { target: PlayerStates.UpdateTurnInfo } }
