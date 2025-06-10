@@ -3,6 +3,7 @@ import { ProofData } from '@aztec/bb.js';
 import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
 import { Collision, IZkLib } from './zklib.interface.js';
 import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, bits, selector } from './utils.js';
+import { writeFileSync } from 'fs';
 const circuits = init_circuits();
 
 
@@ -94,8 +95,8 @@ export class ZkLib implements IZkLib {
 
   async createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }> {
     let proofs = [];
-    for (let player_index = 0; player_index < this.NUMBER_OF_PLAYERS; player_index++) {
     this.temp_values.action_salt = random_Field();
+    for (let player_index = 0; player_index < this.NUMBER_OF_PLAYERS; player_index++) {
       if (player_index == this.own_seat) {
         queries.splice(player_index, 0, []);
         continue;
@@ -125,6 +126,7 @@ export class ZkLib implements IZkLib {
         queries: playerQuery.slice(0, -1).map(({ publicInputs }) => publicInputs.slice(-9))
       };
     
+      writeFileSync('buggy-create-answers-inputs.json', JSON.stringify(inputs));
       this.temp_values.action = action;
       const result = await generate_proof(circuits['blinded_answers'], inputs, this.options);
       proofs.push(result.payload);

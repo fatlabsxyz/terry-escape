@@ -24,6 +24,6 @@ export interface IZkLib {
   createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; }>;
   createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: boolean; }>;
 
-  verifyDeploys(deploys: ProofData[]) : boolean ;
-  verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData) : boolean;
+  verifyDeploys(deploys: ProofData[]) : void;
+  verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData, mover: number, verify_isolated : boolean) : void;
 };
