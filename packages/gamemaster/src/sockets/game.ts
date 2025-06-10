@@ -40,10 +40,8 @@ function registerGameHandlers(socket: GameSocket) {
   //////////////////////////////////////////////////////////////*/
   
   playerStorage.on("SEAT", async (playerId: string) => {
-    console.log("\n\n\n GOT PLAYER SEAT EVENT ON PSTORAGE \n\n\n")
 
     const player = playerStorage.getPlayer(playerId) as PlayerProps;
-
     console.log(`\n\n\n PLAYER: ${player.name} SEAT ${player.seat} \n\n\n`);
     
     const payload = {
@@ -53,15 +51,13 @@ function registerGameHandlers(socket: GameSocket) {
       turn:0,
       payload: {seat: player.seat as PlayerSeat}
     };
-    if (payload.payload.seat === 0) {
-      // TODO Fix this later??
-      // could maybe check if seat === zero and emit after a 5 second timeout or something
-      console.log("PLAYER SEAT NUMBER ZERO does not get the seat for some reason");
-      socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);
+ 
+    socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);
 
-    } else if (payload.payload.seat === 2) {
-      socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);
-      
+    // TODO Fix this later??
+    // could maybe check if seat === zero and emit after a 5 second timeout or something
+    if (payload.payload.seat === 2) { 
+      // Re-emits player zero if you're player two
       const pzero = playerStorage.getPlayerBySeat(0) as PlayerProps;
       socket.to(pzero.sid).emit(GameMsg.PLAYER_SEAT, {
         event: GameMsg.PLAYER_SEAT,
@@ -70,12 +66,8 @@ function registerGameHandlers(socket: GameSocket) {
         turn:0,
         payload: {seat: pzero.seat as PlayerSeat}
       });  
-      console.log(`\n\n\n PLAYER: ${pzero.name} SEAT ${pzero.seat} \n\n\n`);
-    } else {
-      socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);  
-    }
-
-    console.log(`\n\n\n EMITTED SEAT \n\n SEAT EMITTED: ${payload.payload.seat} \n\n\n`);
+      console.log(`\n\n\n RETRYING P0 - PLAYER: ${pzero.name} SEAT ${pzero.seat} \n\n\n`);
+    } 
   });
 
   msgLog.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
