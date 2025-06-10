@@ -37,6 +37,15 @@ export class PlayerStorage extends EventEmitter{
     }
   }
   
+  getPlayerBySeat(seat: PlayerSeat): Err | PlayerProps {
+    const player: PlayerProps = [...this.players.entries()].find(([key, value]) => value.seat === seat)![1];
+    if (player) {
+      return player;
+    } else {
+      return Err.NOTFOUND;
+    }
+  }
+
   /// It's assumed that you already know the player exists
   /// when this method is called.
   getSocketId(id: PlayerId): SocketId {

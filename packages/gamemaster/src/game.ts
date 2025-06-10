@@ -283,6 +283,7 @@ export class Game {
       
         this.playerStorage.updatePlayerSeat(player.id, player.seat as PlayerSeat)
         this.playerStorage.emitPlayerSeat(player.id)
+        this.playerStorage.emitPlayerSeat(player.id)
         
         return { players: context.players }
       } else return context

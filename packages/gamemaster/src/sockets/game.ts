@@ -44,7 +44,7 @@ function registerGameHandlers(socket: GameSocket) {
 
     const player = playerStorage.getPlayer(playerId) as PlayerProps;
 
-    console.log(`\n\n\n PLAYER: ${player.name} SEAT ${player.seat} \n\n\n`)
+    console.log(`\n\n\n PLAYER: ${player.name} SEAT ${player.seat} \n\n\n`);
     
     const payload = {
       event: GameMsg.PLAYER_SEAT,
@@ -52,12 +52,30 @@ function registerGameHandlers(socket: GameSocket) {
       to: player.sid,
       turn:0,
       payload: {seat: player.seat as PlayerSeat}
+    };
+    if (payload.payload.seat === 0) {
+      // TODO Fix this later??
+      // could maybe check if seat === zero and emit after a 5 second timeout or something
+      console.log("PLAYER SEAT NUMBER ZERO does not get the seat for some reason");
+      socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);
+
+    } else if (payload.payload.seat === 2) {
+      socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);
+      
+      const pzero = playerStorage.getPlayerBySeat(0) as PlayerProps;
+      socket.to(pzero.sid).emit(GameMsg.PLAYER_SEAT, {
+        event: GameMsg.PLAYER_SEAT,
+        sender:"gamemaster",
+        to: pzero.sid,
+        turn:0,
+        payload: {seat: pzero.seat as PlayerSeat}
+      });  
+      console.log(`\n\n\n PLAYER: ${pzero.name} SEAT ${pzero.seat} \n\n\n`);
+    } else {
+      socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);  
     }
 
-    await passTime(2_000);
-    socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);  
-    
-    console.log("\n\n\n EMITTED SEAT \n\n\n")
+    console.log(`\n\n\n EMITTED SEAT \n\n SEAT EMITTED: ${payload.payload.seat} \n\n\n`);
   });
 
   msgLog.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
@@ -159,7 +177,7 @@ export function addGameNamespace(server: Server): Server {
     
     const game = getGameOrNewOne(socket.nsp);
     registerGameHandlers(socket);
-    console.log(`[${socket.id}] User connection`);
+    console.log(`GAME-NSP: [${socket.id}] User connection`);
     
     const playerId = socket.data.id;
         

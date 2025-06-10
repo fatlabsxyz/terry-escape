@@ -15,7 +15,8 @@ import {
   GameUpdateMsg,
   GameUpdatePayload,
   GameProofsPayload,
-  GamePlayerSeatMsg
+  GamePlayerSeatMsg,
+  RetrieveMsg
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
@@ -97,7 +98,7 @@ export class SocketManager extends EventEmitter {
       ack();
     })
 
-    this.game.once(GameMsg.PLAYER_SEAT, async (msg: GamePlayerSeatMsg) => {
+    this.game.on(GameMsg.PLAYER_SEAT, async (msg: GamePlayerSeatMsg) => {
       console.log("\n\n\nPLAYER SEAT MESSAGE\n\n\n")
       const seat = msg.payload.seat;
 
@@ -224,7 +225,7 @@ export class SocketManager extends EventEmitter {
   // async retrieveMissedValues(turn: number, event: GameMsg): Promise<Map<string, GameMessage>> {
   //     const message: RetrieveMsg = {
   //     turn,
-  //     event 
+  //     event
   //   };
   //   await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.FETCH_PROOFS, message);
   //
@@ -250,6 +251,8 @@ export class SocketManager extends EventEmitter {
   //   });
   //
   // }
+
+
   async waitForPlayerSeat(): Promise<PlayerSeat> {
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
