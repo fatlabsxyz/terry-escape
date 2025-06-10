@@ -166,10 +166,9 @@ export class GameClient {
   }
   
   async prepareSetup() {
-    while (this.playerSeat === undefined) { 
-      this.initialPlayerSeatValue = await this.sockets.waitForPlayerSeat();
-    }
-    this.log("PREPARE-SETUP: GET-PLAYER-INDEX:", this.initialPlayerSeatValue); //TODO remove log
+    this.initialPlayerSeatValue = await this.sockets.waitForPlayerSeat();
+
+    this.log("PREPARE-SETUP: GET-PLAYER-INDEX:", this.playerSeat); //TODO remove log
     await this.setupGame(); 
   }
 

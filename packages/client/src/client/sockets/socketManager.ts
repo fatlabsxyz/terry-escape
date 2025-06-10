@@ -114,7 +114,7 @@ export class SocketManager extends EventEmitter {
       const turn = msg.messages[0]?.turn as number;
       
       console.log(`\n\nRECIEVED MSG: type: ${msg.type}, value: ${msg.messages}`);
-      
+      passTime(2_000); 
       switch (msg.type) {
         case GameMsg.DEPLOY: { 
           this.messageBox.deploys = msg.messages.map(x => x as GameDeployMsg);
@@ -258,15 +258,14 @@ export class SocketManager extends EventEmitter {
       setTimeout(rej, TIMEOUT);
       console.log("WAITING FOR PLAYER SEAT");
       while (true) {
-        await passTime(100);
          
-        const recieved = !(this.playerSeat === undefined);
+        const recieved = (this.playerSeat !== undefined);
         console.log("CURRENT PLAYER SEAT: ", this.playerSeat);
 
-        if (!recieved) { 
-          await passTime(100); 
-        } else {
+        if (recieved) { 
           break;
+        } else {
+          await passTime(100); 
         }
       }
       res(this.playerSeat as PlayerSeat)
@@ -305,7 +304,6 @@ export class SocketManager extends EventEmitter {
         
         const recieved = this.messageBox.queries.has(turn);
 
-        // console.log("FOUND SOME QUERIES: ", recieved);
         if (!recieved) { 
           await passTime(100); 
         } else {

@@ -229,6 +229,7 @@ export class Game {
   }
 
   async broadcastGameStarted() {
+    //TODO pstorage attach here?
     await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.STARTED);
   }
 
@@ -282,8 +283,6 @@ export class Game {
         context.players.set(player.id, player);
       
         this.playerStorage.updatePlayerSeat(player.id, player.seat as PlayerSeat)
-        this.playerStorage.emitPlayerSeat(player.id)
-        this.playerStorage.emitPlayerSeat(player.id)
         
         return { players: context.players }
       } else return context

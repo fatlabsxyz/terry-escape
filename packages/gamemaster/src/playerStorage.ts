@@ -95,11 +95,9 @@ export class PlayerStorage extends EventEmitter{
       player.seat = seat;
 
       this.players.set(id, player);
+      this.emit("SEAT", id);
       return;
     }
   }
 
-  emitPlayerSeat(playerId: PlayerId) {
-    this.emit("SEAT", playerId);
-  }
 }

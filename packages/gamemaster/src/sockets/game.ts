@@ -1,4 +1,4 @@
-import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat} from 'client/types';
+import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId} from 'client/types';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
@@ -54,6 +54,7 @@ function registerGameHandlers(socket: GameSocket) {
  
     socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);
 
+
     // TODO Fix this later??
     // could maybe check if seat === zero and emit after a 5 second timeout or something
     if (payload.payload.seat === 2) { 
@@ -74,21 +75,29 @@ function registerGameHandlers(socket: GameSocket) {
 
     const type = v.type;
 
+    const allPlayers: Map<PlayerId, SocketId> = playerStorage.getAllSocketIds()
+
     console.log(`\n\nBROADCASTING ${type}\n\n`)
-    await Promise.all(v.messages.map(async(value) => {
-      const sender = value.sender;
-      const playerSid = playerStorage.getSocketId(sender);
+    await Promise.all([...allPlayers.entries()].map( async (value) => { 
+      const sender = value[0]!;
+      const playerSid = value[1]!;
       console.log(`\n\n ${type} SENT TO: SID:${playerSid} ID:${sender} \n\n`);
-      
+
+      console.log(`MSG-LOG-BROADCAST: original messages len: ${v.messages.length}, senders:`);
+      v.messages.forEach(x => console.log(x.sender));
       let messages = v.messages.filter(x => x.sender !== sender);
 
       switch (type) {
         case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg) 
-        case GameMsg.QUERY : messages = messages.map(x => x as GameQueryMsg) 
+        case GameMsg.QUERY : messages = messages.map(x => x as GameQueryMsg ) 
         case GameMsg.ANSWER: messages = messages.map(x => x as GameAnswerMsg) 
         case GameMsg.UPDATE: messages = messages.map(x => x as GameUpdateMsg) 
         case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
       }
+
+      console.log(`\n\nMESSAGES: ${messages}, LEN: ${messages.length}`);
+
+
       await socket.to(playerSid).timeout(TIMEOUT).emitWithAck(
         GameMsg.PROOFS,
         {
@@ -198,7 +207,7 @@ export function addGameNamespace(server: Server): Server {
       console.log(`SOCKET ${socket.id}, ${socket.data.name}, DISCONNECT: ${reason}`);
     });
   });
-  
+ 
   return server;
 }
 

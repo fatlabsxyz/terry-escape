@@ -41,6 +41,7 @@ export class MessageLog<M extends GameMessage> extends EventEmitter {
     const msgKey = MessageKey.fromMsg(msg);
     this.log[msgKey.toString()] = msg;
     const results = this.findMessageListForTurn(msg.turn, msg.event);
+    console.log(`FOUND THESE MESSAGES FOR TURN: ${results}, ${results.length}`);
     this.evalBroadcast(msg.event, results);
   }
 
@@ -70,14 +71,14 @@ export class MessageLog<M extends GameMessage> extends EventEmitter {
   evalBroadcast(event: `${GameMsg}`, values: GameMessage[]) {
     console.log(`EMITTING ${event}`)
 
-    if (event === GameMsg.DEPLOY && values.length === MAX_PLAYERS) {
+    if (event === GameMsg.DEPLOY && (values.length === MAX_PLAYERS)) { // 4
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
     } else if (
       ( event === GameMsg.REPORT ||
         event === GameMsg.UPDATE ||
         event === GameMsg.QUERY  || 
         event === GameMsg.ANSWER
-      ) && values.length === MAX_PLAYERS - 1) {
+      ) && (values.length === MAX_PLAYERS - 1)) { // 3
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
     }
   }
