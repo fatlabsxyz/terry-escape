@@ -1,13 +1,12 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerIndex, IJ, AnswerData, JwtPayload} from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerSeat, IJ, AnswerData, JwtPayload} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
 import { Board } from './board.js';
-import { PlayerStorage } from '../playerStorage.js';
 
 
 enum Actors {
@@ -111,25 +110,25 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 
 export class GameClient {
   readonly log: (...args: any[]) => void;
-  readonly token: string;
-
+  
   sockets: SocketManager;
   turnsData: TurnData[];
   turnData: TurnData;
+  token: string;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
-  private initialPlayerIndexValue: undefined | PlayerIndex;
+  private initialPlayerSeatValue: undefined | PlayerSeat;
   activePlayerLocation: undefined | AgentLocation;
   private playerIdValue: undefined | string = undefined;
   private playerSocketIdValue: undefined | string = undefined;
   private playerNameValue: undefined | string = undefined;
 
-  constructor(token: string, sockets: SocketManager, readonly zklib: IZkLib) {
+  constructor(sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
     this.log = _createLogger(sockets.playerName, sockets.sender);
-    this.token = token;
-    this.initialPlayerIndexValue = undefined;
+    this.token = sockets.token;
+    this.initialPlayerSeatValue = undefined;
     this.activePlayerLocation = undefined;
   }
 
@@ -166,28 +165,15 @@ export class GameClient {
     this.gameMachine.start();
   }
   
-  async waitForPlayerIndex(): Promise<PlayerIndex> {
-    return new Promise(async (res, rej) => {
-      setTimeout(rej, 10_000);
-        this.log("WAITING FOR PLAYER INDEX NOW");
-        this.sockets.game.once(GameMsg.PLAYER_SEAT, (msg: GamePlayerSeatMsg, ack: () => void ) => {
-          ack();
-          this.log("SEAT RECIEVED: ", msg.payload.seat);
-          res(msg.payload.seat);
-        });
-    });
-  }
-
   async prepareSetup() {
-    while (this.initialPlayerIndex === undefined) {
-      this.initialPlayerIndexValue = await this.waitForPlayerIndex();
+    while (this.playerSeat === undefined) { 
+      this.initialPlayerSeatValue = await this.sockets.waitForPlayerSeat();
     }
-    this.log("PLAY: GET-PLAYER-INDEX:", this.initialPlayerIndexValue);
+    this.log("PREPARE-SETUP: GET-PLAYER-INDEX:", this.initialPlayerSeatValue); //TODO remove log
     await this.setupGame(); 
   }
 
   async notifyPlayerReady() {
-    // <<< get seat >>>
     await this.sockets.advertisePlayerAsReady(); 
     this.log("We are ready!");
   }
@@ -231,12 +217,8 @@ export class GameClient {
     return this.round.indexOf(this.activePlayer);
   }
 
-  get playerIndex() {
-    return this.round.indexOf(this.playerId);
-  }
-
-  get initialPlayerIndex() {
-    return this.initialPlayerIndexValue;
+  get playerSeat() {
+    return this.initialPlayerSeatValue;
   }
 
   gameLog(...args: any[]) {
@@ -246,7 +228,7 @@ export class GameClient {
   async setupGame() {
     this.log("Setting up game...")
  
-    const index = this.initialPlayerIndex as PlayerIndex;
+    const index = this.playerSeat as PlayerSeat;
 
     const board = new Board(index);
   
@@ -406,7 +388,7 @@ export class GameClient {
   async waitForReport() {
     const report = await this.sockets.waitForReports(this.turn);
     this.gameLog("REPORT RECIEVED");
-    this.turnData.report = { proof: report.get(this.playerIndex.toString())!.proof };
+    this.turnData.report = { proof: report.get(this.playerSeat!.toString())!.proof };
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -460,7 +442,7 @@ export class GameClient {
     };
 
     let direction: number = 1;
-    const index = this.initialPlayerIndex as PlayerIndex;
+    const index = this.playerSeat as PlayerSeat;
     const loc = this.activePlayerLocation;
 
     this.log("TAKE-ACTION: ACTIVE-PLAYER-LOCATION: ", this.activePlayerLocation);
@@ -669,7 +651,7 @@ export class GameClient {
       .createMachine({
         id: 'game_loop',
         context: { turnInfo: null as any as TurnInfo, waiting: false },
-        initial: PlayerStates.Ready,
+        initial: PlayerStates.Prepare,
         states: {
           [PlayerStates.Prepare]: {
             entry: [{ type: Actions.log, params: PlayerStates.Prepare }],

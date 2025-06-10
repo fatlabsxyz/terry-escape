@@ -23,7 +23,7 @@ export async function connect(token: string, url: string, gameId: string) {
   // const zklib = new ZkLib();
   const zklib = new ZkLibMock();
 
-  const client = new GameClient(sockets.token, sockets, zklib);
+  const client = new GameClient(sockets, zklib);
 
   await client.play();
 }

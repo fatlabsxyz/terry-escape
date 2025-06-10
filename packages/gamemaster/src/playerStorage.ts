@@ -1,11 +1,13 @@
-import { PlayerIndex, StoredPlayers, PlayerProps, Err, PlayerId, SocketId } from './../types/game.js';
+import { EventEmitter } from 'events';
+import { PlayerSeat, StoredPlayers, PlayerProps, Err, PlayerId, SocketId } from 'client/types';
 
 
-export class PlayerStorage {
+export class PlayerStorage extends EventEmitter{
   private static instance: PlayerStorage;
   private players: StoredPlayers;
 
   private constructor(){
+    super();
     this.players = new Map();
   }
 
@@ -69,7 +71,7 @@ export class PlayerStorage {
     } 
   }
 
-  updatePlayerSeat(id: PlayerId, seat: PlayerIndex): Err | void {
+  updatePlayerSeat(id: PlayerId, seat: PlayerSeat): Err | void {
     // take player id, update their seat if needed
     let player: Err| PlayerProps = this.getPlayer(id);
     if (player === Err.NOTFOUND) {
@@ -86,5 +88,9 @@ export class PlayerStorage {
       this.players.set(id, player);
       return;
     }
+  }
+
+  emitPlayerSeat(playerId: PlayerId) {
+    this.emit("SEAT", playerId);
   }
 }

@@ -1,10 +1,10 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
-import { JwtPayload, Player, TurnInfo, UpdatesData } from "../../types/game.js";
+import jwt from 'jsonwebtoken';
+import { JwtPayload, Player, PlayerSeat, TurnInfo } from "../../types/game.js";
 import {
   GameAnswerMsg,
   GameAnswerPayload,
-  GameMessage,
   GameMsg,
   GameDeployMsg,
   GameDeployPayload,
@@ -14,21 +14,13 @@ import {
   GameReportPayload,
   GameUpdateMsg,
   GameUpdatePayload,
-  GameMessagePayload,
-  RetrieveMsg,
-  GameProofsPayload
+  GameProofsPayload,
+  GamePlayerSeatMsg
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
-import { SetupSocketOptions } from "../setup.js";
-
-import { PlayerStorage } from '../playerStorage.js';
-
-import jwt from 'jsonwebtoken';
 
 const TIMEOUT = 300_000;
-
-type FromTo = [string, string];
  
 type Turn = number;
 
@@ -54,15 +46,13 @@ export class SocketManager extends EventEmitter {
   token: string;
   playerId: string;
   playerName: string;
+  playerSeat: undefined | PlayerSeat;
 
   private _ready: boolean;
-  playerStorage: PlayerStorage;
   messageBox: MessageBox;
 
   constructor(options: SocketManagerOptions) {
     super();
-
-    this.playerStorage = PlayerStorage.getInstance();
 
     this.messageBox = { 
       deploys: new Array(),
@@ -95,13 +85,6 @@ export class SocketManager extends EventEmitter {
     this.playerId = data.id;
     this.playerName = data.name;
     
-    this.playerStorage.addPlayer({
-      name: data.name,
-      id: data.id,
-      sid: this.game.id!,
-      seat: undefined,
-    });
-
     const self = this;
 
     this.game.on(GameMsg.TURN_END, (ack) => {
@@ -114,46 +97,16 @@ export class SocketManager extends EventEmitter {
       ack();
     })
 
-    // this.game.on(GameMsg.DEPLOY, (msg: GameDeployMsg[], ack: () => void) => {
-    //   this.messageBox.deploys = msg;
-    //
-    //   console.log("\n\nDEPLOY MSG:", msg);
-    //   ack();
-    // });
-    //
-    // this.game.on(GameMsg.QUERY, (msg: GameQueryMsg[], ack: () => void) => {
-    //   const turn = msg[0]?.turn as number;
-    //   this.messageBox.queries.set(turn, msg);
-    //
-    //   console.log("\n\nQUERY MSG:", msg);
-    //   console.log(`LEN:${msg.length}\n\n`);
-    //   ack();
-    // });
-    //
-    // this.game.on(GameMsg.ANSWER, (msg: GameAnswerMsg[], ack: () => void) => {
-    //
-    //   const turn = msg[0]?.turn as number;
-    //   this.messageBox.answers.set(turn, msg);
-    //
-    //   console.log("\n\nANSWER MSG:", msg);
-    //   ack();
-    // });
-    //
-    // this.game.on(GameMsg.UPDATE, (msg: GameUpdateMsg[], ack: () => void) => {
-    //   const turn = msg[0]?.turn as number;
-    //   this.messageBox.updates.set(turn, msg);
-    //
-    //   console.log("\n\nUPDATE MSG:", msg);
-    //   ack();
-    // });
-    //
-    // this.game.on(GameMsg.REPORT, (msg: GameReportMsg[], ack: () => void) => {
-    //   const turn = msg[0]?.turn as number;
-    //   this.messageBox.reports.set(turn, msg);
-    //
-    //   console.log("\n\nREPORT MSG:", msg);
-    //   ack();
-    // });
+    this.game.once(GameMsg.PLAYER_SEAT, async (msg: GamePlayerSeatMsg) => {
+      console.log("\n\n\nPLAYER SEAT MESSAGE\n\n\n")
+      const seat = msg.payload.seat;
+
+      console.log("SEAT RECIEVED: ", seat);
+      if (this.playerSeat != seat) {
+        console.log("\n\n\nUPDATING SEAT\n\n\n")
+        this.playerSeat = seat 
+      }
+    });
 
     this.game.on(GameMsg.PROOFS, (msg: GameProofsPayload, ack: () => void) => {
 
@@ -184,7 +137,7 @@ export class SocketManager extends EventEmitter {
         };
       }
       ack();
-    })
+    })    
   }
 
   get sender(): Player {;
@@ -297,6 +250,25 @@ export class SocketManager extends EventEmitter {
   //   });
   //
   // }
+  async waitForPlayerSeat(): Promise<PlayerSeat> {
+    return new Promise(async (res, rej) => {
+      setTimeout(rej, TIMEOUT);
+      console.log("WAITING FOR PLAYER SEAT");
+      while (true) {
+        await passTime(100);
+         
+        const recieved = !(this.playerSeat === undefined);
+        console.log("CURRENT PLAYER SEAT: ", this.playerSeat);
+
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          break;
+        }
+      }
+      res(this.playerSeat as PlayerSeat)
+    });
+  }
 
   async waitForDeploys(): Promise<Map<string, GameDeployPayload>> {
     const deploys: Map<Player, GameDeployPayload> = new Map();

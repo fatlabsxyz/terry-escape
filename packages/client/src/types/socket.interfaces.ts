@@ -37,9 +37,7 @@ export interface GameNspClientToServerEvents {
   */
   [GameMsg.REPORT]: (p: GameReportMsg, cb: Ack) => void;
   
-
-  [GameMsg.FETCH_PROOFS]: (w: RetrieveMsg, cb: Ack) => void;
-  
+  [GameMsg.FETCH_PROOFS]: (w: RetrieveMsg, cb: Ack) => void; 
 }
 
 export interface GameNspServerToClientEvents {
@@ -78,10 +76,8 @@ export interface GameNspServerToClientEvents {
   */
   [GameMsg.REPORT]: (p: GameReportMsg[], cb: Ack) => void;
   
-  [GameMsg.PLAYER_SEAT]: (p: GamePlayerSeatMsg, cb: Ack) => void;
-  
-  [GameMsg.FETCH_PROOFS]: (p: GameMessage[], cb: Ack) => void;
-  
+  [GameMsg.PLAYER_SEAT]: (p: GamePlayerSeatMsg) => void;
+   
   [GameMsg.PROOFS]: (w: GameProofsPayload , cb: Ack) => void;
 }
 

@@ -1,7 +1,7 @@
-import { PlayerId, PlayerProps, GameMsg, TurnInfo, PlayerIndex } from 'client/types';
+import { PlayerId, PlayerProps, GameMsg, TurnInfo, PlayerSeat } from 'client/types';
 import { GameNsp, GameSocket } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent } from 'xstate';
-import { PlayerStorage } from 'client';
+import { PlayerStorage } from './playerStorage.js';
 
 /// STATE MACHINE TYPES
 enum GameState {
@@ -87,6 +87,7 @@ interface PlayerStatus {
   id: Player;
 }
 
+
 function serMap(map: Map<any, any>): object {
   const o: { [k: string]: any } = {};
   map.forEach((v, k) => o[k] = v);
@@ -142,7 +143,11 @@ export class Game {
   get activePlayer() {
     return this._activePlayer!;
   }
-    
+ 
+  get playerStore() {
+    return this.playerStorage;
+  }
+   
   storedPlayerId(player: Player) {
     return this.playerStorage.getSocketId(player) as string;
   }
@@ -237,24 +242,7 @@ export class Game {
 
   async broadcastQueryWaiting(): Promise<{ player: string, waiting: boolean }[]> {
     return await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.WAITING);
-  }
-
-  async returnPlayerSeat(playerId: string): Promise<void> {
-    const player = this.playerStorage.getPlayer(playerId) as PlayerProps;
-    const shortTimeout = 4_000;
-
-    return await this.nsp.timeout(shortTimeout)
-      .to(player.sid)
-      .emitWithAck(GameMsg.PLAYER_SEAT, 
-      {
-        event: GameMsg.PLAYER_SEAT,
-        sender:"gamemaster",
-        to: player.sid,
-        turn:0,
-        payload: {seat: player.seat as PlayerIndex}
-      }
-    );
-  }
+  } 
 
   async newTurn(context: Context): Promise<Context> {
     const newContext = Game.nextContext(context);
@@ -264,8 +252,8 @@ export class Game {
   }
 
   async queryWaiting(context: Context): Promise<Context> {
-    const waitingRes = await this.broadcastQueryWaiting()
-    waitingRes.forEach(({ player: id, waiting }) => {
+    const waitingResponse = await this.broadcastQueryWaiting()
+    waitingResponse.forEach(({ player: id, waiting }) => {
       const player = context.players.get(id as Player)
       if (player) {
         player.waiting = waiting;
@@ -275,43 +263,30 @@ export class Game {
     return { ...context, players: context.players }
   }
 
-  setPlayerIndex(playerId: string) {
-    this.log("Sending player index to client");
-    this.returnPlayerSeat(playerId).then((ack) => {
-      this.log("return-player-index result: ", ack);
-    }).catch( (err) => {
-      setTimeout( () => {
-        this.returnPlayerSeat(playerId);
-      }, 5_000);
-    });
-  }
-
   machineSetup() {
 
     const addPlayerAction = ({ event, context }: ActionInput) => {
       
-
       if (isAddPlayerEvent(event)) {
         this.log("Adding player!", event.data.player, stringify(context));
         
-        const players = context.players;
-        const playerId = event.data.player;
- 
-        this.playerStorage.updatePlayerSeat(playerId, players.size as PlayerIndex)
-
-        const playerStatus: PlayerStatus = {
+        const player: PlayerStatus = {
           eliminated: false,
           ready: false,
-          seat: players.size,
-          id: playerId,
+          seat: context.players.size,
+          id: event.data.player,
           waiting: false
         }
-        players.set(playerId, playerStatus);
-        this.log("New player seat: ",playerStatus.seat);
-        this.setPlayerIndex(playerId as PlayerId);
 
-        return { players }
+        this.log(`New player seat: ${player.seat}, ID: ${player.id}`);
+        context.players.set(player.id, player);
+      
+        this.playerStorage.updatePlayerSeat(player.id, player.seat as PlayerSeat)
+        this.playerStorage.emitPlayerSeat(player.id)
+        
+        return { players: context.players }
       } else return context
+      
     }
 
     const markPlayerReadyAction = ({ event, context }: ActionInput) => {
@@ -359,6 +334,7 @@ export class Game {
 
     function allPlayersWaitingGuard(context: Context): boolean {
       // self.log("Checking all players waiting", stringify(context));
+
       const nonEliminated = Array.from(context.players.values()).filter(x => !x.eliminated);
       return nonEliminated.every(x => x.waiting)
     }
@@ -398,13 +374,13 @@ export class Game {
           [GameState.setup]: {
             entry: [{ type: Actions.log, params: GameState.setup }],
             on: {
-              [Events.PlayerReady]: {
-                actions: [{ type: Actions.markPlayerReady }],
+              [Events.AddPlayer]: {
+                actions: [{ type: Actions.addPlayer }],
                 target: GameState.setup,
                 reenter: true,
               },
-              [Events.AddPlayer]: {
-                actions: [{ type: Actions.addPlayer }],
+              [Events.PlayerReady]: {
+                actions: [{ type: Actions.markPlayerReady }],
                 target: GameState.setup,
                 reenter: true,
               },

@@ -27,12 +27,12 @@ export type Placements = {
   agents: Agent[];
 };
 
-export type PlayerIndex = 0|1|2|3; 
+export type PlayerSeat = 0|1|2|3; 
 
 // location of an agent in the board
 export type AgentLocation = 0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15;
 
-export type BoardLocation = Map<PlayerIndex, AgentLocation>
+export type BoardLocation = Map<PlayerSeat, AgentLocation>
 
 
 /// -- --- --- Storage --- --- -- ///
@@ -51,7 +51,7 @@ export type PlayerProps = {
   id: PlayerId;                   // unique id
   sid: SocketId;                  // changes each session
   name: Name;                     // just the player name
-  seat: undefined | PlayerIndex;  // changes each game
+  seat: undefined | PlayerSeat;  // changes each game
 };
 
 export type StoredPlayers = Map<PlayerId, PlayerProps>;

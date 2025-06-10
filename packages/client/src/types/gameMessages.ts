@@ -1,4 +1,4 @@
-import { Player, PlayerIndex } from "./game.js"
+import { Player, PlayerSeat } from "./game.js"
 import { Message } from "./messages.js"
 import { ProofData, Collision } from "zklib/types"
 
@@ -40,7 +40,7 @@ export interface GameDeployPayload extends GamePayload {
 }
 
 export interface GamePlayerSeatPayload extends GamePayload {
-  seat: PlayerIndex;
+  seat: PlayerSeat;
 }
 
 export interface GameQueryPayload extends GamePayload {

@@ -34,7 +34,7 @@ export async function initCli() {
     const zklib = new ZkLib();
     // const zklib = new ZkLibMock();
 
-    const client = new GameClient(sockets.token, sockets, zklib);
+    const client = new GameClient(sockets, zklib);
 
     // submit agent coordinates to game and start playing
     await client.play();

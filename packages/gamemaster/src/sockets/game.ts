@@ -1,13 +1,12 @@
-import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, GameProofsMsg, GameQueryPayload, GameMessage} from 'client/types';
+import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat} from 'client/types';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
-import { PlayerStorage } from 'client';
+import { PlayerStorage } from '../playerStorage.js';
 import { MessageLog, MsgEvents } from '../messageLog.js';
+import { passTime } from 'client';
 
 type Ack = () => void;
-
-type AckPlayerIndex = (playerIndex: number | undefined) => void;
 
 interface InterServerEvents { }
 interface SocketData {
@@ -35,13 +34,32 @@ const msgLog = new MessageLog();
 function registerGameHandlers(socket: GameSocket) {
 
   const TIMEOUT = 300_000;
-  const BROADCAST_TIMEOUT = 1_000;
-  const MAX_PLAYERS = 4; 
   /*///////////////////////////////////////////////////////////////
                           PROOF  GATHERING
                           AND BROADCASTING
   //////////////////////////////////////////////////////////////*/
   
+  playerStorage.on("SEAT", async (playerId: string) => {
+    console.log("\n\n\n GOT PLAYER SEAT EVENT ON PSTORAGE \n\n\n")
+
+    const player = playerStorage.getPlayer(playerId) as PlayerProps;
+
+    console.log(`\n\n\n PLAYER: ${player.name} SEAT ${player.seat} \n\n\n`)
+    
+    const payload = {
+      event: GameMsg.PLAYER_SEAT,
+      sender:"gamemaster",
+      to: player.sid,
+      turn:0,
+      payload: {seat: player.seat as PlayerSeat}
+    }
+
+    await passTime(2_000);
+    socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);  
+    
+    console.log("\n\n\n EMITTED SEAT \n\n\n")
+  });
+
   msgLog.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
 
     const type = v.type;
@@ -56,7 +74,7 @@ function registerGameHandlers(socket: GameSocket) {
 
       switch (type) {
         case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg) 
-        case GameMsg.QUERY:  messages = messages.map(x => x as GameQueryMsg) 
+        case GameMsg.QUERY : messages = messages.map(x => x as GameQueryMsg) 
         case GameMsg.ANSWER: messages = messages.map(x => x as GameAnswerMsg) 
         case GameMsg.UPDATE: messages = messages.map(x => x as GameUpdateMsg) 
         case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
@@ -109,7 +127,7 @@ function registerGameHandlers(socket: GameSocket) {
 
   socket.on(GameMsg.READY, async (ack: Ack) => {
     const game = getGameOrNewOne(socket.nsp);
-    const playerIndex = game.readyPlayer(socket.data.id as Player);
+    game.readyPlayer(socket.data.id as Player);
     ack();
   });
   
