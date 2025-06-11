@@ -99,12 +99,12 @@ export class SocketManager extends EventEmitter {
     })
 
     this.game.on(GameMsg.PLAYER_SEAT, async (msg: GamePlayerSeatMsg) => {
-      console.log("\n\n\nPLAYER SEAT MESSAGE\n\n\n")
+      // console.log("\n\n\nPLAYER SEAT MESSAGE\n\n\n")
       const seat = msg.payload.seat;
 
-      console.log("SEAT RECIEVED: ", seat);
+      // console.log("SEAT RECIEVED: ", seat);
       if (this.playerSeat != seat) {
-        console.log("\n\n\nUPDATING SEAT\n\n\n")
+        // console.log("\n\n\nUPDATING SEAT\n\n\n")
         this.playerSeat = seat 
       }
     });
@@ -163,7 +163,7 @@ export class SocketManager extends EventEmitter {
   async advertisePlayerAsReady() {
     const playerIndex = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
 
-    console.log("READY: PLAYER-INDEX", playerIndex);
+    // console.log("READY: PLAYER-INDEX", playerIndex);
     return playerIndex;
   }
 
@@ -220,45 +220,21 @@ export class SocketManager extends EventEmitter {
     await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.REPORT, reportMsg);
   }
 
-  // async retrieveMissedValues(turn: number, event: GameMsg): Promise<Map<string, GameMessage>> {
-  //     const message: RetrieveMsg = {
-  //     turn,
-  //     event
-  //   };
-  //   await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.FETCH_PROOFS, message);
-  //
-  //   const values: Map<Player, GameMessagePayload> = new Map();
-  //   return new Promise(async (res, rej) => {
-  //     setTimeout(rej, TIMEOUT);
-  //     console.log("WAITING FOR MISSED MESSAGE OF TYPE: ", event);
-  //     while (true) {
-  //       await passTime(100);
-  //
-  //       const recieved = !!this.messageBox.deploys;
-  //
-  //       if (!recieved) { 
-  //         await passTime(100); 
-  //       } else {
-  //         const valuesInTurn = this.messageBox.deploys!;
-  //         valuesInTurn.forEach(msg => values.set(msg.sender, msg.payload));
-  //         break;
-  //       }
-  //     }
-  //     //TODO FIX THIS maybe I'll have to write different methods idk
-  //     res(values)
-  //   });
-  //
-  // }
-
+  async requestMissedValues(turn: number, event: GameMsg) {
+      const message: RetrieveMsg = {
+      turn,
+      event
+    };
+    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.FETCH_PROOFS, message);
+  }
 
   async waitForPlayerSeat(): Promise<PlayerSeat> {
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
-      console.log("WAITING FOR PLAYER SEAT");
       while (true) {
          
         const recieved = (this.playerSeat !== undefined);
-        console.log("CURRENT PLAYER SEAT: ", this.playerSeat);
+        // console.log("CURRENT PLAYER SEAT: ", this.playerSeat);
 
         if (recieved) { 
           break;
@@ -274,7 +250,6 @@ export class SocketManager extends EventEmitter {
     const deploys: Map<Player, GameDeployPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
-      console.log("WAITING FOR DEPLOYS");
       while (true) {
         await passTime(100);
          
@@ -295,7 +270,6 @@ export class SocketManager extends EventEmitter {
   async waitForQueries(turn: number): Promise<Map<string, GameQueryPayload>> {
     const queries: Map<Player, GameQueryPayload> = new Map();
     return new Promise(async (res, rej) => {
-      console.log("WAITING FOR QUERIES");
       setTimeout(rej, TIMEOUT);
       while (true) {
         await passTime(100);
@@ -323,7 +297,6 @@ export class SocketManager extends EventEmitter {
         
         const recieved = this.messageBox.answers.has(turn);
 
-        console.log("FOUND SOME ANSWERS: ", recieved);
         if (!recieved) { 
           await passTime(100); 
         } else {
@@ -381,6 +354,7 @@ export class SocketManager extends EventEmitter {
   async waitForGameStartEvent(): Promise<void> {
     // TODO: add setTimeout to run rej branch
     return new Promise((res, rej) => {
+      setTimeout(rej, TIMEOUT);
       this.game.once(GameMsg.STARTED, (ack) => { ack(); res() })
     });
   }
@@ -388,6 +362,7 @@ export class SocketManager extends EventEmitter {
   async waitForTurnStartEvent(): Promise<TurnInfo> {
     // TODO: add setTimeout to run rej branch
     return new Promise((res, rej) => {
+      setTimeout(rej, TIMEOUT);
       this.game.once(GameMsg.TURN_START, (data: TurnInfo, ack) => { ack(); res(data) })
     });
   }

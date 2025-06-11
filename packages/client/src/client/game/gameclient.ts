@@ -292,12 +292,6 @@ export class GameClient {
 
   async processNonActivePlayer() {
 
-    const nonActivePlayers = this.round
-      .filter(x => x !== this.activePlayer);
-
-    const otherNonActivePlayers = nonActivePlayers
-      .filter(x => x !== this.playerId);
-    
     // STEP 1
     // if query ready, broadcast query
     this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE QUERY\n\n");
@@ -330,11 +324,11 @@ export class GameClient {
     // wait for report
     this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (1)\n\n");
     await this.waitForReport();
-    this.gameLog("No more duties.")
+    this.gameLog("NON-ACTIVE-PLAYER - No more duties.")
   }
 
   /*///////////////////////////////////////////////////////////////
-                          NLL PLAYER METHODS
+                          ALL PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
 
   async setupAgents(agentsLocations: Locations) {
