@@ -331,7 +331,7 @@ export class GameClient {
 
     // STEP 8
     // wait for report
-    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (2)\n\n");
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (1)\n\n");
     await this.waitForReport();
     this.gameLog("No more duties.")
   }
@@ -352,7 +352,7 @@ export class GameClient {
 
   async waitForAnswers() {
     this.gameLog("STARTING WAIT FOR ANSWER");
-    // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
+    // there is an answer for each non-active player (N_players - 1). Eliminated players still have to answer.
     const answers = await this.sockets.waitForAnswers(this.turn);
 
     this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);

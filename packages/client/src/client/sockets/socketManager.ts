@@ -112,9 +112,7 @@ export class SocketManager extends EventEmitter {
     this.game.on(GameMsg.PROOFS, (msg: GameProofsPayload, ack: () => void) => {
 
       const turn = msg.messages[0]?.turn as number;
-      
-      console.log(`\n\nRECIEVED MSG: type: ${msg.type}, value: ${msg.messages}`);
-      passTime(2_000); 
+  
       switch (msg.type) {
         case GameMsg.DEPLOY: { 
           this.messageBox.deploys = msg.messages.map(x => x as GameDeployMsg);
@@ -125,26 +123,7 @@ export class SocketManager extends EventEmitter {
           break
         };
         case GameMsg.ANSWER: {
-          let answers: GameAnswerMsg[] = new Array();
-          console.log(`\n\nmessages: ${msg.messages}, ${msg.messages.length}\n`)
-          msg.messages.forEach( message => {
-            console.log(`message-to: ${message.to}`)
-            message = message as GameAnswerMsg;
-            const payload = message.payload as GameAnswerPayload;
-            answers.push({
-              event: message.event,
-              turn: message.turn,
-              to: message.to,
-              payload
-            } as GameAnswerMsg) 
-          })
-          //= msg.messages.map(x => { x, x as GameAnswerMsg });
-          console.log(`\n\nanswers: ${answers}, ${answers.length}\n`)
-          answers.forEach((answer) => {
-            console.log(`answers but sliced: ${JSON.stringify(answer).slice(0,250)}`)
-          })
-          this.messageBox.answers.set(turn, answers);
-          console.log(`messagebox: ${this.messageBox.answers.get(turn)!.length}`)
+          this.messageBox.answers.set(turn, msg.messages.map(x => x as GameAnswerMsg));
           break;
         };
         case GameMsg.UPDATE: { 
