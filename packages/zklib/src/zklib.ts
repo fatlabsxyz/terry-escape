@@ -73,7 +73,7 @@ export class ZkLib implements IZkLib {
         tile_salt: this.temp_values.tiles_salt[tile_index],
         veil_used: this.temp_values.veils[tile_index],
         veil_salt: this.temp_values.veils_salt[tile_index],
-        selectors: await this.compute_selectors(this.round, this.own_seat, tile_index),
+        selectors: await this.compute_selectors(this.round, this.own_seat, tile_index, mover),
 	params,
         key_set,
         entropy: Array.from(Array(1289), random_bool)
@@ -112,7 +112,7 @@ export class ZkLib implements IZkLib {
         throw Error("Player queries dont exist");
       }
 
-      let selectors = Array.from(Array(16), async (_, i) => await this.compute_selectors(this.round, player_index, i));
+      let selectors = Array.from(Array(16), async (_, i) => await this.compute_selectors(this.round, player_index, i, this.own_seat));
       const inputs = {
         board_used: this.own_state.board_used,
         board_salt: this.own_state.board_salt,
@@ -239,7 +239,7 @@ export class ZkLib implements IZkLib {
       for (let query = 0; query < 16; query++) {
 	let query_selectors = queries[offset]![query]!.publicInputs.slice(0,18);
 	let answer_selectors = answers[offset]!.publicInputs.slice(-323+18*query,-323+18*(query+1)); 
-	let expected_selectors = (await this.compute_selectors(this.round, from, query)).flat();
+	let expected_selectors = (await this.compute_selectors(this.round, from, query, mover)).flat();
 	check_match(query_selectors, expected_selectors);
 	check_match(answer_selectors, expected_selectors);
       }
@@ -302,7 +302,7 @@ export class ZkLib implements IZkLib {
     this.all_states[mover]! = reports.publicInputs.slice(-4,-3)[0]!; 
   };
 
-  async compute_selectors(round: number, player: number, tile: number) {
+  async compute_selectors(round: number, player: number, tile: number, mover: number) {
     let selectors = [];
     for (let i of [true,false]) {
       let entropy_pool : boolean[][] = [];
@@ -312,7 +312,7 @@ export class ZkLib implements IZkLib {
         (new Uint8Array(sha)).map(v => entropy_pool.push(bits(v)));
       }
       const entropy = entropy_pool.flat().slice(0,1289);
-      let ciphertext = selector(this.public_keys[player]!.key_set, entropy, i);
+      let ciphertext = selector(this.public_keys[mover]!.key_set, entropy, i);
       selectors.push(ciphertext);
     }
     return selectors;
