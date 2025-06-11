@@ -110,38 +110,31 @@ function registerGameHandlers(socket: GameSocket) {
 
   socket.on(GameMsg.DEPLOY, async (p: GameDeployMsg, ack: Ack) => {
     msgLog.register(p);
-    
-    msgLog.findMessageListForTurn(p.turn, GameMsg.DEPLOY);
-    console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
-
+    // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack(); 
   });
 
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
     msgLog.register(p);
-    msgLog.findMessageListForTurn(p.turn, GameMsg.QUERY);
-    console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
+    // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack();
   });
 
   socket.on(GameMsg.ANSWER, async (p: GameAnswerMsg, ack: Ack) => {
     msgLog.register(p);
-    msgLog.findMessageListForTurn(p.turn, GameMsg.ANSWER);
-    console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
+    // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack();
   });
 
   socket.on(GameMsg.UPDATE, async (p: GameUpdateMsg, ack: Ack) => {
     msgLog.register(p);
-    msgLog.findMessageListForTurn(p.turn, GameMsg.UPDATE);
-    console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
+    // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack();
   });
 
   socket.on(GameMsg.REPORT, async (p: GameReportMsg, ack: Ack) => {
     msgLog.register(p);
-    msgLog.findMessageListForTurn(p.turn, GameMsg.REPORT);
-    console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
+    // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack();
   });
 

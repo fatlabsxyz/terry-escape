@@ -254,17 +254,14 @@ export class GameClient {
     // TODO find out where I can run validateDeploys()
   }
 
-  async processActivePlayer() {
-
-    const otherPlayers = this.round.filter(x => x !== this.playerId);
-    
+  async processActivePlayer() { 
     // STEP 2
     // wait for queries | take action
     this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR QUERIES (3)\n\n");
     await Promise.all([
       this.waitForQuery(),
       this.takeAction()
-      // based on the player's deployed agents, select a valid spot
+      // TODO: based on the player's deployed agents, select a valid spot
     ])
 
     // STEP 3
@@ -337,68 +334,13 @@ export class GameClient {
   }
 
   /*///////////////////////////////////////////////////////////////
-                          NON-ACTIVE PLAYER METHODS
+                          NLL PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
-  async getQuery(): Promise<GameQueryPayload> {
 
-    this.gameLog(`\nGET-QUERY: PLAYER-INDEX: ${this.activePlayerIndex}\n`);
-
-    const query = await this.zklib.createQueries(Number(this.activePlayerIndex)); 
-    this.gameLog(`\n\n\n GET-QUERY: QUERY-LENGTH: ${JSON.stringify(query).length}\n`);
-    this.gameLog(`\nGET-QUERY: QUERY-PROOF: ${query}\n`);
-
-    return {queries: query.proof}
-  }
-
-  async waitForAnswers() {
-    this.gameLog("STARTING WAIT FOR ANSWER");
-    // there is an answer for each non-active player (N_players - 1). Eliminated players still have to answer.
-    const answers = await this.sockets.waitForAnswers(this.turn);
-
-    this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);
-    
-    answers.forEach( (payload, sender) => {
-      this.gameLog(`WAIT-FOR-ANSWERS: PAYLOAD ${payload.to}, ${payload.proof}, SENDER: ${sender}`);
-      this.turnData.answers.set(payload.to, {proof: payload.proof});
-    });
-  }
-
-  async createUpdate(): Promise<GameUpdatePayload> {
-    const answers = this.turnData.answers;
-
-    this.gameLog("CREATE-UPDATE: ALL-ANSWERS:", answers);
-    
-    const pid = this.playerId;
-    
-    this.gameLog("CREATE-UPDATE: THIS-PID:", pid);
-
-    const answer = answers.get(pid) as AnswerData;
-
-    this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${answer} ...`);
-
-    const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex);
-    
-    this.turnData.updates.set(this.playerId, data);
-    
-
-    return {proof: data.proof};
-  }
-
-  async waitForReport() {
-    const report = await this.sockets.waitForReport(this.turn);
-    this.gameLog("REPORT RECIEVED");
-    this.turnData.report = report as ReportData;
-  }
-
-  /*///////////////////////////////////////////////////////////////
-                          ACTIVE PLAYER METHODS
-  //////////////////////////////////////////////////////////////*/
-  
   async setupAgents(agentsLocations: Locations) {
-    // Deploy your agents
-    this.log(`\nSETUP-AGENTS: AGENTS-LOCATIONS: ${agentsLocations}\n`);
+    // this.log(`\nSETUP-AGENTS: AGENTS-LOCATIONS: ${agentsLocations}\n`);
     const myDeploys = await this.zklib.createDeploys(agentsLocations);
-    this.log(`\nSETUP-AGENTS: MY-DEPLOYS-PROOF: ${myDeploys.proof}\n`);
+    // this.log(`\nSETUP-AGENTS: MY-DEPLOYS-PROOF: ${myDeploys.proof}\n`);
     
     this.log(this.zklib.own_state.board_used);
 
@@ -406,7 +348,48 @@ export class GameClient {
     this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
   }
 
-  // Wait for other deploys and validate them
+  /*///////////////////////////////////////////////////////////////
+                          NON-ACTIVE PLAYER METHODS
+  //////////////////////////////////////////////////////////////*/
+  async getQuery(): Promise<GameQueryPayload> {
+    const query = await this.zklib.createQueries(Number(this.activePlayerIndex)); 
+    // this.gameLog(`\n\n\n GET-QUERY: QUERY-LENGTH: ${JSON.stringify(query).length}\n`);
+    // this.gameLog(`\nGET-QUERY: QUERY-PROOF: ${query}\n`);
+
+    return {queries: query.proof}
+  }
+
+  async waitForAnswers() {
+    // there is an answer for each non-active player (N_players - 1). Eliminated players still have to answer.
+    const answers = await this.sockets.waitForAnswers(this.turn);
+
+    // this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);
+    
+    answers.forEach( (payload, sender) => {
+      // this.gameLog(`WAIT-FOR-ANSWERS: PAYLOAD ${payload.to}, ${payload.proof}, SENDER: ${sender}`);
+      this.turnData.answers.set(payload.to, {proof: payload.proof});
+    });
+  }
+
+  async createUpdate(): Promise<GameUpdatePayload> { 
+    const answer = this.turnData.answers.get(this.playerId) as AnswerData;
+
+    // this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${answer} ...`);
+    const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex); 
+    this.turnData.updates.set(this.playerId, data); 
+
+    return {proof: data.proof};
+  }
+
+  async waitForReport() {
+    const report = await this.sockets.waitForReport(this.turn);
+    this.turnData.report = report as ReportData;
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                          ACTIVE PLAYER METHODS
+  //////////////////////////////////////////////////////////////*/
+  
   async validateDeploys() {
     
     // TODO need info on other players to call waitForDeploy, but state machine 
@@ -444,7 +427,7 @@ export class GameClient {
     const index = this.playerSeat as PlayerSeat;
     const loc = this.activePlayerLocation;
 
-    this.log("TAKE-ACTION: ACTIVE-PLAYER-LOCATION: ", this.activePlayerLocation);
+    // this.log("TAKE-ACTION: ACTIVE-PLAYER-LOCATION: ", this.activePlayerLocation);
 
     this.activePlayerLocation = loc || (playerStartLoc[index] as AgentLocation);
     
@@ -458,7 +441,7 @@ export class GameClient {
       case 3: ( {target, direction} = this.bounce(reason, 12, 15, direction) );    
     }
 
-    this.log(`TAKE-ACTION: PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
+    // this.log(`TAKE-ACTION: PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
 
     this.turnData.action = { reason, target, trap: false };
     // this.turnData.action = action;
@@ -473,40 +456,27 @@ export class GameClient {
   async waitForQuery() {
     let queries: Map<Player, GameQueryPayload>;
 
-    // try {
     queries = await this.sockets.waitForQueries(this.turn);
-    // } catch (err) {
-    //   // queries = await this.sockets.retrieveMissedValues(this.turn, GameMsg.QUERY)
-    // }
 
-    this.log("QUERIES WE'VE BEEN WAITING FOR");
+    // this.log("QUERIES WE'VE BEEN WAITING FOR");
     queries.forEach((payload, player) => {
-      this.log(`QUERY NUMBER: ${player}, QUERY VALUE: ${payload.queries}`);
+      // this.log(`QUERY NUMBER: ${player}, QUERY VALUE: ${payload.queries}`);
       this.turnData.queries.set(player, {queries: payload.queries});
     })
-    this.log("TURNDATA, QUERIES: ", this.turnData.queries);
+    // this.log("TURNDATA, QUERIES: ", this.turnData.queries);
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
     const payloads: GameAnswerPayload[] = [];
-    const queryValues = Array.from(this.turnData.queries.values());
-    
-    queryValues.forEach( (x) => {
-      this.log(`\nCREATE-ANSWERS: QUERY-VALUES: ${x.queries}`);
-    });
-
+    const queryValues = Array.from(this.turnData.queries.values()); 
     const queryData = queryValues.map((x) => x.queries);
 
-    this.log(`\nCREATE-ANSWERS: QUERIES: ${queryData}`);
+    // this.log(`\nCREATE-ANSWERS: QUERIES: ${queryData}`);
     
     const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
     
-    this.log(`\nCREATE-DATA: ALL-ANSWERS: ${answers}\n`);
-    this.log(`\nCREATE-DATA: ANSWERS: ${answers.playerProofs}\n`);
-
-    answers.playerProofs.forEach( (value) => {      
-      this.log(`\nCREATE-DATA: ANSWERS: ${value}\n`);
-    });
+    // this.log(`\nCREATE-DATA: ALL-ANSWERS: ${answers}\n`);
+    // this.log(`\nCREATE-DATA: ANSWERS: ${answers.playerProofs}\n`);
 
     const nonActivePlayersRound = this.round
       .filter(x => x !== this.activePlayer);
@@ -523,19 +493,14 @@ export class GameClient {
 
   
   async waitForUpdates() {
-    this.log("WAITING FOR UPDATES");
     const updates = await this.sockets.waitForUpdates(this.turn);
 
-    this.log("UPDATES RECEIVED: ", updates);
+    // this.log("UPDATES RECEIVED: ", updates);
 
     const updateValues = Array.from(updates.values());
     
-    updateValues.forEach( (x) => {
-      this.log(`\nUPDATES: UPDATE-VALUES: ${x.proof}`);
-    });
-
     updates.forEach((value, key) => {
-      this.log(`\nUPDATES: UPDATE-VALUES-SET: KEY:${key}, VALUE:${value}, `);
+      // this.log(`\nUPDATES: UPDATE-VALUES-SET: KEY:${key}, VALUE:${value}, `);
       this.turnData.updates.set(key, value) 
     });
   }
@@ -546,17 +511,17 @@ export class GameClient {
 
     const turnUpdates = this.turnData.updates;
 
-    this.log(`\nWITNESS: REPORTS(TURN-UPDATES): ${turnUpdates}\n`);
+    // this.log(`\nWITNESS: REPORTS(TURN-UPDATES): ${turnUpdates}\n`);
     
     const updates: ProofData[] = Array.from(turnUpdates.entries())
       .filter(([id]) => id !== this.activePlayer)
       .map(([, { proof }]) => proof);
 
-    this.log(`\nWITNESS: REPORT: (UPDATES): ${updates}\n`);
+    // this.log(`\nWITNESS: REPORT: (UPDATES): ${updates}\n`);
 
     const report = await this.zklib.createReports(updates);
      
-    this.log(`\nPROOFDATA: REPORT: ${report}\n`);
+    // this.log(`\nPROOFDATA: REPORT: ${report}\n`);
     this.turnData.report = report as ReportData;
 
     return { proof: report.proof };
