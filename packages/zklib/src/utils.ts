@@ -131,7 +131,7 @@ function to_big_num(n : bigint) : BigNum {
 export function selector(key_set: BigNum[], entropy: boolean[], message: boolean) : BigNum {
 	let sum = key_set.slice(1).map(to_big_int).filter((_,i) => entropy[i]).reduce((a,b) => a+b);
 	if (message) { sum += to_big_int(key_set[1]!)/BigInt(2); }
-	return to_big_num((sum % to_big_int(key_set[0]!)));
+	return to_big_num((sum % to_big_int(key_set[0]!)) / (2n**512n));
 }
 
 export function bits(n : number) : boolean[] {
