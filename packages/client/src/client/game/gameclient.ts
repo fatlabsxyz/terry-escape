@@ -1,6 +1,6 @@
 import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerSeat, IJ, AnswerData, JwtPayload} from "../../types/game.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerSeat, IJ, AnswerData, JwtPayload, ReportData} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
@@ -357,8 +357,9 @@ export class GameClient {
 
     this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);
     
-    answers.forEach( (payload, id) => {
-      this.turnData.answers.set(id, {proof: payload.proof});
+    answers.forEach( (payload, sender) => {
+      this.gameLog(`WAIT-FOR-ANSWERS: PAYLOAD ${payload.to}, ${payload.proof}, SENDER: ${sender}`);
+      this.turnData.answers.set(payload.to, {proof: payload.proof});
     });
   }
 
@@ -371,10 +372,9 @@ export class GameClient {
     
     this.gameLog("CREATE-UPDATE: THIS-PID:", pid);
 
-    const answer = answers.get(pid)!;
-    // const answer = answers.get(pid) as AnswerData;
+    const answer = answers.get(pid) as AnswerData;
 
-    this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${JSON.stringify(answer).slice(0, 20)} ...`);
+    this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${answer} ...`);
 
     const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex);
     
@@ -385,9 +385,9 @@ export class GameClient {
   }
 
   async waitForReport() {
-    const report = await this.sockets.waitForReports(this.turn);
+    const report = await this.sockets.waitForReport(this.turn);
     this.gameLog("REPORT RECIEVED");
-    this.turnData.report = { proof: report.get(this.playerSeat!.toString())!.proof };
+    this.turnData.report = report as ReportData;
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -557,7 +557,7 @@ export class GameClient {
     const report = await this.zklib.createReports(updates);
      
     this.log(`\nPROOFDATA: REPORT: ${report}\n`);
-    this.turnData.report = {proof: report.proof, impacted: report.impacted};
+    this.turnData.report = report as ReportData;
 
     return { proof: report.proof };
   }

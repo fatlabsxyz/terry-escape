@@ -30,7 +30,7 @@ export type MessageBox = {
   queries: Map<Turn, GameQueryMsg[]>;   
   updates: Map<Turn, GameUpdateMsg[]>;
   answers: Map<Turn, GameAnswerMsg[]>;
-  reports: Map<Turn, GameReportMsg[]>;
+  reports:  Map<Turn, GameReportMsg>;
 } 
 
 export interface SocketManagerOptions {
@@ -122,10 +122,29 @@ export class SocketManager extends EventEmitter {
         }; 
         case GameMsg.QUERY: { 
           this.messageBox.queries.set(turn, msg.messages.map(x => x as GameQueryMsg));
-          break;
+          break
         };
-        case GameMsg.ANSWER: { 
-          this.messageBox.answers.set(turn, msg.messages.map(x => x as GameAnswerMsg));
+        case GameMsg.ANSWER: {
+          let answers: GameAnswerMsg[] = new Array();
+          console.log(`\n\nmessages: ${msg.messages}, ${msg.messages.length}\n`)
+          msg.messages.forEach( message => {
+            console.log(`message-to: ${message.to}`)
+            message = message as GameAnswerMsg;
+            const payload = message.payload as GameAnswerPayload;
+            answers.push({
+              event: message.event,
+              turn: message.turn,
+              to: message.to,
+              payload
+            } as GameAnswerMsg) 
+          })
+          //= msg.messages.map(x => { x, x as GameAnswerMsg });
+          console.log(`\n\nanswers: ${answers}, ${answers.length}\n`)
+          answers.forEach((answer) => {
+            console.log(`answers but sliced: ${JSON.stringify(answer).slice(0,250)}`)
+          })
+          this.messageBox.answers.set(turn, answers);
+          console.log(`messagebox: ${this.messageBox.answers.get(turn)!.length}`)
           break;
         };
         case GameMsg.UPDATE: { 
@@ -133,7 +152,7 @@ export class SocketManager extends EventEmitter {
           break;
         };
         case GameMsg.REPORT: { 
-          this.messageBox.reports.set(turn, msg.messages.map(x => x as GameReportMsg));
+          this.messageBox.reports.set(turn, msg.messages.map(x => x as GameReportMsg)[0]!);
           break;
         };
       }
@@ -330,7 +349,7 @@ export class SocketManager extends EventEmitter {
           await passTime(100); 
         } else {
           const valuesInTurn = this.messageBox.answers.get(turn)!;
-          valuesInTurn.forEach(msg => answers.set(msg.sender, msg.payload));
+          valuesInTurn.forEach(msg => answers.set(msg.to!, msg.payload));
           break;
         }      
       }
@@ -359,8 +378,8 @@ export class SocketManager extends EventEmitter {
     });
   }
 
-  async waitForReports(turn: number): Promise<Map<string, GameReportPayload>> {
-    let reports: Map<Player, GameReportPayload> = new Map();
+  async waitForReport(turn: number): Promise<GameReportPayload> {
+    let report: GameReportPayload ;
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
@@ -371,12 +390,12 @@ export class SocketManager extends EventEmitter {
         if (!recieved) { 
           await passTime(100); 
         } else {
-          const valuesInTurn = this.messageBox.reports.get(turn)!;
-          valuesInTurn.forEach(msg => reports.set(msg.sender, msg.payload));
+          const valueInTurn = this.messageBox.reports.get(turn)!;
+          report = valueInTurn.payload;
           break;
         }
       }
-      res(reports)
+      res(report!)
     });
   }
 

@@ -77,16 +77,17 @@ function registerGameHandlers(socket: GameSocket) {
 
     const allPlayers: Map<PlayerId, SocketId> = playerStorage.getAllSocketIds()
 
-    console.log(`\n\nBROADCASTING ${type}\n\n`)
     await Promise.all([...allPlayers.entries()].map( async (value) => { 
       const sender = value[0]!;
       const playerSid = value[1]!;
-      console.log(`\n\n ${type} SENT TO: SID:${playerSid} ID:${sender} \n\n`);
+      console.log(`\n\n MSG-LOG-BROADCAST: ${type} SENT TO ID:${sender}`);
 
-      console.log(`MSG-LOG-BROADCAST: original messages len: ${v.messages.length}, senders:`);
+      console.log(`MSG-LOG-BROADCAST: og-len: ${v.messages.length}, senders:`);
       v.messages.forEach(x => console.log(x.sender));
       let messages = v.messages.filter(x => x.sender !== sender);
 
+      console.log(`MSG-LOG-BROADCAST: filtered-len: ${messages.length} for: ${sender}`);
+      
       switch (type) {
         case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg) 
         case GameMsg.QUERY : messages = messages.map(x => x as GameQueryMsg ) 
@@ -95,7 +96,7 @@ function registerGameHandlers(socket: GameSocket) {
         case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
       }
 
-      console.log(`\n\nMESSAGES: ${messages}, LEN: ${messages.length}`);
+      console.log(`MSG-LOG-BROADCAST: MESSAGES: ${messages}, LEN: ${messages.length}. EMITTED...\n\n\n`);
 
 
       await socket.to(playerSid).timeout(TIMEOUT).emitWithAck(

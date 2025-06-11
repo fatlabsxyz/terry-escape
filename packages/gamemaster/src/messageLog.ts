@@ -74,12 +74,13 @@ export class MessageLog<M extends GameMessage> extends EventEmitter {
     if (event === GameMsg.DEPLOY && (values.length === MAX_PLAYERS)) { // 4
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
     } else if (
-      ( event === GameMsg.REPORT ||
-        event === GameMsg.UPDATE ||
+      ( event === GameMsg.UPDATE ||
         event === GameMsg.QUERY  || 
         event === GameMsg.ANSWER
       ) && (values.length === MAX_PLAYERS - 1)) { // 3
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
+    } else if (event === GameMsg.REPORT && (values.length === 1)){ // 1
+      this.emit(MsgEvents.BROADCAST, {type: event, messages: values})
     }
   }
 

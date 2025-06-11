@@ -31,8 +31,8 @@ export interface GamePayload {
 }
 
 export interface GameProofsPayload extends GamePayload {
-  type: `${GameMsg}`,
-  messages: GameMessage[]
+  type: `${GameMsg}`;
+  messages: GameMessage[];
 }
 
 export interface GameDeployPayload extends GamePayload {
@@ -48,7 +48,7 @@ export interface GameQueryPayload extends GamePayload {
 }
 
 export interface GameAnswerPayload extends GamePayload {
-  to: Player
+  to: Player;
   proof: ProofData;
 }
 
@@ -61,17 +61,17 @@ export interface GameReportPayload extends GamePayload {
 }
 
 export interface IGameMessage extends Message {
-  event: `${GameMsg}`
-  turn: number
-  to?: Player
+  event: `${GameMsg}`;
+  turn: number;
+  to?: Player;
 }
 
 export interface GameDeployMsg extends IGameMessage {
-  payload: GameDeployPayload
+  payload: GameDeployPayload;
 }
 
 export interface GameQueryMsg extends IGameMessage {
-  payload: GameQueryPayload
+  payload: GameQueryPayload;
 }
 
 export interface GamePlayerSeatMsg extends IGameMessage {
@@ -79,27 +79,26 @@ export interface GamePlayerSeatMsg extends IGameMessage {
 }
 
 export interface GameAnswerMsg extends IGameMessage {
-  payload: GameAnswerPayload
-  to: Player
+  payload: GameAnswerPayload;
 }
 
 export interface GameUpdateMsg extends IGameMessage {
-  payload: GameUpdatePayload
+  payload: GameUpdatePayload;
 }
 
 export interface GameReportMsg extends IGameMessage {
-  payload: GameReportPayload
+  payload: GameReportPayload;
 }
 
 export interface GameProofsMsg extends IGameMessage {
-  payload: GameProofsPayload
+  payload: GameProofsPayload;
 }
 
 export interface RetrieveMsg {
-  event: `${GameMsg}`
-  turn: number
+  event: `${GameMsg}`;
+  turn: number;
 }
 
-export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg | GamePlayerSeatMsg
+export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg | GamePlayerSeatMsg;
 
-export type GameMessagePayload = GameDeployPayload | GameQueryPayload | GameAnswerPayload | GameUpdatePayload | GameReportPayload
+export type GameMessagePayload = GameDeployPayload | GameQueryPayload | GameAnswerPayload | GameUpdatePayload | GameReportPayload;
