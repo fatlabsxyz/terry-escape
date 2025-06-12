@@ -126,7 +126,7 @@ export class ZkLib implements IZkLib {
         queries: playerQuery.slice(0, -1).map(({ publicInputs }) => publicInputs.slice(-9))
       };
     
-      writeFileSync('buggy-create-answers-inputs.json', JSON.stringify(inputs));
+      // writeFileSync('buggy-create-answers-inputs.json', JSON.stringify(inputs));
       this.temp_values.action = action;
       const result = await generate_proof(circuits['blinded_answers'], inputs, this.options);
       proofs.push(result.payload);

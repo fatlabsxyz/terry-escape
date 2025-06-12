@@ -30,7 +30,7 @@ export type MessageBox = {
   queries: Map<Turn, GameQueryMsg[]>;   
   updates: Map<Turn, GameUpdateMsg[]>;
   answers: Map<Turn, GameAnswerMsg[]>;
-  reports:  Map<Turn, GameReportMsg>;
+  reports: Map<Turn, GameReportMsg>;
 } 
 
 export interface SocketManagerOptions {
@@ -363,8 +363,33 @@ export class SocketManager extends EventEmitter {
     // TODO: add setTimeout to run rej branch
     return new Promise((res, rej) => {
       setTimeout(rej, TIMEOUT);
-      this.game.once(GameMsg.TURN_START, (data: TurnInfo, ack) => { ack(); res(data) })
+      this.game.once(GameMsg.TURN_START, (data: TurnInfo, ack) => { 
+        ack(); 
+        
+        this.clearOldMessages()
+
+        res(data)
+      })
     });
+  }
+
+  clearOldMessages(){
+    if (this.messageBox.queries.size === 2) {
+      const firstKey = this.messageBox.queries.keys().next().value;
+      this.messageBox.queries.delete(firstKey!);
+    }   
+    if (this.messageBox.answers.size === 2) {
+      const firstKey = this.messageBox.answers.keys().next().value;
+      this.messageBox.answers.delete(firstKey!);
+    }
+    if (this.messageBox.updates.size === 2) {
+      const firstKey = this.messageBox.updates.keys().next().value;
+      this.messageBox.updates.delete(firstKey!);
+    }
+    if (this.messageBox.reports.size === 2) {
+      const firstKey = this.messageBox.reports.keys().next().value;
+      this.messageBox.reports.delete(firstKey!);
+    }
   }
 
 
