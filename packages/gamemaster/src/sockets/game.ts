@@ -1,4 +1,4 @@
-import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId} from 'client/types';
+import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg} from 'client/types';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
@@ -39,38 +39,6 @@ function registerGameHandlers(socket: GameSocket) {
                           AND BROADCASTING
   //////////////////////////////////////////////////////////////*/
   
-  playerStorage.on("SEAT", async (playerId: string) => {
-
-    const player = playerStorage.getPlayer(playerId) as PlayerProps;
-    console.log(`\n\n\n PLAYER: ${player.name} SEAT ${player.seat} \n\n\n`);
-    
-    const payload = {
-      event: GameMsg.PLAYER_SEAT,
-      sender:"gamemaster",
-      to: player.sid,
-      turn:0,
-      payload: {seat: player.seat as PlayerSeat}
-    };
- 
-    socket.to(player.sid).emit(GameMsg.PLAYER_SEAT, payload);
-
-
-    // TODO Fix this later??
-    // could maybe check if seat === zero and emit after a 5 second timeout or something
-    if (payload.payload.seat === 2) { 
-      // Re-emits player zero if you're player two
-      const pzero = playerStorage.getPlayerBySeat(0) as PlayerProps;
-      socket.to(pzero.sid).emit(GameMsg.PLAYER_SEAT, {
-        event: GameMsg.PLAYER_SEAT,
-        sender:"gamemaster",
-        to: pzero.sid,
-        turn:0,
-        payload: {seat: pzero.seat as PlayerSeat}
-      });  
-      console.log(`\n\n\n RETRYING P0 - PLAYER: ${pzero.name} SEAT ${pzero.seat} \n\n\n`);
-    } 
-  });
-
   msgLog.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
 
     const type = v.type;
@@ -80,14 +48,10 @@ function registerGameHandlers(socket: GameSocket) {
     await Promise.all([...allPlayers.entries()].map( async (value) => { 
       const sender = value[0]!;
       const playerSid = value[1]!;
-      console.log(`\n\n MSG-LOG-BROADCAST: ${type} SENT TO ID:${sender}`);
-
-      console.log(`MSG-LOG-BROADCAST: og-len: ${v.messages.length}, senders:`);
+      // console.log(`\n\n MSG-LOG-BROADCAST: ${type} SENT TO ID:${sender}`);
       v.messages.forEach(x => console.log(x.sender));
       let messages = v.messages.filter(x => x.sender !== sender);
-
-      console.log(`MSG-LOG-BROADCAST: filtered-len: ${messages.length} for: ${sender}`);
-      
+ 
       switch (type) {
         case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg) 
         case GameMsg.QUERY : messages = messages.map(x => x as GameQueryMsg ) 
@@ -95,10 +59,7 @@ function registerGameHandlers(socket: GameSocket) {
         case GameMsg.UPDATE: messages = messages.map(x => x as GameUpdateMsg) 
         case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
       }
-
-      console.log(`MSG-LOG-BROADCAST: MESSAGES: ${messages}, LEN: ${messages.length}. EMITTED...\n\n\n`);
-
-
+      // console.log(`MSG-LOG-BROADCAST: MESSAGES: ${messages}, LEN: ${messages.length}. EMITTED...\n\n\n`);
       await socket.to(playerSid).timeout(TIMEOUT).emitWithAck(
         GameMsg.PROOFS,
         {
@@ -106,6 +67,20 @@ function registerGameHandlers(socket: GameSocket) {
           messages
         });
     })); 
+  });
+
+  socket.on(GameMsg.FETCH_PROOFS, async (p: RetrieveMsg, ack: Ack) => {
+
+    const value = msgLog.findMessageListForTurn(p.turn, p.event); 
+
+    switch (p.event) {
+      case GameMsg.DEPLOY: await socket.emitWithAck(GameMsg.DEPLOY, value.map(x => x as GameDeployMsg));
+      case GameMsg.QUERY : await socket.emitWithAck(GameMsg.QUERY , value.map(x => x as GameQueryMsg ));
+      case GameMsg.ANSWER: await socket.emitWithAck(GameMsg.ANSWER, value.map(x => x as GameAnswerMsg));
+      case GameMsg.UPDATE: await socket.emitWithAck(GameMsg.UPDATE, value.map(x => x as GameUpdateMsg));
+      case GameMsg.REPORT: await socket.emitWithAck(GameMsg.REPORT, value.map(x => x as GameReportMsg));
+    };
+    ack(); 
   });
 
   socket.on(GameMsg.DEPLOY, async (p: GameDeployMsg, ack: Ack) => {
@@ -183,8 +158,7 @@ export function addGameNamespace(server: Server): Server {
         id: playerId,
         sid: socket.id,
         name: socket.data.name,
-        seat: undefined,
-      }
+      } as PlayerProps
       console.log("player connected for the first time: ", player);
       playerStorage.addPlayer(player);
     } else {
@@ -192,10 +166,10 @@ export function addGameNamespace(server: Server): Server {
       playerStorage.updatePlayerSid(playerId, socket.id);
     }
 
-    player = player as PlayerProps;
+    const p = player as PlayerProps;
 
-    game.addPlayer(player.id as Player);
-    console.log(`welcome ${player.name} with id ${player.id} :\) \n and socketId ${player.sid}`);
+    game.addPlayer(p.id as Player);
+    console.log(`welcome ${p.name} with id ${p.id} :\) \n and socketId ${p.sid}`);
     
     socket.on("disconnect", async (reason) => {
       console.log(`SOCKET ${socket.id}, ${socket.data.name}, DISCONNECT: ${reason}`);

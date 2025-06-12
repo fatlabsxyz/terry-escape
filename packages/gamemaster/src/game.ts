@@ -1,6 +1,6 @@
-import { PlayerId, PlayerProps, GameMsg, TurnInfo, PlayerSeat } from 'client/types';
-import { GameNsp, GameSocket } from './sockets/game.js';
-import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent } from 'xstate';
+import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId } from 'client/types';
+import { GameNsp } from './sockets/game.js';
+import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
 
 /// STATE MACHINE TYPES
@@ -18,6 +18,7 @@ enum Actors {
 
 enum Events {
   AddPlayer = "AddPlayer",
+  EmitSeat = "EmitSeat",
   PlayerReady = "PlayerReady",
   AllPlayersReadyToStart = "AllPlayerReadyToStart"
 }
@@ -34,6 +35,13 @@ enum Actions {
   updateContextOnDone = "updateContextOnDone",
   updatePlayers = "updatePlayers",
   cleanup = "cleanup",
+  emitSeat = "emitSeat",
+}
+
+type PlayerData = { 
+    id: PlayerId,
+    sid: SocketId,
+    seat: PlayerSeat
 }
 
 interface SmEvent extends AnyEventObject {
@@ -50,9 +58,15 @@ interface PlayerReadyEvent extends SmEvent {
   data: { player: Player }
 }
 
+interface EmitSeatEvent extends SmEvent {
+  type: Events.EmitSeat,
+  player: PlayerData
+}
+
 type EventsSm = DoneActorEvent
   | PlayerReadyEvent
-  | AddPlayerEvent;
+  | AddPlayerEvent 
+  | EmitSeatEvent;
 
 function isAddPlayerEvent(event: EventsSm): event is AddPlayerEvent {
   return event.type === Events.AddPlayer
@@ -107,6 +121,7 @@ export class Game {
   broadcastTimeout: number;
   minPlayers: number;
   playerSeat: undefined | number = undefined;
+    playerEmitData: any;
 
   constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
@@ -115,7 +130,10 @@ export class Game {
     this.playerStorage = PlayerStorage.getInstance();
 
     this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
+    
     this.gameMachine.start();
+
+    this.attachEvents();
   }
 
   log(...args: any[]) {
@@ -147,7 +165,24 @@ export class Game {
   get playerStore() {
     return this.playerStorage;
   }
-   
+  
+  attachEvents() {
+
+    this.gameMachine.on(Events.EmitSeat, async (event) => {
+      console.log("\n\nta todo bien");
+
+      const payload = {
+        event: GameMsg.PLAYER_SEAT,
+        sender:"gamemaster",
+        to: this.playerEmitData.id,
+        turn:0,
+        payload: {seat: this.playerEmitData.seat as PlayerSeat}
+      };
+ 
+      this.nsp.to(this.playerEmitData.sid).emit(GameMsg.PLAYER_SEAT, payload);
+    });
+  }
+
   storedPlayerId(player: Player) {
     return this.playerStorage.getSocketId(player) as string;
   }
@@ -229,7 +264,6 @@ export class Game {
   }
 
   async broadcastGameStarted() {
-    //TODO pstorage attach here?
     await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.STARTED);
   }
 
@@ -279,11 +313,15 @@ export class Game {
           waiting: false
         }
 
-        this.log(`New player seat: ${player.seat}, ID: ${player.id}`);
+        // this.log(`New player seat: ${player.seat}, ID: ${player.id}`);
         context.players.set(player.id, player);
-      
-        this.playerStorage.updatePlayerSeat(player.id, player.seat as PlayerSeat)
-        
+ 
+        this.playerEmitData = {
+          id: player.id, 
+          sid: this.playerStorage.getSocketId(player.id), 
+          seat: player.seat
+        } as PlayerData;
+ 
         return { players: context.players }
       } else return context
       
@@ -347,6 +385,7 @@ export class Game {
       actions: {
         [Actions.log]: ({ event, context }, step: GameState) => this.log(step ? `[${step}]` : '', event.type, stringify(context)),
         [Actions.addPlayer]: assign(addPlayerAction),
+        [Actions.emitSeat]: emit({type: Events.EmitSeat, player: this.playerEmitData }), // race condition?
         [Actions.markPlayerReady]: assign(markPlayerReadyAction),
         [Actions.updateContextOnDone]: assign(updateContextOnDoneAction),
         [Actions.updatePlayers]: assign(updatePlayersAction),
@@ -375,7 +414,7 @@ export class Game {
             entry: [{ type: Actions.log, params: GameState.setup }],
             on: {
               [Events.AddPlayer]: {
-                actions: [{ type: Actions.addPlayer }],
+                actions: [{ type: Actions.addPlayer }, { type: Actions.emitSeat }],
                 target: GameState.setup,
                 reenter: true,
               },

@@ -59,11 +59,11 @@ export class MessageLog<M extends GameMessage> extends EventEmitter {
     const result = messageMapped.filter(value => value !== undefined);
   
     // TODO: remove this later (variables and prints)
-    console.log(`\n\n\n\nMSGKEY: ${msgKey} \n`);
-    console.log(`\nMESSAGE KEY VALUES: ${messageKeyVals}, LEN: ${messageKeyVals.length} \n`);
-    console.log(`\nMESSAGE KEY VALUES FILTERED: ${messageKeyValsFiltered}, LEN: ${messageKeyValsFiltered.length} \n`);
-    console.log(`\nMESSAGE MAPPED: ${messageMapped} \n`);
-    console.log(`\nMESSAGE RESULT: ${result} \n\n\n\n`);
+    // console.log(`\n\n\n\nMSGKEY: ${msgKey} \n`);
+    // console.log(`\nMESSAGE KEY VALUES: ${messageKeyVals}, LEN: ${messageKeyVals.length} \n`);
+    // console.log(`\nMESSAGE KEY VALUES FILTERED: ${messageKeyValsFiltered}, LEN: ${messageKeyValsFiltered.length} \n`);
+    // console.log(`\nMESSAGE MAPPED: ${messageMapped} \n`);
+    // console.log(`\nMESSAGE RESULT: ${result} \n\n\n\n`);
     
     return result;
   }
