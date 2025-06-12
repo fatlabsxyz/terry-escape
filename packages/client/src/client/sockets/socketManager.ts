@@ -1,6 +1,6 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
-import jwt from 'jsonwebtoken';
+import { jwtDecode } from 'jwt-decode';
 import { JwtPayload, Player, PlayerSeat, TurnInfo } from "../../types/game.js";
 import {
   GameAnswerMsg,
@@ -81,7 +81,7 @@ export class SocketManager extends EventEmitter {
     this.gameId = options.gameId;
     this._ready = false;
 
-    const decoded = jwt.verify(this.token, "test-key");
+    const decoded = jwtDecode(this.token);
     const data = decoded as JwtPayload; 
     this.playerId = data.id;
     this.playerName = data.name;

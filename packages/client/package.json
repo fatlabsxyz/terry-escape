@@ -5,7 +5,7 @@
     ".": {
       "import": "./dist/client/index.js",
       "types": "./dist/client/index.d.ts"
-    }, 
+    },
     "./cli": {
       "import": "./dist/cli/index.js",
       "types": "./dist/cli/index.d.ts"
@@ -39,9 +39,9 @@
     "@aztec/bb.js": "^0.76.4",
     "@types/jsonwebtoken": "^9.0.9",
     "eventemitter3": "^5.0.1",
-    "jsonwebtoken": "^9.0.2",
-    "nanoid": "^5.1.5",
+    "jwt-decode": "^4.0.0",
     "keypairs": "workspace:*",
+    "nanoid": "^5.1.5",
     "zklib": "workspace:*"
   }
 }
