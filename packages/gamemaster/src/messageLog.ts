@@ -71,15 +71,15 @@ export class MessageLog<M extends GameMessage> extends EventEmitter {
   evalBroadcast(event: `${GameMsg}`, values: GameMessage[]) {
     console.log(`EMITTING ${event}`)
 
-    if (event === GameMsg.DEPLOY && (values.length === MAX_PLAYERS)) { // 4
+    if (event === GameMsg.DEPLOY && (values.length === MAX_PLAYERS)) { // 4 deploys
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
     } else if (
       ( event === GameMsg.UPDATE ||
         event === GameMsg.QUERY  || 
         event === GameMsg.ANSWER
-      ) && (values.length === MAX_PLAYERS - 1)) { // 3
+      ) && (values.length === MAX_PLAYERS - 1)) { // 3 queries/updates/answers
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
-    } else if (event === GameMsg.REPORT && (values.length === 1)){ // 1
+    } else if (event === GameMsg.REPORT && (values.length === 1)){ // 1 report
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values})
     }
   }
