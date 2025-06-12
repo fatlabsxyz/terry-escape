@@ -169,7 +169,6 @@ export class Game {
   attachEvents() {
 
     this.gameMachine.on(Events.EmitSeat, async (event) => {
-      console.log("\n\nta todo bien");
 
       const payload = {
         event: GameMsg.PLAYER_SEAT,

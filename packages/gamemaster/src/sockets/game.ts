@@ -49,7 +49,6 @@ function registerGameHandlers(socket: GameSocket) {
       const sender = value[0]!;
       const playerSid = value[1]!;
       // console.log(`\n\n MSG-LOG-BROADCAST: ${type} SENT TO ID:${sender}`);
-      v.messages.forEach(x => console.log(x.sender));
       let messages = v.messages.filter(x => x.sender !== sender);
  
       switch (type) {
