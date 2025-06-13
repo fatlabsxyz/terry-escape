@@ -1,9 +1,9 @@
 import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg} from 'client/types';
+import { MessageBox, MsgEvents } from 'client';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
 import { PlayerStorage } from '../playerStorage.js';
-import { MessageLog, MsgEvents } from '../messageLog.js';
 import { passTime } from 'client';
 
 type Ack = () => void;
@@ -29,7 +29,7 @@ export type GameSocket = Socket<
   SocketData
 >
 const playerStorage: PlayerStorage = PlayerStorage.getInstance();
-const msgLog = new MessageLog();
+const msgBox = new MessageBox();
 
 function registerGameHandlers(socket: GameSocket) {
 
@@ -39,7 +39,7 @@ function registerGameHandlers(socket: GameSocket) {
                           AND BROADCASTING
   //////////////////////////////////////////////////////////////*/
   
-  msgLog.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
+  msgBox.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
 
     const type = v.type;
 
@@ -70,44 +70,42 @@ function registerGameHandlers(socket: GameSocket) {
 
   socket.on(GameMsg.FETCH_PROOFS, async (p: RetrieveMsg, ack: Ack) => {
 
-    const value = msgLog.findMessageListForTurn(p.turn, p.event); 
-
     switch (p.event) {
-      case GameMsg.DEPLOY: await socket.emitWithAck(GameMsg.DEPLOY, value.map(x => x as GameDeployMsg));
-      case GameMsg.QUERY : await socket.emitWithAck(GameMsg.QUERY , value.map(x => x as GameQueryMsg ));
-      case GameMsg.ANSWER: await socket.emitWithAck(GameMsg.ANSWER, value.map(x => x as GameAnswerMsg));
-      case GameMsg.UPDATE: await socket.emitWithAck(GameMsg.UPDATE, value.map(x => x as GameUpdateMsg));
-      case GameMsg.REPORT: await socket.emitWithAck(GameMsg.REPORT, value.map(x => x as GameReportMsg));
+      case GameMsg.DEPLOY: await socket.emitWithAck(GameMsg.DEPLOY, msgBox.deploys );
+      case GameMsg.QUERY : await socket.emitWithAck(GameMsg.QUERY , msgBox.queries.get(p.turn)!);
+      case GameMsg.ANSWER: await socket.emitWithAck(GameMsg.ANSWER, msgBox.answers.get(p.turn)!);
+      case GameMsg.UPDATE: await socket.emitWithAck(GameMsg.UPDATE, msgBox.updates.get(p.turn)!);
+      case GameMsg.REPORT: await socket.emitWithAck(GameMsg.REPORT, [msgBox.reports.get(p.turn)!]);
     };
     ack(); 
   });
 
   socket.on(GameMsg.DEPLOY, async (p: GameDeployMsg, ack: Ack) => {
-    msgLog.register(p);
+    msgBox.storeValue(p);
     // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack(); 
   });
 
   socket.on(GameMsg.QUERY, async (p: GameQueryMsg, ack: Ack) => {
-    msgLog.register(p);
+    msgBox.storeValue(p);
     // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack();
   });
 
   socket.on(GameMsg.ANSWER, async (p: GameAnswerMsg, ack: Ack) => {
-    msgLog.register(p);
+    msgBox.storeValue(p);
     // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack();
   });
 
   socket.on(GameMsg.UPDATE, async (p: GameUpdateMsg, ack: Ack) => {
-    msgLog.register(p);
+    msgBox.storeValue(p);
     // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack();
   });
 
   socket.on(GameMsg.REPORT, async (p: GameReportMsg, ack: Ack) => {
-    msgLog.register(p);
+    msgBox.storeValue(p);
     // console.log(`\n\nGOT SOME ${p.event}: from:${p.sender}, ${p.payload}\n\n`);
     ack();
   });

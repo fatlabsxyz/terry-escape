@@ -12,6 +12,12 @@ export {
 } from "./../utils.js"
 
 export {
+  MessageBox,
+  MsgEvents,
+} from "./../messageBox.js"
+
+
+export {
   type ClientSockets,
   type SetupSocketOptions
 } from "./setup.js"

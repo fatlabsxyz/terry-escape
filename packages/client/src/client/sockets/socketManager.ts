@@ -20,19 +20,10 @@ import {
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
+import { MessageBox } from "../../messageBox.js";
 
 const TIMEOUT = 300_000;
  
-type Turn = number;
-
-export type MessageBox = {
-  deploys: GameDeployMsg[];
-  queries: Map<Turn, GameQueryMsg[]>;   
-  updates: Map<Turn, GameUpdateMsg[]>;
-  answers: Map<Turn, GameAnswerMsg[]>;
-  reports: Map<Turn, GameReportMsg>;
-} 
-
 export interface SocketManagerOptions {
   serverUrl: string;
   token: string,
@@ -50,19 +41,13 @@ export class SocketManager extends EventEmitter {
   playerSeat: undefined | PlayerSeat;
 
   private _ready: boolean;
-  messageBox: MessageBox;
+  msgBox: MessageBox;
 
   constructor(options: SocketManagerOptions) {
     super();
 
-    this.messageBox = { 
-      deploys: new Array(),
-      queries: new Map(),
-      updates: new Map(),
-      answers: new Map(),
-      reports: new Map(),
-    };
-    
+    this.msgBox = new MessageBox;
+
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
       timeout: 30000,
       auth: {
@@ -115,23 +100,23 @@ export class SocketManager extends EventEmitter {
   
       switch (msg.type) {
         case GameMsg.DEPLOY: { 
-          this.messageBox.deploys = msg.messages.map(x => x as GameDeployMsg);
+          this.msgBox.deploys = msg.messages.map(x => x as GameDeployMsg);
           break;
         }; 
         case GameMsg.QUERY: { 
-          this.messageBox.queries.set(turn, msg.messages.map(x => x as GameQueryMsg));
+          this.msgBox.queries.set(turn, msg.messages.map(x => x as GameQueryMsg));
           break
         };
         case GameMsg.ANSWER: {
-          this.messageBox.answers.set(turn, msg.messages.map(x => x as GameAnswerMsg));
+          this.msgBox.answers.set(turn, msg.messages.map(x => x as GameAnswerMsg));
           break;
         };
         case GameMsg.UPDATE: { 
-          this.messageBox.updates.set(turn, msg.messages.map(x => x as GameUpdateMsg));
+          this.msgBox.updates.set(turn, msg.messages.map(x => x as GameUpdateMsg));
           break;
         };
         case GameMsg.REPORT: { 
-          this.messageBox.reports.set(turn, msg.messages.map(x => x as GameReportMsg)[0]!);
+          this.msgBox.reports.set(turn, msg.messages.map(x => x as GameReportMsg)[0]!);
           break;
         };
       }
@@ -253,12 +238,12 @@ export class SocketManager extends EventEmitter {
       while (true) {
         await passTime(100);
          
-        const recieved = !!this.messageBox.deploys;
+        const recieved = !!this.msgBox.deploys;
 
         if (!recieved) { 
           await passTime(100); 
         } else {
-          const valuesInTurn = this.messageBox.deploys!;
+          const valuesInTurn = this.msgBox.deploys!;
           valuesInTurn.forEach(msg => deploys.set(msg.sender, msg.payload));
           break;
         }
@@ -274,12 +259,12 @@ export class SocketManager extends EventEmitter {
       while (true) {
         await passTime(100);
         
-        const recieved = this.messageBox.queries.has(turn);
+        const recieved = this.msgBox.queries.has(turn);
 
         if (!recieved) { 
           await passTime(100); 
         } else {
-          const valuesInTurn = this.messageBox.queries.get(turn)!;
+          const valuesInTurn = this.msgBox.queries.get(turn)!;
           valuesInTurn.forEach(msg => queries.set(msg.sender, msg.payload));
           break;
         }      
@@ -295,12 +280,12 @@ export class SocketManager extends EventEmitter {
       while (true) {
         await passTime(100);
         
-        const recieved = this.messageBox.answers.has(turn);
+        const recieved = this.msgBox.answers.has(turn);
 
         if (!recieved) { 
           await passTime(100); 
         } else {
-          const valuesInTurn = this.messageBox.answers.get(turn)!;
+          const valuesInTurn = this.msgBox.answers.get(turn)!;
           valuesInTurn.forEach(msg => answers.set(msg.to!, msg.payload));
           break;
         }      
@@ -316,12 +301,12 @@ export class SocketManager extends EventEmitter {
       while (true) {
         await passTime(100);
         
-        const recieved = this.messageBox.updates.has(turn);
+        const recieved = this.msgBox.updates.has(turn);
 
         if (!recieved) { 
           await passTime(100); 
         } else {
-          const valuesInTurn = this.messageBox.updates.get(turn)!;
+          const valuesInTurn = this.msgBox.updates.get(turn)!;
           valuesInTurn.forEach(msg => updates.set(msg.sender, msg.payload));
           break;
         }      
@@ -337,12 +322,12 @@ export class SocketManager extends EventEmitter {
       while (true) {
         await passTime(100);
         
-        const recieved = this.messageBox.reports.has(turn);
+        const recieved = this.msgBox.reports.has(turn);
 
         if (!recieved) { 
           await passTime(100); 
         } else {
-          const valueInTurn = this.messageBox.reports.get(turn)!;
+          const valueInTurn = this.msgBox.reports.get(turn)!;
           report = valueInTurn.payload;
           break;
         }
@@ -366,31 +351,11 @@ export class SocketManager extends EventEmitter {
       this.game.once(GameMsg.TURN_START, (data: TurnInfo, ack) => { 
         ack(); 
         
-        this.clearOldMessages()
+        this.msgBox.clearOldMessages()
 
         res(data)
       })
     });
   }
-
-  clearOldMessages(){
-    if (this.messageBox.queries.size === 2) {
-      const firstKey = this.messageBox.queries.keys().next().value;
-      this.messageBox.queries.delete(firstKey!);
-    }   
-    if (this.messageBox.answers.size === 2) {
-      const firstKey = this.messageBox.answers.keys().next().value;
-      this.messageBox.answers.delete(firstKey!);
-    }
-    if (this.messageBox.updates.size === 2) {
-      const firstKey = this.messageBox.updates.keys().next().value;
-      this.messageBox.updates.delete(firstKey!);
-    }
-    if (this.messageBox.reports.size === 2) {
-      const firstKey = this.messageBox.reports.keys().next().value;
-      this.messageBox.reports.delete(firstKey!);
-    }
-  }
-
 
 }
