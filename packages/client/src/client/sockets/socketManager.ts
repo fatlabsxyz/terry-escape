@@ -1,27 +1,29 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
-import { Player, TurnInfo } from "../../types/game.js";
+import { jwtDecode } from 'jwt-decode';
+import { JwtPayload, Player, PlayerSeat, TurnInfo } from "../../types/game.js";
 import {
   GameAnswerMsg,
   GameAnswerPayload,
-  GameMessage,
   GameMsg,
+  GameDeployMsg,
+  GameDeployPayload,
   GameQueryMsg,
   GameQueryPayload,
   GameReportMsg,
   GameReportPayload,
   GameUpdateMsg,
-  GameUpdatePayload
+  GameUpdatePayload,
+  GameProofsPayload,
+  GamePlayerSeatMsg,
+  RetrieveMsg
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
-import { MessageLog } from "../messageLog.js";
-import { SetupSocketOptions } from "../setup.js";
+import { MessageBox } from "../../messageBox.js";
 
-const TIMEOUT = 3_000;
-
-type FromTo = [string, string];
-
+const TIMEOUT = 300_000;
+ 
 export interface SocketManagerOptions {
   serverUrl: string;
   token: string,
@@ -34,22 +36,27 @@ export class SocketManager extends EventEmitter {
   lobby: Socket;
   gameId: string;
   token: string;
+  playerId: string;
+  playerName: string;
+  playerSeat: undefined | PlayerSeat;
 
   private _ready: boolean;
-  msgLog: MessageLog<GameMessage>;
+  msgBox: MessageBox;
 
   constructor(options: SocketManagerOptions) {
     super();
-    
-    // get token and assign to 
+
+    this.msgBox = new MessageBox;
 
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
+      timeout: 30000,
       auth: {
         token: options.token
       }
     });
 
     this.lobby = io(options.serverUrl, {
+      timeout: 30000,
       auth: {
         token: options.token
       }
@@ -58,8 +65,12 @@ export class SocketManager extends EventEmitter {
     this.token = options.token;
     this.gameId = options.gameId;
     this._ready = false;
-    this.msgLog = new MessageLog();
 
+    const decoded = jwtDecode(this.token);
+    const data = decoded as JwtPayload; 
+    this.playerId = data.id;
+    this.playerName = data.name;
+    
     const self = this;
 
     this.game.on(GameMsg.TURN_END, (ack) => {
@@ -72,48 +83,51 @@ export class SocketManager extends EventEmitter {
       ack();
     })
 
-    this.game.on(GameMsg.QUERY, (msg: GameQueryMsg, ack: () => void) => {
-      this.msgLog.register(msg);
-      ack();
+    this.game.on(GameMsg.PLAYER_SEAT, async (msg: GamePlayerSeatMsg) => {
+      // console.log("\n\n\nPLAYER SEAT MESSAGE\n\n\n")
+      const seat = msg.payload.seat;
+
+      // console.log("SEAT RECIEVED: ", seat);
+      if (this.playerSeat != seat) {
+        // console.log("\n\n\nUPDATING SEAT\n\n\n")
+        this.playerSeat = seat 
+      }
     });
 
-    this.game.on(GameMsg.ANSWER, (msg: GameAnswerMsg, ack: () => void) => {
-      this.msgLog.register(msg);
-      ack();
-    });
+    this.game.on(GameMsg.PROOFS, (msg: GameProofsPayload, ack: () => void) => {
 
-    this.game.on(GameMsg.UPDATE, (msg: GameUpdateMsg, ack: () => void) => {
-      this.msgLog.register(msg);
+      const turn = msg.messages[0]?.turn as number;
+  
+      switch (msg.type) {
+        case GameMsg.DEPLOY: { 
+          this.msgBox.deploys = msg.messages.map(x => x as GameDeployMsg);
+          break;
+        }; 
+        case GameMsg.QUERY: { 
+          this.msgBox.queries.set(turn, msg.messages.map(x => x as GameQueryMsg));
+          break
+        };
+        case GameMsg.ANSWER: {
+          this.msgBox.answers.set(turn, msg.messages.map(x => x as GameAnswerMsg));
+          break;
+        };
+        case GameMsg.UPDATE: { 
+          this.msgBox.updates.set(turn, msg.messages.map(x => x as GameUpdateMsg));
+          break;
+        };
+        case GameMsg.REPORT: { 
+          this.msgBox.reports.set(turn, msg.messages.map(x => x as GameReportMsg)[0]!);
+          break;
+        };
+      }
       ack();
-    });
-
-    this.game.on(GameMsg.REPORT, (msg: GameReportMsg, ack: () => void) => {
-      this.msgLog.register(msg);
-      ack();
-    });
-
+    })    
   }
 
-  // emitWithAck(event: string, ...args: any[]) {
-  //   return new Promise<void>((res, rej) => {
-  //     const receptionChannel = nanoid();
-  //     this.once(receptionChannel, () => res())
-  //     this.emit(event, { receptionChannel }, ...args)
-  //   })
-  // }
-
-  // addListenerForAck(event: string, cb: (...args: any[]) => void) {
-  //   this.addListener(event, ({ receptionChannel }, ...args) => {
-  //     cb(args);
-  //     this.emit(receptionChannel);
-  //   })
-  // }
-
-  get sender(): Player {
-    // return this.name;
-    // XXX: we are returning the socket.id until we can identify users based on their auths
-    return this.game.id!
+  get sender(): Player {;
+    return this.playerId; // Player id (NOT socket id)
   }
+
   _lobbyReady(): boolean {
     return this.lobby.connected
   }
@@ -130,31 +144,22 @@ export class SocketManager extends EventEmitter {
       }
     }
   }
-
-  lookLogForEvent(turn: number, event: GameMsg, fromTo: Set<FromTo>): GameMessage[] {
-    return Array.from(fromTo.values().map(s => {
-      return this.msgLog.find(turn, event, s[0], s[1])
-    }).filter(x => x !== undefined))
-  }
-
-  lookLogForQueries(turn: number, fromTo: Set<FromTo>): GameQueryMsg[] {
-    return this.lookLogForEvent(turn, GameMsg.QUERY, fromTo) as GameQueryMsg[]
-  }
-
-  lookLogForAnswer(turn: number, fromTo: Set<FromTo>): GameAnswerMsg[] {
-    return this.lookLogForEvent(turn, GameMsg.ANSWER, fromTo) as GameAnswerMsg[]
-  }
-
-  lookLogForUpdates(turn: number, fromTo: Set<FromTo>): GameUpdateMsg[] {
-    return this.lookLogForEvent(turn, GameMsg.UPDATE, fromTo) as GameUpdateMsg[]
-  }
-
-  lookLogForReport(turn: number, from: string): GameReportMsg | undefined {
-    return this.msgLog.find(turn, GameMsg.REPORT, from) as GameReportMsg | undefined
-  }
-
+    
   async advertisePlayerAsReady() {
-    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
+    const playerIndex = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
+
+    // console.log("READY: PLAYER-INDEX", playerIndex);
+    return playerIndex;
+  }
+
+  async broadcastDeploy(payload: GameDeployPayload) {
+    const deployMsg = {
+      turn: 0,
+      event: GameMsg.DEPLOY,
+      sender: this.sender,
+      payload
+    };
+    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.DEPLOY, deployMsg);
   }
 
   async broadcastAnswer(turn: number, to: string, payload: GameAnswerPayload) {
@@ -200,78 +205,141 @@ export class SocketManager extends EventEmitter {
     await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.REPORT, reportMsg);
   }
 
-  async waitForQuery(turn: number, activePlayer: string, players: Player[]): Promise<Map<string, GameQueryPayload>> {
-    const playerSet = new Set(players);
+  async requestMissedValues(turn: number, event: GameMsg) {
+      const message: RetrieveMsg = {
+      turn,
+      event
+    };
+    await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.FETCH_PROOFS, message);
+  }
+
+  async waitForPlayerSeat(): Promise<PlayerSeat> {
+    return new Promise(async (res, rej) => {
+      setTimeout(rej, TIMEOUT);
+      while (true) {
+         
+        const recieved = (this.playerSeat !== undefined);
+        // console.log("CURRENT PLAYER SEAT: ", this.playerSeat);
+
+        if (recieved) { 
+          break;
+        } else {
+          await passTime(100); 
+        }
+      }
+      res(this.playerSeat as PlayerSeat)
+    });
+  }
+
+  async waitForDeploys(): Promise<Map<string, GameDeployPayload>> {
+    const deploys: Map<Player, GameDeployPayload> = new Map();
+    return new Promise(async (res, rej) => {
+      setTimeout(rej, TIMEOUT);
+      while (true) {
+        await passTime(100);
+         
+        const recieved = !!this.msgBox.deploys;
+
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valuesInTurn = this.msgBox.deploys!;
+          valuesInTurn.forEach(msg => deploys.set(msg.sender, msg.payload));
+          break;
+        }
+      }
+      res(deploys)
+    });
+  }
+
+  async waitForQueries(turn: number): Promise<Map<string, GameQueryPayload>> {
     const queries: Map<Player, GameQueryPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
         await passTime(100);
-        const missingPlayers = new Set(playerSet.difference(new Set(queries.keys()))
-          .values()
-          .map(from => [from, activePlayer] as FromTo))
-        const loggedMsgs = this.lookLogForQueries(turn, missingPlayers);
-        loggedMsgs.forEach(msg => queries.set(msg.sender, msg.payload));
-        const enough = setEqual(playerSet, new Set(queries.keys()));
-        if (!enough) { await passTime(100); } else { break; }
+        
+        const recieved = this.msgBox.queries.has(turn);
+
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valuesInTurn = this.msgBox.queries.get(turn)!;
+          valuesInTurn.forEach(msg => queries.set(msg.sender, msg.payload));
+          break;
+        }      
       }
       res(queries)
     });
   }
 
-  async waitForAnswer(turn: number, activePlayer: Player, players: Player[]): Promise<Map<string, GameAnswerPayload>> {
-    const playerSet = new Set(players);
+  async waitForAnswers(turn: number): Promise<Map<string, GameAnswerPayload>> {
     const answers: Map<Player, GameAnswerPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
-        const missingPlayers = new Set(playerSet.difference(new Set(answers.keys()))
-          .values()
-          .map(from => [activePlayer, from] as FromTo))
-        const loggedMsgs = this.lookLogForAnswer(turn, missingPlayers);
-        loggedMsgs.forEach(msg => answers.set(msg.to, msg.payload));
-        const enough = setEqual(playerSet, new Set(answers.keys()));
-        if (!enough) { await passTime(100); } else { break; }
+        await passTime(100);
+        
+        const recieved = this.msgBox.answers.has(turn);
+
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valuesInTurn = this.msgBox.answers.get(turn)!;
+          valuesInTurn.forEach(msg => answers.set(msg.to!, msg.payload));
+          break;
+        }      
       }
       res(answers)
     });
   }
 
-  async waitForUpdates(turn: number, activePlayer: string, players: Player[]): Promise<Map<string, GameUpdatePayload>> {
-    const playerSet = new Set(players);
+  async waitForUpdates(turn: number): Promise<Map<string, GameUpdatePayload>> {
     const updates: Map<Player, GameUpdatePayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
         await passTime(100);
-        const missingPlayers = new Set(playerSet.difference(new Set(updates.keys()))
-          .values()
-          .map(from => [from, activePlayer] as FromTo))
-        const loggedMsgs = this.lookLogForUpdates(turn, missingPlayers);
-        loggedMsgs.forEach(msg => updates.set(msg.sender, msg.payload));
-        let enough = setEqual(playerSet, new Set(updates.keys()));
-        if (!enough) { await passTime(100); } else { break; }
+        
+        const recieved = this.msgBox.updates.has(turn);
+
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valuesInTurn = this.msgBox.updates.get(turn)!;
+          valuesInTurn.forEach(msg => updates.set(msg.sender, msg.payload));
+          break;
+        }      
       }
       res(updates)
     });
   }
 
-  async waitForReport(turn: number, from: Player): Promise<GameReportPayload> {
-    let report: GameReportPayload | undefined = undefined;
+  async waitForReport(turn: number): Promise<GameReportPayload> {
+    let report: GameReportPayload ;
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
-      while (report === undefined) {
+      while (true) {
         await passTime(100);
-        const reportMsg = this.lookLogForReport(turn, from);
-        report = reportMsg?.payload;
+        
+        const recieved = this.msgBox.reports.has(turn);
+
+        if (!recieved) { 
+          await passTime(100); 
+        } else {
+          const valueInTurn = this.msgBox.reports.get(turn)!;
+          report = valueInTurn.payload;
+          break;
+        }
       }
-      res(report)
+      res(report!)
     });
   }
 
   async waitForGameStartEvent(): Promise<void> {
     // TODO: add setTimeout to run rej branch
     return new Promise((res, rej) => {
+      setTimeout(rej, TIMEOUT);
       this.game.once(GameMsg.STARTED, (ack) => { ack(); res() })
     });
   }
@@ -279,9 +347,15 @@ export class SocketManager extends EventEmitter {
   async waitForTurnStartEvent(): Promise<TurnInfo> {
     // TODO: add setTimeout to run rej branch
     return new Promise((res, rej) => {
-      this.game.once(GameMsg.TURN_START, (data: TurnInfo, ack) => { ack(); res(data) })
+      setTimeout(rej, TIMEOUT);
+      this.game.once(GameMsg.TURN_START, (data: TurnInfo, ack) => { 
+        ack(); 
+        
+        this.msgBox.clearOldMessages()
+
+        res(data)
+      })
     });
   }
-
 
 }
