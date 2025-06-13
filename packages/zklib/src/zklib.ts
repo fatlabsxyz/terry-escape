@@ -1,9 +1,7 @@
-import crypto from 'crypto';
 import { ProofData } from '@aztec/bb.js';
 import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
 import { Collision, IZkLib } from './zklib.interface.js';
 import { init_circuits, generate_proof, verify_proof, random_Field, random_bool, bits, selector } from './utils.js';
-import { writeFileSync } from 'fs';
 const circuits = init_circuits();
 
 
@@ -308,8 +306,12 @@ export class ZkLib implements IZkLib {
       let entropy_pool : boolean[][] = [];
       for (let chunk = 0; chunk < Math.ceil(1289/256); chunk++) {
         let seed = {r:round, p:player, t:tile, c:chunk, i};
-        let sha = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(seed)));
-        (new Uint8Array(sha)).map(v => entropy_pool.push(bits(v)));
+        // let sha = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(seed)));
+        // (new Uint8Array(sha)).map(v => entropy_pool.push(bits(v)));
+	// Vite shenanigans not worth it
+	
+	let shack = (new TextEncoder().encode(JSON.stringify(seed).repeat(256)));
+        (new Uint8Array(shack)).map(v => entropy_pool.push(bits(v)));
       }
       const entropy = entropy_pool.flat().slice(0,1289);
       let ciphertext = selector(this.public_keys[mover]!.key_set, entropy, i);

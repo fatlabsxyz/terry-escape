@@ -27,6 +27,7 @@ export class MessageBox extends EventEmitter {
   updates: Map<Turn, GameUpdateMsg[]>;
   answers: Map<Turn, GameAnswerMsg[]>;
   reports: Map<Turn, GameReportMsg>;
+  winners: GameEndMsg[]
 
   constructor() {
     super();
@@ -36,6 +37,7 @@ export class MessageBox extends EventEmitter {
     this.updates = new Map();
     this.answers = new Map();
     this.reports = new Map();
+    this.winners = new Array();
   }
 
   public static getInstance(): MessageBox {
