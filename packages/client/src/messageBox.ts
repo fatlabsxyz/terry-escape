@@ -38,8 +38,8 @@ export class MessageBox extends EventEmitter {
       case GameMsg.QUERY: {
         if (this.queries.has(turn)) {
           const valueList = this.queries.get(turn)!;
-          this.evalBroadcast(event, valueList);
           valueList.push(msg as GameQueryMsg);
+          this.evalBroadcast(event, valueList);
           this.queries.set(turn, valueList);
         } else {
           const newValueList: GameQueryMsg[] = [msg as GameQueryMsg]
@@ -50,8 +50,8 @@ export class MessageBox extends EventEmitter {
       case GameMsg.ANSWER: {
          if (this.answers.has(turn)) {
           const valueList = this.answers.get(turn)!;
-          this.evalBroadcast(event, valueList);
           valueList.push(msg as GameAnswerMsg);
+          this.evalBroadcast(event, valueList);
           this.answers.set(turn, valueList);
         } else {
           const newValueList: GameAnswerMsg[] = [msg as GameAnswerMsg]
@@ -62,8 +62,8 @@ export class MessageBox extends EventEmitter {
       case GameMsg.UPDATE: { 
          if (this.updates.has(turn)) {
           const valueList = this.updates.get(turn)!;
-          this.evalBroadcast(event, valueList);
           valueList.push(msg as GameUpdateMsg);
+          this.evalBroadcast(event, valueList);
           this.updates.set(turn, valueList);
         } else {
           const newValueList: GameUpdateMsg[] = [msg as GameUpdateMsg]
@@ -80,7 +80,7 @@ export class MessageBox extends EventEmitter {
   }
 
   evalBroadcast(event: `${GameMsg}`, values: GameMessage[]) {
-    console.log(`EMITTING ${event}`)
+    console.log(`EVALUATING EMISSION OF ${event}`)
 
     if (event === GameMsg.DEPLOY && (values.length === MAX_PLAYERS)) {  // 4 deploys
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
