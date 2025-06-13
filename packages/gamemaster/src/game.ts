@@ -2,6 +2,7 @@ import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId } from 'client/types'
 import { GameNsp } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
+import { MessageBox } from 'client';
 
 /// STATE MACHINE TYPES
 enum GameState {
@@ -116,6 +117,7 @@ export class Game {
   private _nextPlayer: Player | null = null;
   nsp: GameNsp;
   playerStorage: PlayerStorage;
+  msgBox: MessageBox;
 
   gameMachine!: Actor<ReturnType<Game['stateMachine']>>;
   broadcastTimeout: number;
@@ -128,6 +130,7 @@ export class Game {
     this.broadcastTimeout = 30_000; //originally 2_000
     this.minPlayers = 4;
     this.playerStorage = PlayerStorage.getInstance();
+    this.msgBox = new MessageBox();
 
     this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
     
@@ -272,6 +275,7 @@ export class Game {
 
   private async broadcastTurn(turnInfo: TurnInfo) {
     await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.TURN_START, turnInfo);
+    this.msgBox.emitClean();
   }
 
   async broadcastQueryWaiting(): Promise<{ player: string, waiting: boolean }[]> {

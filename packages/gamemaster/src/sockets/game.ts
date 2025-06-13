@@ -5,6 +5,7 @@ import { getGameOrNewOne, Player } from '../game.js';
 import jwt from 'jsonwebtoken';
 import { PlayerStorage } from '../playerStorage.js';
 import { passTime } from 'client';
+import { Turn } from '../../../client/dist/messageBox.js';
 
 type Ack = () => void;
 
@@ -66,6 +67,10 @@ function registerGameHandlers(socket: GameSocket) {
           messages
         });
     })); 
+  });
+  
+  msgBox.on(MsgEvents.CLEAN, () => {
+    msgBox.clearOldMessages();
   });
 
   socket.on(GameMsg.FETCH_PROOFS, async (p: RetrieveMsg, ack: Ack) => {

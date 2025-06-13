@@ -6,6 +6,7 @@ const MAX_PLAYERS = 4;
 export type Turn = number;
 export enum MsgEvents  {
   BROADCAST = "msg:broadcast",
+  CLEAN = "msg:broadcast",
 }
 
 export class MessageBox extends EventEmitter {
@@ -114,6 +115,10 @@ export class MessageBox extends EventEmitter {
       const firstKey = this.reports.keys().next().value;
       this.reports.delete(firstKey!);
     }
+  }
+  
+  emitClean() {
+    this.emit(MsgEvents.CLEAN);
   }
 } 
 
