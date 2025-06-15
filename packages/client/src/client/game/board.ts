@@ -1,18 +1,27 @@
 import { Agent, AllowedPlacements, Placements, Locations, IJ} from "../../types/game.js";
 
+type Location = IJ;
+type UnitIndex = number;
+
+// can you have multiple traps in one single square?
+
+type Agents = Map<UnitIndex, Location>;
+type Traps = Location[];
 
 export class Board {
 
   playerIndex: number;
   allowedPlacements: AllowedPlacements;
   allowedPlacementIndices: number[];
-  // board: [number, number];
+  agents: Agents;
+  traps: Traps;
 
   constructor (playerIndex: number) {
     this.playerIndex = playerIndex;
     this.allowedPlacements = this.computeAllowedPlacements();
     this.allowedPlacementIndices = this.allowedPlacements.map(this.coordToIndex);
-    // this.board: 
+    this.agents = new Map();
+    this.traps  = new Array();
   }
 
   // Convert agent placements (4x4 matrix) into a list of agent coordinates (2x2 matrix).
@@ -26,8 +35,12 @@ export class Board {
   addAgents(placements: Placements): Locations {
 
     let coordinates: Locations = [ 0, 0, 0, 0 ];
-    
+   
+    let i = 0;
     placements.agents.forEach( (agent) => {
+      this.agents.set(i, agent);
+      i++;
+
       const agentIndex = this.coordToIndex(agent);
       const location = this.allowedPlacementIndices.indexOf( agentIndex );
       coordinates[location]! += 1;
@@ -35,6 +48,25 @@ export class Board {
 
     // return in which of the allowed coordinates the agent is placed
     return [ coordinates[0], coordinates[1], coordinates[2], coordinates[3] ];
+  }
+
+  // meant to be called by interfacer, to keep track of the board state on frontend
+  moveAgent(agent: UnitIndex, target: Location) {
+      this.agents.set(agent, target);
+  }
+
+  setTrap(target: Location) {
+    this.traps.push(target);
+  }
+
+  unitsDied(agents: UnitIndex[] | null , traps: Location[] | null) {
+    if (agents) {
+      agents.forEach( (a) => {this.agents.delete(a)} );
+    }
+    if (traps) {
+      const remove = new Set(traps);
+      this.traps = this.traps.filter(x => !remove.has(x));
+    }
   }
 
   // Placement to index takes an agent's absolute coordinates on the board,

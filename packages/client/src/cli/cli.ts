@@ -38,7 +38,7 @@ export async function initCli() {
 
     // submit agent coordinates to game and start playing
     await client.play();
-
+    
     // client.takeAction();
     // take action continues if the player submits a valid action before 30s
 

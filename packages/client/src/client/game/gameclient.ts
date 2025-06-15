@@ -7,6 +7,7 @@ import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
 import { Board } from './board.js';
+import { Connection, IfEvents, Interfacer } from '../interfacer.js';
 
 
 enum Actors {
@@ -121,6 +122,7 @@ export class GameClient {
   private playerIdValue: undefined | string = undefined;
   private playerSocketIdValue: undefined | string = undefined;
   private playerNameValue: undefined | string = undefined;
+  private interfacer: Interfacer;
 
   constructor(sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
@@ -130,6 +132,7 @@ export class GameClient {
     this.token = sockets.token;
     this.initialPlayerSeatValue = undefined;
     this.activePlayerLocation = undefined;
+    this.interfacer = new Interfacer();
   }
 
   static _emptyTurnData(): TurnData {
@@ -167,7 +170,6 @@ export class GameClient {
   
   async prepareSetup() {
     this.initialPlayerSeatValue = await this.sockets.waitForPlayerSeat();
-
     this.log("PREPARE-SETUP: GET-PLAYER-INDEX:", this.playerSeat); //TODO remove log
     await this.setupGame(); 
   }
@@ -227,29 +229,19 @@ export class GameClient {
   async setupGame() {
     this.log("Setting up game...")
  
-    const index = this.playerSeat as PlayerSeat;
+    const seat = this.playerSeat as PlayerSeat;
 
-    const board = new Board(index);
-  
-    this.log(`SETUP: ALLOWED-PLACEMENTS-FOR-INDEX (${index}):${board.computeAllowedPlacements()}`);
-  
-    let agents: IJ[];
-    if (index % 2 === 0) {
-      agents = [board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0]];
-    } else {
-      agents = [board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2]];
-    }
+    this.interfacer.emit(IfEvents.Connect, {seat} as Connection);
+    
+    const deploys = await this.interfacer.waitForDeploy();
 
-    this.log("SETUP: PROPOSED-AGENTS:", agents);
-
-    const deployedAgents = board.addAgents({agents})
-    const sk = secretKeySample(index);
+    const sk = secretKeySample(seat);
     const pks = this.zklib.all_states.map( (_, i) => publicKeySample(i) );
 
     this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${!!pks[0]},${!!pks[1]},${!!pks[2]},${!!pks[3]}`);
 
-    this.zklib.setup(index, sk, pks, {mockProof: true}); 
-    await this.setupAgents(deployedAgents);
+    this.zklib.setup(seat, sk, pks, {mockProof: true}); 
+    await this.setupAgents(deploys);
 
     // TODO find out where I can run validateDeploys()
   }

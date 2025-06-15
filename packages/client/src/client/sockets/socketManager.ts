@@ -217,15 +217,10 @@ export class SocketManager extends EventEmitter {
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
-         
+       
         const recieved = (this.playerSeat !== undefined);
         // console.log("CURRENT PLAYER SEAT: ", this.playerSeat);
-
-        if (recieved) { 
-          break;
-        } else {
-          await passTime(100); 
-        }
+        if (recieved) { break; } else { await passTime(100); }
       }
       res(this.playerSeat as PlayerSeat)
     });
