@@ -4,10 +4,10 @@ import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryDa
 import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
-import { IZkLib, ProofData } from 'zklib/types';
+import { Collision, IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
 import { Board } from './board.js';
-import { Connection, IfEvents, Impacts, Interfacer, Turn } from '../interfacer.js';
+import { Connection, IfEvents, Impact, Interfacer, Turn } from '../interfacer.js';
 
 
 enum Actors {
@@ -332,11 +332,6 @@ export class GameClient {
     this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (1)\n\n");
     await this.waitForReport();
     
-    const myUpdate = this.turnData.updates.get(this.playerId)!;
-    const report = this.turnData.report!;
-
-    this.interfacer.emit(IfEvents.Impacts, {collision: myUpdate.collision, impacted: report.impacted } as Impacts)   
-
     this.gameLog("NON-ACTIVE-PLAYER - No more duties.")
   }
 
@@ -384,14 +379,16 @@ export class GameClient {
     // this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${answer} ...`);
     const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex); 
     this.turnData.updates.set(this.playerId, data); 
+    // TODO: deal with 'died'
     
+    this.interfacer.emit(IfEvents.Collision, data.collision as Collision);
+
     return {proof: data.proof};
   }
 
   async waitForReport() {
     const report = await this.sockets.waitForReport(this.turn);
-    this.turnData.report = report as ReportData;
-    
+    this.turnData.report = report as ReportData;  
   }
 
 
@@ -485,6 +482,9 @@ export class GameClient {
     // this.log(`\nWITNESS: REPORT: (UPDATES): ${updates}\n`);
 
     const report = await this.zklib.createReports(updates);
+    // TODO: deal with 'died'
+    
+    this.interfacer.emit(IfEvents.Impact, report.impacted as Impact)   
      
     // this.log(`\nPROOFDATA: REPORT: ${report}\n`);
     this.turnData.report = report as ReportData;

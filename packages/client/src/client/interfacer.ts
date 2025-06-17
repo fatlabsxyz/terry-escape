@@ -4,11 +4,13 @@ import { passTime } from "../utils.js";
 import { Collision } from "zklib/types";
 
 export enum IfEvents {
-  Connect = "inter:connect",
-  Deploy  = "inter:deploy",
-  Turn    = "inter:turn",
-  Action  = "inter:action",
-  Impacts = "inter:impacts",
+  Connect   = "inter:connect",
+  Deploy    = "inter:deploy",
+  Turn      = "inter:turn",
+  Action    = "inter:action",
+  Impact    = "inter:impact",
+  Collision = "inter:collision",
+  Died      = "inter:died",
 }
 
 export type Turn = {
@@ -16,9 +18,10 @@ export type Turn = {
   active: undefined | boolean;
 };
 
-export type Impacts = {
-  collision: Collision;
-  impacted: boolean;
+export type Impact = boolean;
+
+export type Update = {
+  impact: Impact;
 };
 
 export type Connection = {
@@ -31,11 +34,12 @@ export class Interfacer extends EventEmitter {
  
   private static instance: Interfacer;
 
-  turn:    Turn;
-  seat:    undefined | PlayerSeat = undefined;
-  impacts: undefined | Impacts    = undefined;
-  deploys: undefined | Locations  = undefined;
-  action:  undefined | TurnAction = undefined;
+  turn:      Turn;
+  seat:      undefined | PlayerSeat = undefined;
+  impact:    undefined | Impact     = undefined;
+  collision: undefined | Collision  = undefined;
+  deploys:   undefined | Locations  = undefined;
+  action:    undefined | TurnAction = undefined;
   
   constructor(){
     super();
@@ -95,18 +99,29 @@ export class Interfacer extends EventEmitter {
     });
   }
 
-  waitForImpacts(): Promise<Impacts> {
+  waitForImpact(): Promise<Impact> {
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) { 
-        const recieved = (this.impacts !== undefined);
+        const recieved = (this.impact !== undefined);
         if (recieved) { break; } else { await passTime(300); }
       }
-      res(this.impacts as Impacts)
-      this.impacts = undefined;
+      res(this.impact as Impact)
+      this.impact = undefined;
     });
   }
 
+  waitForCollision(): Promise<Collision> {
+    return new Promise(async (res, rej) => {
+      setTimeout(rej, TIMEOUT);
+      while (true) { 
+        const recieved = (this.collision !== undefined);
+        if (recieved) { break; } else { await passTime(300); }
+      }
+      res(this.collision as Collision)
+      this.collision = undefined;
+    });
+  }
   // START LOGIC 
   // CLIENT   => inter.on(IfEvents.CONNECT) { set player index, etc... } 
   // FRONTEND => inter.on(IfEvents.DEPLOY)  { SEND agents in board, etc... }

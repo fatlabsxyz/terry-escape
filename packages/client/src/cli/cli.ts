@@ -6,7 +6,8 @@ import { SocketManager } from "./../client/sockets/socketManager.js";
 import { getAuthToken, AuthRequestData } from "./../utils.js";
 import { AgentLocation, IJ, PlayerSeat, TurnAction } from "../types/game.js";
 import { Board } from "../client/game/board.js";
-import { Connection, IfEvents, Impacts, Interfacer, Turn } from "../client/interfacer.js";
+import { Connection, IfEvents, Impact, Interfacer, Turn } from "../client/interfacer.js";
+import { Collision } from "zklib/types";
 
 const args = process.argv.splice(2)
 
@@ -51,28 +52,25 @@ export async function initCli() {
     const agents = mockDeploys(board, seat);
     interfacer.deployAgents(agents);
 
-    interfacer.on(IfEvents.Impacts, (p: Impacts) => {
-      interfacer.impacts = p;
-
-      if (interfacer.turn.active) {
-        if (interfacer.impacts.impacted) {
-          //should let the frontend know that you hit something at target location
+    interfacer.on(IfEvents.Impact, (p: Impact) => {
+      interfacer.impact = p;
+      
+      if (interfacer.impact){
+        if (interfacer.turn.active) {
+          // should let the frontend know that you hit something at target location
           console.log("\n\n\nYOU JUST IMPACTED SOMEONE\n\n\n")
+        } else {
+          // frontend should show that something happened near you or you got hit???
         }
-        if (interfacer.impacts.collision) {
-          console.log("\n\n\nPLAYER IMPACTED BY A COLLISION\n\n\n");
-          board.unitsDied(interfacer.impacts.collision as AgentLocation); // returns a list of units that died
-        } 
-      } else {
-        if (interfacer.impacts.impacted) {
-          // frontend should show that something happened near you or you got hit
-        }
-        if (interfacer.impacts.collision) {
-          console.log("\n\n\nPLAYER IMPACTED BY A COLLISION\n\n\n");
-          board.unitsDied(interfacer.impacts.collision as AgentLocation); // returns a list of units that died
-        } 
       }
-     
+    });
+
+    interfacer.on(IfEvents.Collision, (c: Collision) => {
+      if (interfacer.collision) {
+        console.log("\n\n\nPLAYER IMPACTED BY A COLLISION\n\n\n");
+        board.unitsDied(interfacer.collision as AgentLocation); 
+        // ^ returns a list of units that died (needed by frontend)
+      }
     });
 
     } else {
@@ -83,7 +81,7 @@ function attachListeners(i: Interfacer) {
 
   i.on(IfEvents.Connect, async (data: Connection) => {
     console.log("\n\nINTERFACER - GOT A CONNECT EVENT", data.seat)
-    i.seat = data.seat; 
+    i.seat = data.seat;
   });
 
   i.on(IfEvents.Turn, async (newTurn: Turn) => {

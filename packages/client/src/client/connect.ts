@@ -3,9 +3,10 @@ import { SocketManager } from "./sockets/socketManager.js";
 import { getAuthToken } from "./../utils.js";
 import { ZkLibMock } from "./zklib-mock.js";
 import { ZkLib } from "zklib";
-import { Connection, IfEvents, Impacts, Interfacer, Turn } from "./interfacer.js";
+import { Connection, IfEvents, Impact, Interfacer, Turn } from "./interfacer.js";
 import { Board } from "./game/board.js";
 import { AgentLocation, IJ, Player, PlayerSeat } from "../types/game.js";
+import { Collision } from "zklib/types";
 
 export const FRONTEND_URLS = ['http://localhost:8000'];
 
@@ -52,8 +53,12 @@ function attachListeners(i: Interfacer) {
     // }
   });
 
-  i.on(IfEvents.Impacts, (p: Impacts) => {
-    i.impacts = p;
+  i.on(IfEvents.Impact, (p: Impact) => {
+    i.impact = p;
+  });  
+  
+  i.on(IfEvents.Collision, (p: Collision) => {
+    i.collision = p;
   }); 
 }
 
