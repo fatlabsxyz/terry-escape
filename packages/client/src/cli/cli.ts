@@ -36,10 +36,8 @@ export async function initCli() {
  
     const zklib = new ZkLib();
     // const zklib = new ZkLibMock();
-    const interfacer = new Interfacer();
+    const interfacer = Interfacer.getInstance();
     attachListeners(interfacer);
-    
-
 
     const client = new GameClient(sockets, zklib);
 
@@ -111,7 +109,7 @@ function mockDeploys(board: Board, seat: PlayerSeat) {
     agents = [board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2], board.allowedPlacements[2]];
   }
 
-  console.log("SETUP: PROPOSED-AGENTS:", agents);
+  console.log("MOCK-DEPLOYS: PROPOSED-AGENTS:", agents);
 
   return board.addAgents({agents})
 }

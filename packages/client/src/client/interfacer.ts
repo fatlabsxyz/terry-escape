@@ -28,7 +28,9 @@ export type Connection = {
 const TIMEOUT = 15_000;
 
 export class Interfacer extends EventEmitter {
-  
+ 
+  private static instance: Interfacer;
+
   turn:    Turn;
   seat:    undefined | PlayerSeat = undefined;
   impacts: undefined | Impacts    = undefined;
@@ -38,6 +40,14 @@ export class Interfacer extends EventEmitter {
   constructor(){
     super();
     this.turn = {round: 0, active: undefined};
+  }
+
+  public static getInstance(): Interfacer {
+    if (!Interfacer.instance) {
+      console.log("PLAYER-STORAGE: creating new instance");
+      Interfacer.instance = new Interfacer();
+    }
+    return Interfacer.instance;
   }
 
   takeAction(action: TurnAction) {

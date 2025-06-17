@@ -1,4 +1,4 @@
-import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
+import { Action, Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
 import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerSeat, IJ, AnswerData, JwtPayload, ReportData} from "../../types/game.js";
 import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
@@ -132,7 +132,7 @@ export class GameClient {
     this.token = sockets.token;
     this.initialPlayerSeatValue = undefined;
     this.activePlayerLocation = undefined;
-    this.interfacer = new Interfacer();
+    this.interfacer = Interfacer.getInstance();
   }
 
   static _emptyTurnData(): TurnData {
@@ -166,6 +166,15 @@ export class GameClient {
   async play() {
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
+
+    this.interfacer.on(IfEvents.Deploy, async (agents: Locations) => {
+      console.log("\n\nINTERFACER - GOT A DEPLOY EVENT", agents)
+      this.interfacer.deploys = agents; 
+    });
+    this.interfacer.on(IfEvents.Action, async (action: TurnAction) => {
+      console.log("\n\nINTERFACER - GOT AN ACTION EVENT", action)
+      this.interfacer.action = action; 
+    });
   }
   
   async prepareSetup() {
@@ -232,7 +241,6 @@ export class GameClient {
     const seat = this.playerSeat as PlayerSeat;
     
     this.log("\n\n\nEMITTING CONNECT EVENT on INTERFACER", seat);
-    passTime(2_000);
     this.interfacer.emit(IfEvents.Connect, {seat} as Connection);
     
     const deploys = await this.interfacer.waitForDeploy();

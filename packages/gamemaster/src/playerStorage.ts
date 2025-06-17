@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { PlayerSeat, StoredPlayers, PlayerProps, Err, PlayerId, SocketId } from 'client/types';
 
 
-export class PlayerStorage extends EventEmitter{
+export class PlayerStorage extends EventEmitter {
   private static instance: PlayerStorage;
   private players: StoredPlayers;
 
