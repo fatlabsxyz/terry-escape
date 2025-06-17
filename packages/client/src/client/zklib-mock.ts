@@ -43,11 +43,11 @@ export class ZkLibMock implements IZkLib {
   async createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }> {
 	  return { playerProofs: Array.from(Array(3), emptyProofData) };
   }
-  async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; }> {
-	  return { proof: emptyProofData(), collision: null };
+  async createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; died: boolean; }> {
+	  return { proof: emptyProofData(), collision: null, died: false };
   }
-  async createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: boolean; }> {
-	  return { proof: emptyProofData(), impacted: false };
+  async createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: boolean; died: boolean; }> {
+	  return { proof: emptyProofData(), impacted: false, died: false };
   }
 
   verifyDeploys(deploys: ProofData[]): boolean { return true; }

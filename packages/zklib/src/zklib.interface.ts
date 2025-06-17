@@ -21,8 +21,8 @@ export interface IZkLib {
   createDeploys(agents: number[]): Promise<{ proof: ProofData; }>;
   createQueries(mover: number): Promise<{ proof: ProofData[]; }>;
   createAnswers(queries: ProofData[][], action: Action): Promise<{ playerProofs: ProofData[]; }>;
-  createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; }>;
-  createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: boolean; }>;
+  createUpdates(answers: ProofData, mover: number): Promise<{ proof: ProofData; collision: Collision; died: boolean; }>;
+  createReports(reports: ProofData[]): Promise<{ proof: ProofData; impacted: boolean; died: boolean; }>;
 
   verifyDeploys(deploys: ProofData[]) : void;
   verifyForeign(queries: ProofData[][], answers: ProofData[], updates: ProofData[], reports: ProofData, mover: number, verify_isolated : boolean) : void;

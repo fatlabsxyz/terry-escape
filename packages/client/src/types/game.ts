@@ -69,7 +69,7 @@ export interface JwtPayload {
   name: string;
 }
 
-// Represents a socket-id
+// Represents a socket-id ( TODO verify if this is still sid, probably not)
 export type Player = string;
 
 export type QueryData = {
@@ -81,10 +81,12 @@ export type AnswerData = {
 export type UpdatesData = {
   proof: ProofData;
   collision?: Collision;
+  died?: boolean;
 };
 export type ReportData = {
   proof: ProofData;
   impacted?: boolean;
+  died?: boolean;
 }
 
 export type SetupData = Map<Player, ProofData>; 
@@ -106,7 +108,7 @@ export interface TurnData {
 };
 
 export type TurnAction = {
-  reason: number; // Origin coordinates 
-  target: number; // Target coordinates
-  trap: boolean; // To trap or not to trap
+  reason: AgentLocation;  // Origin coordinates 
+  target: AgentLocation;  // Target coordinates
+  trap: boolean;          // To trap or not to trap
 };
