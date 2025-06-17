@@ -7,7 +7,7 @@ import { SocketManager } from "../sockets/socketManager.js";
 import { IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
 import { Board } from './board.js';
-import { Connection, IfEvents, Interfacer } from '../interfacer.js';
+import { Connection, IfEvents, Impacts, Interfacer, Turn } from '../interfacer.js';
 
 
 enum Actors {
@@ -228,9 +228,11 @@ export class GameClient {
 
   async setupGame() {
     this.log("Setting up game...")
- 
-    const seat = this.playerSeat as PlayerSeat;
 
+    const seat = this.playerSeat as PlayerSeat;
+    
+    this.log("\n\n\nEMITTING CONNECT EVENT on INTERFACER", seat);
+    passTime(2_000);
     this.interfacer.emit(IfEvents.Connect, {seat} as Connection);
     
     const deploys = await this.interfacer.waitForDeploy();
@@ -246,7 +248,10 @@ export class GameClient {
     // TODO find out where I can run validateDeploys()
   }
 
-  async processActivePlayer() { 
+  async processActivePlayer() {
+    
+    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: true} as Turn);
+    
     // STEP 2
     // wait for queries | take action
     this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR QUERIES (3)\n\n");
@@ -284,6 +289,8 @@ export class GameClient {
 
   async processNonActivePlayer() {
 
+    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: false} as Turn);
+    
     // STEP 1
     // if query ready, broadcast query
     this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE QUERY\n\n");
@@ -316,6 +323,12 @@ export class GameClient {
     // wait for report
     this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (1)\n\n");
     await this.waitForReport();
+    
+    const myUpdate = this.turnData.updates.get(this.playerId)!;
+    const report = this.turnData.report!;
+
+    this.interfacer.emit(IfEvents.Impacts, {collision: myUpdate.collision, impacted: report.impacted } as Impacts)   
+
     this.gameLog("NON-ACTIVE-PLAYER - No more duties.")
   }
 
@@ -363,14 +376,16 @@ export class GameClient {
     // this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${answer} ...`);
     const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex); 
     this.turnData.updates.set(this.playerId, data); 
-
+    
     return {proof: data.proof};
   }
 
   async waitForReport() {
     const report = await this.sockets.waitForReport(this.turn);
     this.turnData.report = report as ReportData;
+    
   }
+
 
   /*///////////////////////////////////////////////////////////////
                           ACTIVE PLAYER METHODS
@@ -390,53 +405,14 @@ export class GameClient {
     this.zklib.verifyDeploys(enemyDeploysArray);
   }
 
-  async takeAction(
-    //action: TurnAction
-    ) {
-    // console.log(action); 
+  async takeAction() {
+
+    const action = await this.interfacer.waitForAction();
+    console.log(action); 
   
-    // for now:
-    // each player goes from left to right infinitely
-    // starting here:
-    // 0 _ _ _   
-    // 2 _ _ _   
-    // _ 1 _ _   
-    // _ 3 _ _   
-    const playerStartLoc = { 
-      0: 0,
-      1: 9,
-      2: 4,
-      3: 13
-    };
-
-    let direction: number = 1;
-    const index = this.playerSeat as PlayerSeat;
-    const loc = this.activePlayerLocation;
-
-    // this.log("TAKE-ACTION: ACTIVE-PLAYER-LOCATION: ", this.activePlayerLocation);
-
-    this.activePlayerLocation = loc || (playerStartLoc[index] as AgentLocation);
-    
-    const reason = this.activePlayerLocation;
-    let target: number = 0;
-
-    switch (index) {
-      case 0: ( {target, direction} = this.bounce(reason, 0, 3, direction) );
-      case 1: ( {target, direction} = this.bounce(reason, 8, 11, direction) );
-      case 2: ( {target, direction} = this.bounce(reason, 4, 7, direction) );
-      case 3: ( {target, direction} = this.bounce(reason, 12, 15, direction) );    
-    }
-
     // this.log(`TAKE-ACTION: PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
 
-    this.turnData.action = { reason, target, trap: false };
-    // this.turnData.action = action;
-  }
-
-  bounce(current: number, min: number, max: number, direction: number): {target: number, direction: number}{
-    if (current === max && direction === 1) return { target: max - 1, direction: -1 };
-    if (current === min && direction === -1) return { target: min + 1, direction: 1 };
-    return { target: current + direction, direction };
+    this.turnData.action = action;
   }
 
   async waitForQuery() {
@@ -482,9 +458,7 @@ export class GameClient {
     const updates = await this.sockets.waitForUpdates(this.turn);
 
     // this.log("UPDATES RECEIVED: ", updates);
-
-    const updateValues = Array.from(updates.values());
-    
+ 
     updates.forEach((value, key) => {
       // this.log(`\nUPDATES: UPDATE-VALUES-SET: KEY:${key}, VALUE:${value}, `);
       this.turnData.updates.set(key, value) 
@@ -492,9 +466,6 @@ export class GameClient {
   }
 
   async createReport(): Promise<GameReportPayload> {
-     
-    // TODO evaluate collisions?
-
     const turnUpdates = this.turnData.updates;
 
     // this.log(`\nWITNESS: REPORTS(TURN-UPDATES): ${turnUpdates}\n`);

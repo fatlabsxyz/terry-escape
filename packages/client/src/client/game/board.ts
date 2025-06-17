@@ -1,4 +1,4 @@
-import { Agent, AllowedPlacements, Placements, Locations, IJ} from "../../types/game.js";
+import { Agent, AllowedPlacements, Placements, Locations, IJ, AgentLocation} from "../../types/game.js";
 
 type Location = IJ;
 type UnitIndex = number;
@@ -51,22 +51,42 @@ export class Board {
   }
 
   // meant to be called by interfacer, to keep track of the board state on frontend
-  moveAgent(agent: UnitIndex, target: Location) {
+  // could be called with either agent index or agent location, adding neither means nothing happens
+  moveAgent(target: Location, agent?: UnitIndex, location?: IJ) {
+    if (agent) {
       this.agents.set(agent, target);
+    } else if (location) {
+      const agentIndex = Array.from(this.agents.entries()).filter(([_, v]) => v === location).map( ([key]) => key);
+      this.agents.set(agentIndex[0]!, target);
+    }
   }
 
   setTrap(target: Location) {
     this.traps.push(target);
   }
 
-  unitsDied(agents: UnitIndex[] | null , traps: Location[] | null) {
-    if (agents) {
-      agents.forEach( (a) => {this.agents.delete(a)} );
+  unitsDied(units: AgentLocation) {
+    
+    const dead: IJ = this.indexToCoord(units);
+    const agents = Array.from(this.agents.entries()).filter(([_, agent]) => agent === dead );
+    const traps = this.traps.filter( (trap) => trap === dead );
+
+    if (agents.length >= 1) {
+      const agentsKeys = agents.map( ([key]) => key);
+      agentsKeys.forEach( (agent) => this.agents.delete(agent) );
     }
-    if (traps) {
-      const remove = new Set(traps);
-      this.traps = this.traps.filter(x => !remove.has(x));
+    if (traps.length >= 1) {
+      this.traps = traps;
     }
+
+    const res = agents.map(([_,v]) => v);
+    res.push(...traps);
+
+    return res;
+  }
+
+  livingAgents() {
+    
   }
 
   // Placement to index takes an agent's absolute coordinates on the board,
