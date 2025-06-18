@@ -313,6 +313,7 @@ export class ZkLib implements IZkLib {
       }
       const entropy = entropy_pool.flat().slice(0,1289);
       let ciphertext = selector(this.public_keys[mover]!.key_set, entropy, i);
+      // let ciphertext = ["0","0","0","0","0","0","0","0","0"];
       selectors.push(ciphertext);
     }
     return selectors;

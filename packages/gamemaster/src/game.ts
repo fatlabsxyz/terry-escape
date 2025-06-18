@@ -2,7 +2,7 @@ import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId } from 'client/types'
 import { GameNsp } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
-import { MessageBox } from 'client';
+import { MessageBox, MsgEvents } from 'client';
 
 /// STATE MACHINE TYPES
 enum GameState {
@@ -94,7 +94,7 @@ interface ActionInput {
 
 export type Player = string & { readonly __brand: unique symbol };
 
-interface PlayerStatus {
+export interface PlayerStatus {
   eliminated: boolean;
   ready: boolean;
   waiting: boolean;
@@ -113,11 +113,12 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 
 export class Game {
 
+  private msgBox: MessageBox;
+
   private _activePlayer: Player | null = null;
   private _nextPlayer: Player | null = null;
   nsp: GameNsp;
   playerStorage: PlayerStorage;
-  msgBox: MessageBox;
 
   gameMachine!: Actor<ReturnType<Game['stateMachine']>>;
   broadcastTimeout: number;
@@ -130,7 +131,7 @@ export class Game {
     this.broadcastTimeout = 30_000; //originally 2_000
     this.minPlayers = 4;
     this.playerStorage = PlayerStorage.getInstance();
-    this.msgBox = new MessageBox();
+    this.msgBox = MessageBox.getInstance();
 
     this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
     
@@ -318,7 +319,7 @@ export class Game {
 
         // this.log(`New player seat: ${player.seat}, ID: ${player.id}`);
         context.players.set(player.id, player);
- 
+          
         this.playerEmitData = {
           id: player.id, 
           sid: this.playerStorage.getSocketId(player.id), 
@@ -369,6 +370,12 @@ export class Game {
     const self = this;
     function allPlayersReadyGuard(context: Context): boolean {
       // self.log("Checking all players ready", stringify(context));
+      
+      if (context.players.size >= context.minPlayers) {
+        const msgBox = MessageBox.getInstance();
+        const playerStatuses = Array.from(context.players.values());
+        msgBox.emit(MsgEvents.PLAYERS, playerStatuses)
+      }
       return context.players.size >= context.minPlayers &&
         Array.from(context.players.values()).every(x => x.ready)
     }

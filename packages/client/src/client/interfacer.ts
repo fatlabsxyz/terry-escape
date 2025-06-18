@@ -28,7 +28,7 @@ export type Connection = {
   seat: PlayerSeat;
 };
 
-const TIMEOUT = 15_000;
+const TIMEOUT = 28_000;
 
 export class Interfacer extends EventEmitter {
  
@@ -122,6 +122,7 @@ export class Interfacer extends EventEmitter {
       this.collision = undefined;
     });
   }
+
   // START LOGIC 
   // CLIENT   => inter.on(IfEvents.CONNECT) { set player index, etc... } 
   // FRONTEND => inter.on(IfEvents.DEPLOY)  { SEND agents in board, etc... }
@@ -129,6 +130,7 @@ export class Interfacer extends EventEmitter {
   // TURN LOGIC
   // CLIENT   => inter.on(IfEvents.TURN)    { set active or not, etc... } 
   // FRONTEND => inter.on(IfEvents.ACTION)  { SEND desired action, etc... } 
-  // CLIENT   => inter.on(IfEvents.IMPACTS) { set collision and death for agent, etc... }
+  // CLIENT   => inter.on(IfEvents.COLLISION) { set collision and death for agent, etc... }
+  // CLIENT   => inter.on(IfEvents.IMPACT) { set impact , etc... }
   // START TURN AGAIN
 }

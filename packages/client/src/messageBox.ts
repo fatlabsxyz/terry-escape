@@ -1,15 +1,23 @@
 import EventEmitter from "events";
 import { GameAnswerMsg, GameDeployMsg, GameDeployPayload, GameMessage, GameMessagePayload, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg } from "./types/gameMessages.js";
+import { PlayerId, PlayerSeat } from "./types/game.js";
 
 
 const MAX_PLAYERS = 4;
 export type Turn = number;
 export enum MsgEvents  {
   BROADCAST = "msg:broadcast",
-  CLEAN = "msg:broadcast",
+  CLEAN     = "msg:clean",
+  PLAYERS   = "msg:players",
 }
 
+export type Players = Map<PlayerId, PlayerSeat>
+
 export class MessageBox extends EventEmitter {
+
+  private static instance: MessageBox;
+  
+  players: Players;
   deploys: GameDeployMsg[];
   queries: Map<Turn, GameQueryMsg[]>;   
   updates: Map<Turn, GameUpdateMsg[]>;
@@ -18,11 +26,20 @@ export class MessageBox extends EventEmitter {
 
   constructor() {
     super();
+    this.players = new Map();
     this.deploys = new Array();
     this.queries = new Map();
     this.updates = new Map();
     this.answers = new Map();
     this.reports = new Map();
+  }
+
+  public static getInstance(): MessageBox {
+    if (!MessageBox.instance) {
+      console.log("PLAYER-STORAGE: creating new instance");
+      MessageBox.instance = new MessageBox();
+    }
+    return MessageBox.instance;
   }
 
   storeValue(msg: GameMessage) {
@@ -87,7 +104,7 @@ export class MessageBox extends EventEmitter {
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
     } else if (
       ( event === GameMsg.UPDATE ||
-        event === GameMsg.QUERY  || 
+        event === GameMsg.QUERY  ||
         event === GameMsg.ANSWER
       ) && (values.length === MAX_PLAYERS - 1)) {                       // 3 queries/updates/answers
       this.emit(MsgEvents.BROADCAST, {type: event, messages: values});

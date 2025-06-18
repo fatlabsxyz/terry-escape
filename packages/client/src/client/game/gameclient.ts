@@ -241,19 +241,21 @@ export class GameClient {
     const seat = this.playerSeat as PlayerSeat;
     
     this.log("\n\n\nEMITTING CONNECT EVENT on INTERFACER", seat);
+    // Send seat, await agent deployment (based on allowed deployment tiles)
     this.interfacer.emit(IfEvents.Connect, {seat} as Connection);
     
     const deploys = await this.interfacer.waitForDeploy();
 
     const sk = secretKeySample(seat);
-    const pks = this.zklib.all_states.map( (_, i) => publicKeySample(i) );
+    const pks = [0,1,2,3].map(publicKeySample);
 
-    this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${!!pks[0]},${!!pks[1]},${!!pks[2]},${!!pks[3]}`);
+    // this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${!!pks[0]},${!!pks[1]},${!!pks[2]},${!!pks[3]}`);
 
     this.zklib.setup(seat, sk, pks, {mockProof: true}); 
     await this.setupAgents(deploys);
 
     // TODO find out where I can run validateDeploys()
+    
   }
 
   async processActivePlayer() {
@@ -266,7 +268,6 @@ export class GameClient {
     await Promise.all([
       this.waitForQuery(),
       this.takeAction()
-      // TODO: based on the player's deployed agents, select a valid spot
     ])
 
     // STEP 3
@@ -293,6 +294,7 @@ export class GameClient {
     await this.sockets.broadcastReport(this.turn, report);
 
     this.gameLog("\n\nACTIVE-PLAYER - FINISHING TURN\n\n");
+    // TODO: should run verifyForeign???
   }
 
   async processNonActivePlayer() {
@@ -333,6 +335,7 @@ export class GameClient {
     await this.waitForReport();
     
     this.gameLog("NON-ACTIVE-PLAYER - No more duties.")
+    // TODO: should run verifyForeign???
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -427,15 +430,18 @@ export class GameClient {
 
     // this.log("QUERIES WE'VE BEEN WAITING FOR");
     queries.forEach((payload, player) => {
-      // this.log(`QUERY NUMBER: ${player}, QUERY VALUE: ${payload.queries}`);
+      this.log(`QUERY NUMBER: ${player}, QUERY VALUE: ${payload.queries}`);
       this.turnData.queries.set(player, {queries: payload.queries});
     })
     // this.log("TURNDATA, QUERIES: ", this.turnData.queries);
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
-    const payloads: GameAnswerPayload[] = [];
-    const queryValues = Array.from(this.turnData.queries.values()); 
+    const payloads: GameAnswerPayload[] = new Array();
+    // const queryKeys =
+    // order queries
+
+    const queryValues = Array.from(this.turnData.queries.values());
     const queryData = queryValues.map((x) => x.queries);
 
     // this.log(`\nCREATE-ANSWERS: QUERIES: ${queryData}`);
@@ -444,18 +450,16 @@ export class GameClient {
     
     // this.log(`\nCREATE-DATA: ALL-ANSWERS: ${answers}\n`);
     // this.log(`\nCREATE-DATA: ANSWERS: ${answers.playerProofs}\n`);
-
-    const nonActivePlayersRound = this.round
-      .filter(x => x !== this.activePlayer);
-
-    this.turnData.queries.forEach((_, player) => {
-      let nonActivePlayerIndex = nonActivePlayersRound.indexOf(player);
-      const playerProof = answers.playerProofs[nonActivePlayerIndex]!;
-      payloads.push({to: player, proof: playerProof });
-      this.turnData.answers.set(player, { proof: playerProof });
+    let i = 0;
+    this.turnData.queries.forEach((_, pid) => {
+      const proof = answers.playerProofs[i]!;
+      i++
+      this.turnData.answers.set(pid, { proof });
+      payloads.push({to: pid, proof})
     });
 
-    return payloads
+
+    return payloads 
   }
 
   

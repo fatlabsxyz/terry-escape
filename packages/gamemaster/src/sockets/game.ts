@@ -1,7 +1,7 @@
 import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg} from 'client/types';
 import { MessageBox, MsgEvents } from 'client';
 import { Namespace, Server, Socket } from 'socket.io';
-import { getGameOrNewOne, Player } from '../game.js';
+import { getGameOrNewOne, Player, PlayerStatus } from '../game.js';
 import jwt from 'jsonwebtoken';
 import { PlayerStorage } from '../playerStorage.js';
 import { passTime } from 'client';
@@ -30,7 +30,7 @@ export type GameSocket = Socket<
   SocketData
 >
 const playerStorage: PlayerStorage = PlayerStorage.getInstance();
-const msgBox = new MessageBox();
+const msgBox = MessageBox.getInstance();
 
 function registerGameHandlers(socket: GameSocket) {
 
@@ -52,11 +52,34 @@ function registerGameHandlers(socket: GameSocket) {
       // console.log(`\n\n MSG-LOG-BROADCAST: ${type} SENT TO ID:${sender}`);
       let messages = v.messages.filter(x => x.sender !== sender);
  
+      const players = msgBox.players;
+      
       switch (type) {
         case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg) 
-        case GameMsg.QUERY : messages = messages.map(x => x as GameQueryMsg ) 
-        case GameMsg.ANSWER: messages = messages.map(x => x as GameAnswerMsg) 
-        case GameMsg.UPDATE: messages = messages.map(x => x as GameUpdateMsg) 
+        case GameMsg.QUERY : {
+          messages = messages.map(x => x as GameQueryMsg )
+            .sort((a, b) => {
+              const aSeat = players.get(a.to!)!;
+              const bSeat = players.get(b.to!)!;
+              return aSeat - bSeat;
+            });
+        }
+        case GameMsg.ANSWER: { 
+          messages = messages.map(x => x as GameAnswerMsg)
+            .sort((a, b) => {
+              const aSeat = players.get(a.to!)!;
+              const bSeat = players.get(b.to!)!;
+              return aSeat - bSeat;
+            });
+        }
+        case GameMsg.UPDATE: { 
+          messages = messages.map(x => x as GameUpdateMsg)
+            .sort((a, b) => {
+              const aSeat = players.get(a.to!)!;
+              const bSeat = players.get(b.to!)!;
+              return aSeat - bSeat;
+            });
+        }
         case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
       }
       // console.log(`MSG-LOG-BROADCAST: MESSAGES: ${messages}, LEN: ${messages.length}. EMITTED...\n\n\n`);
@@ -69,6 +92,13 @@ function registerGameHandlers(socket: GameSocket) {
     })); 
   });
   
+  msgBox.on(MsgEvents.PLAYERS, (players: PlayerStatus[]) => {
+    players.forEach((player) => {
+      msgBox.players.set(player.id as PlayerId, player.seat as PlayerSeat); 
+    });
+  });
+
+
   msgBox.on(MsgEvents.CLEAN, () => {
     msgBox.clearOldMessages();
   });

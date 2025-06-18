@@ -63,7 +63,7 @@ export interface GameReportPayload extends GamePayload {
 export interface IGameMessage extends Message {
   event: `${GameMsg}`;
   turn: number;
-  to?: Player;
+  to?: Player; // PlayerId
 }
 
 export interface GameDeployMsg extends IGameMessage {

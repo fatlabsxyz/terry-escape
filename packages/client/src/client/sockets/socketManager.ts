@@ -1,7 +1,7 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
 import { jwtDecode } from 'jwt-decode';
-import { JwtPayload, Player, PlayerSeat, TurnInfo } from "../../types/game.js";
+import { JwtPayload, Player, PlayerId, PlayerSeat, TurnInfo } from "../../types/game.js";
 import {
   GameAnswerMsg,
   GameAnswerPayload,
@@ -124,7 +124,7 @@ export class SocketManager extends EventEmitter {
     })    
   }
 
-  get sender(): Player {;
+  get sender(): PlayerId {;
     return this.playerId; // Player id (NOT socket id)
   }
 

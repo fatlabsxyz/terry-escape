@@ -64,7 +64,8 @@ export class Board {
   setTrap(target: Location) {
     this.traps.push(target);
   }
-
+  
+  // checks if the array of locations 
   unitsDied(units: AgentLocation) {
     
     const dead: IJ = this.indexToCoord(units);
@@ -83,10 +84,6 @@ export class Board {
     res.push(...traps);
 
     return res;
-  }
-
-  livingAgents() {
-    
   }
 
   // Placement to index takes an agent's absolute coordinates on the board,
