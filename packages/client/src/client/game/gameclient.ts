@@ -123,6 +123,7 @@ export class GameClient {
   private playerSocketIdValue: undefined | string = undefined;
   private playerNameValue: undefined | string = undefined;
   private interfacer: Interfacer;
+  validate: boolean = false;
 
   constructor(sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
@@ -148,7 +149,7 @@ export class GameClient {
 
   get playerId(): string {
     if (this.playerIdValue === undefined) {
-      const pid = this.sockets.playerId; // sockets.playerId is the playerId from token
+      const pid = this.sockets.playerId; 
       this.log("PLAYER-ID: GOT FROM SOCKETS-GAME: ", pid);
       this.playerIdValue = pid;
     }
@@ -167,12 +168,14 @@ export class GameClient {
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
 
+    this.validate = false;
+
     this.interfacer.on(IfEvents.Deploy, async (agents: Locations) => {
-      console.log("\n\nINTERFACER - GOT A DEPLOY EVENT", agents)
+      // console.log("\n\nINTERFACER - GOT A DEPLOY EVENT", agents)
       this.interfacer.deploys = agents; 
     });
     this.interfacer.on(IfEvents.Action, async (action: TurnAction) => {
-      console.log("\n\nINTERFACER - GOT AN ACTION EVENT", action)
+      // console.log("\n\nINTERFACER - GOT AN ACTION EVENT", action)
       this.interfacer.action = action; 
     });
   }
@@ -253,9 +256,8 @@ export class GameClient {
 
     this.zklib.setup(seat, sk, pks, {mockProof: true}); 
     await this.setupAgents(deploys);
-
-    // TODO find out where I can run validateDeploys()
-    
+ 
+    this.validateDeploys()
   }
 
   async processActivePlayer() {
@@ -293,8 +295,10 @@ export class GameClient {
     this.gameLog("\n\nACTIVE-PLAYER - BROADCASTING REPORT \n\n");
     await this.sockets.broadcastReport(this.turn, report);
 
+    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS \n\n");
+    this.validateForeign()
+
     this.gameLog("\n\nACTIVE-PLAYER - FINISHING TURN\n\n");
-    // TODO: should run verifyForeign???
   }
 
   async processNonActivePlayer() {
@@ -334,8 +338,11 @@ export class GameClient {
     this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (1)\n\n");
     await this.waitForReport();
     
+    
+    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS \n\n");
+    this.validateForeign()
+    
     this.gameLog("NON-ACTIVE-PLAYER - No more duties.")
-    // TODO: should run verifyForeign???
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -347,7 +354,7 @@ export class GameClient {
     const myDeploys = await this.zklib.createDeploys(agentsLocations);
     // this.log(`\nSETUP-AGENTS: MY-DEPLOYS-PROOF: ${myDeploys.proof}\n`);
     
-    this.log(this.zklib.own_state.board_used);
+    // this.log(this.zklib.own_state.board_used);
 
     // Broadcast your deployment proofs
     this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
@@ -400,21 +407,38 @@ export class GameClient {
   //////////////////////////////////////////////////////////////*/
   
   async validateDeploys() {
-    
+     
     // TODO make this happen 
-    const otherPlayers = this.round.filter(x => x !== this.playerId);
+    const deploys = await this.sockets.waitForDeploys();
 
-    const enemyDeploys = await this.sockets.waitForDeploys();
+    const enemyDeploys = Array.from(
+      deploys.entries()
+        .filter(([k,v]) => k !== this.playerId)
+        .map(([_,v]) => v.deploys)
+    );
+    if (this.validate) {
+      this.zklib.verifyDeploys(enemyDeploys);
+    }
+  }
 
-    const enemyDeploysArray = Array.from(enemyDeploys.values()).map(v => v.deploys);
+  async validateForeign() {
 
-    this.zklib.verifyDeploys(enemyDeploysArray);
+    //TODO validate implementation with Pablo
+    const queries = Array.from(this.turnData.queries.values()).map((x) => x.queries);
+    const answers = Array.from(this.turnData.answers.values()).map(answer => answer.proof);
+    const updates = Array.from(this.turnData.updates.values()).map(answer => answer.proof);
+    const report  = this.turnData.report!.proof;
+    
+    if (this.validate) {
+      this.zklib.verifyForeign(queries, answers, updates, report, this.playerSeat as number, false)
+    }
   }
 
   async takeAction() {
 
     const action = await this.interfacer.waitForAction();
-    console.log(action); 
+    console.log(action);
+
   
     // this.log(`TAKE-ACTION: PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
 

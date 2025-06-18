@@ -21,7 +21,8 @@ enum Events {
   AddPlayer = "AddPlayer",
   EmitSeat = "EmitSeat",
   PlayerReady = "PlayerReady",
-  AllPlayersReadyToStart = "AllPlayerReadyToStart"
+  AllPlayersReadyToStart = "AllPlayerReadyToStart",
+  AllPlayersDead = "AllPlayersDied"
 }
 
 enum Guards {
@@ -40,9 +41,9 @@ enum Actions {
 }
 
 type PlayerData = { 
-    id: PlayerId,
-    sid: SocketId,
-    seat: PlayerSeat
+  id: PlayerId,
+  sid: SocketId,
+  seat: PlayerSeat
 }
 
 interface SmEvent extends AnyEventObject {
