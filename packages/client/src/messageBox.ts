@@ -1,14 +1,16 @@
 import EventEmitter from "events";
-import { GameAnswerMsg, GameDeployMsg, GameDeployPayload, GameMessage, GameMessagePayload, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg } from "./types/gameMessages.js";
+import { GameAnswerMsg, GameDeployMsg, GameMessage, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg } from "./types/gameMessages.js";
 import { PlayerId, PlayerSeat } from "./types/game.js";
 
 
 const MAX_PLAYERS = 4;
 export type Turn = number;
+
 export enum MsgEvents  {
   BROADCAST = "msg:broadcast",
-  CLEAN     = "msg:clean",
+  PROOFS    = "msg:proofs",
   PLAYERS   = "msg:players",
+  CLEAN     = "msg:clean",
 }
 
 export type Players = Map<PlayerId, PlayerSeat>
@@ -48,7 +50,7 @@ export class MessageBox extends EventEmitter {
     const event: `${GameMsg}` = msg.event;
 
     switch (event) {
-      case GameMsg.DEPLOY: { 
+      case GameMsg.DEPLOY: {
         this.deploys.push(msg as GameDeployMsg); 
         this.evalBroadcast(event, this.deploys);
         break; 
@@ -101,16 +103,20 @@ export class MessageBox extends EventEmitter {
     console.log(`EVALUATING EMISSION OF ${event}`)
 
     if (event === GameMsg.DEPLOY && (values.length === MAX_PLAYERS)) {  // 4 deploys
-      this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
+      this.broadcast(event, values);
     } else if (
       ( event === GameMsg.UPDATE ||
         event === GameMsg.QUERY  ||
         event === GameMsg.ANSWER
       ) && (values.length === MAX_PLAYERS - 1)) {                       // 3 queries/updates/answers
-      this.emit(MsgEvents.BROADCAST, {type: event, messages: values});
+      this.broadcast(event, values);
     } else if (event === GameMsg.REPORT && (values.length === 1)){      // 1 report
-      this.emit(MsgEvents.BROADCAST, {type: event, messages: values})
+      this.broadcast(event, values);
     }
+  }
+
+  broadcast(type: `${GameMsg}`, values: GameMessage[]) {
+    this.emit(MsgEvents.BROADCAST, {type, messages: values})
   }
 
   clearOldMessages(){

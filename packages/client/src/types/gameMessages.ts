@@ -1,6 +1,6 @@
-import { Player, PlayerSeat } from "./game.js"
+import { PlayerId, PlayerSeat } from "./game.js"
 import { Message } from "./messages.js"
-import { ProofData, Collision } from "zklib/types"
+import { ProofData } from "zklib/types"
 
 
 export enum GameMsg {
@@ -48,7 +48,7 @@ export interface GameQueryPayload extends GamePayload {
 }
 
 export interface GameAnswerPayload extends GamePayload {
-  to: Player;
+  to: PlayerId;
   proof: ProofData;
 }
 
@@ -63,7 +63,7 @@ export interface GameReportPayload extends GamePayload {
 export interface IGameMessage extends Message {
   event: `${GameMsg}`;
   turn: number;
-  to?: Player; // PlayerId
+  to?: PlayerId; 
 }
 
 export interface GameDeployMsg extends IGameMessage {

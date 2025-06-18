@@ -370,7 +370,7 @@ export class GameClient {
 
     // this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);
     
-    answers.forEach( (payload, sender) => {
+    answers.forEach( (payload) => {
       // this.gameLog(`WAIT-FOR-ANSWERS: PAYLOAD ${payload.to}, ${payload.proof}, SENDER: ${sender}`);
       this.turnData.answers.set(payload.to, {proof: payload.proof});
     });
@@ -401,9 +401,7 @@ export class GameClient {
   
   async validateDeploys() {
     
-    // TODO need info on other players to call waitForDeploy, but state machine 
-    // needs to be running and all players
-    // need to be connected for round to be defined
+    // TODO make this happen 
     const otherPlayers = this.round.filter(x => x !== this.playerId);
 
     const enemyDeploys = await this.sockets.waitForDeploys();

@@ -90,7 +90,7 @@ function attachListeners(i: Interfacer) {
       i.turn = newTurn;
     }
     if (i.turn.active) {
-      const action = mockAction(i.seat!);
+      const action = mockInfiniteAction(i.seat!);
       i.takeAction(action);
     } else {
       // non-active wait for your turn
@@ -114,7 +114,7 @@ function mockDeploys(board: Board, seat: PlayerSeat) {
 
 let activePlayerLocation: undefined | AgentLocation = undefined;
 
-function mockAction(index: PlayerSeat): TurnAction {
+function mockInfiniteAction(index: PlayerSeat): TurnAction {
   // each player goes from left to right infinitely
   // starting here (depending on their seat):
   // 0 _ _ _   

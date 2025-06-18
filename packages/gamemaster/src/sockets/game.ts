@@ -1,11 +1,9 @@
-import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg} from 'client/types';
+import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg, ProofsEmitMessage} from 'client/types';
 import { MessageBox, MsgEvents } from 'client';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, Player, PlayerStatus } from '../game.js';
 import jwt from 'jsonwebtoken';
 import { PlayerStorage } from '../playerStorage.js';
-import { passTime } from 'client';
-import { Turn } from '../../../client/dist/messageBox.js';
 
 type Ack = () => void;
 
@@ -32,76 +30,100 @@ export type GameSocket = Socket<
 const playerStorage: PlayerStorage = PlayerStorage.getInstance();
 const msgBox = MessageBox.getInstance();
 
-function registerGameHandlers(socket: GameSocket) {
+msgBox.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
 
+  const type = v.type;
+
+  const allPlayers: Map<PlayerId, SocketId> = playerStorage.getAllSocketIds()
+
+  await Promise.all([...allPlayers.entries()].map( async (value) => { 
+    const sender = value[0]!;
+    const playerSid = value[1]!;
+    // console.log(`\n\n MSG-LOG-BROADCAST: ${type} SENT TO ID:${sender}`);
+    // let messages = v.messages.filter(x => x.sender !== sender);
+    let messages = v.messages
+
+    const players = msgBox.players;
+  
+    if (type !== GameMsg.DEPLOY) {
+      console.log("\n\n\nmessages, presort:");
+      messages.forEach((msg) => {
+        process.stdout.write(`${msg.sender!},`);
+      });
+      
+      console.log(`\n\n\nPLAYER IDS:`)
+      players.forEach((pv, pk) => {
+        process.stdout.write(`${pv} : ${pk},`);
+      });
+    }
+
+    switch (type) {
+      case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg) 
+      case GameMsg.QUERY : {
+        messages = messages.map(x => x as GameQueryMsg )
+          .sort((a, b) => {
+            const aSeat = players.get(a.sender)!;
+            const bSeat = players.get(b.sender)!;
+            return aSeat - bSeat;
+          });
+      }
+      case GameMsg.ANSWER: { 
+        messages = messages.map(x => x as GameAnswerMsg)
+          .sort((a, b) => {
+            const aSeat = players.get(a.sender)!;
+            const bSeat = players.get(b.sender)!;
+            return aSeat - bSeat;
+          });
+      }
+      case GameMsg.UPDATE: { 
+        messages = messages.map(x => x as GameUpdateMsg)
+          .sort((a, b) => {
+            const aSeat = players.get(a.sender)!;
+            const bSeat = players.get(b.sender)!;
+            return aSeat - bSeat;
+          });
+      }
+      case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
+    }
+    
+    if (type !== GameMsg.DEPLOY) {
+      console.log(`\n\n\nmessages, sorted:`)
+      messages.forEach((msg) => {
+        process.stdout.write(`${msg.sender!},`);
+      });
+    }
+    console.log("\n\n\n ABOUT TO EMIT THIS ", )
+    msgBox.emit(MsgEvents.PROOFS, {sid: playerSid, type, messages} as ProofsEmitMessage);
+  })); 
+}); 
+
+msgBox.on(MsgEvents.PLAYERS, (players: PlayerStatus[]) => {
+  players.forEach((player) => {
+    msgBox.players.set(player.id as PlayerId, player.seat as PlayerSeat); 
+  });
+});
+
+msgBox.on(MsgEvents.CLEAN, () => {
+  msgBox.clearOldMessages();
+});
+
+function registerGameHandlers(socket: GameSocket) {
+  
   const TIMEOUT = 300_000;
   /*///////////////////////////////////////////////////////////////
                           PROOF  GATHERING
                           AND BROADCASTING
   //////////////////////////////////////////////////////////////*/
-  
-  msgBox.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
+  msgBox.on(MsgEvents.PROOFS, async (p: ProofsEmitMessage) => {
+    console.log(`MSG-LOG-BROADCAST: MESSAGES: ${p.messages}, LEN: ${p.messages.length}. EMITTED...\n\n\n`);
+    await socket.to(p.sid).timeout(TIMEOUT).emitWithAck(
+      GameMsg.PROOFS,
+      {
+        type: p.type,
+        messages: p.messages 
+      });
+  }); 
 
-    const type = v.type;
-
-    const allPlayers: Map<PlayerId, SocketId> = playerStorage.getAllSocketIds()
-
-    await Promise.all([...allPlayers.entries()].map( async (value) => { 
-      const sender = value[0]!;
-      const playerSid = value[1]!;
-      // console.log(`\n\n MSG-LOG-BROADCAST: ${type} SENT TO ID:${sender}`);
-      let messages = v.messages.filter(x => x.sender !== sender);
- 
-      const players = msgBox.players;
-      
-      switch (type) {
-        case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg) 
-        case GameMsg.QUERY : {
-          messages = messages.map(x => x as GameQueryMsg )
-            .sort((a, b) => {
-              const aSeat = players.get(a.to!)!;
-              const bSeat = players.get(b.to!)!;
-              return aSeat - bSeat;
-            });
-        }
-        case GameMsg.ANSWER: { 
-          messages = messages.map(x => x as GameAnswerMsg)
-            .sort((a, b) => {
-              const aSeat = players.get(a.to!)!;
-              const bSeat = players.get(b.to!)!;
-              return aSeat - bSeat;
-            });
-        }
-        case GameMsg.UPDATE: { 
-          messages = messages.map(x => x as GameUpdateMsg)
-            .sort((a, b) => {
-              const aSeat = players.get(a.to!)!;
-              const bSeat = players.get(b.to!)!;
-              return aSeat - bSeat;
-            });
-        }
-        case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
-      }
-      // console.log(`MSG-LOG-BROADCAST: MESSAGES: ${messages}, LEN: ${messages.length}. EMITTED...\n\n\n`);
-      await socket.to(playerSid).timeout(TIMEOUT).emitWithAck(
-        GameMsg.PROOFS,
-        {
-          type,
-          messages
-        });
-    })); 
-  });
-  
-  msgBox.on(MsgEvents.PLAYERS, (players: PlayerStatus[]) => {
-    players.forEach((player) => {
-      msgBox.players.set(player.id as PlayerId, player.seat as PlayerSeat); 
-    });
-  });
-
-
-  msgBox.on(MsgEvents.CLEAN, () => {
-    msgBox.clearOldMessages();
-  });
 
   socket.on(GameMsg.FETCH_PROOFS, async (p: RetrieveMsg, ack: Ack) => {
 
