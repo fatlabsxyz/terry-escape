@@ -149,7 +149,6 @@ function bounce(current: number, min: number, max: number, direction: number): {
   if (current === max && direction === 1)  return { target: max - 1 as AgentLocation, direction: -1 };
   if (current === min && direction === -1) return { target: min + 1 as AgentLocation, direction: 1 };
   return { target: current + direction as AgentLocation, direction };
-
 }
 
 

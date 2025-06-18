@@ -36,63 +36,26 @@ msgBox.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
 
   const allPlayers: Map<PlayerId, SocketId> = playerStorage.getAllSocketIds()
 
-  await Promise.all([...allPlayers.entries()].map( async (value) => { 
-    const sender = value[0]!;
-    const playerSid = value[1]!;
-    // console.log(`\n\n MSG-LOG-BROADCAST: ${type} SENT TO ID:${sender}`);
-    // let messages = v.messages.filter(x => x.sender !== sender);
+  await Promise.all([...allPlayers.entries()].map( async ([_, playerSid]) => { 
+    const players = msgBox.players;
     let messages = v.messages
 
-    const players = msgBox.players;
-  
-    if (type !== GameMsg.DEPLOY) {
-      console.log("\n\n\nmessages, presort:");
-      messages.forEach((msg) => {
-        process.stdout.write(`${msg.sender!},`);
-      });
-      
-      console.log(`\n\n\nPLAYER IDS:`)
-      players.forEach((pv, pk) => {
-        process.stdout.write(`${pv} : ${pk},`);
+    if (type !== GameMsg.REPORT) {
+      messages.sort((a, b) => {
+        const aSeat = players.get(a.sender)!;
+        const bSeat = players.get(b.sender)!;
+        return aSeat - bSeat;
       });
     }
-
+  
     switch (type) {
-      case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg) 
-      case GameMsg.QUERY : {
-        messages = messages.map(x => x as GameQueryMsg )
-          .sort((a, b) => {
-            const aSeat = players.get(a.sender)!;
-            const bSeat = players.get(b.sender)!;
-            return aSeat - bSeat;
-          });
-      }
-      case GameMsg.ANSWER: { 
-        messages = messages.map(x => x as GameAnswerMsg)
-          .sort((a, b) => {
-            const aSeat = players.get(a.sender)!;
-            const bSeat = players.get(b.sender)!;
-            return aSeat - bSeat;
-          });
-      }
-      case GameMsg.UPDATE: { 
-        messages = messages.map(x => x as GameUpdateMsg)
-          .sort((a, b) => {
-            const aSeat = players.get(a.sender)!;
-            const bSeat = players.get(b.sender)!;
-            return aSeat - bSeat;
-          });
-      }
+      case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg)
+      case GameMsg.QUERY : messages = messages.map(x => x as GameQueryMsg )
+      case GameMsg.ANSWER: messages = messages.map(x => x as GameAnswerMsg)
+      case GameMsg.UPDATE: messages = messages.map(x => x as GameUpdateMsg)
       case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
     }
     
-    if (type !== GameMsg.DEPLOY) {
-      console.log(`\n\n\nmessages, sorted:`)
-      messages.forEach((msg) => {
-        process.stdout.write(`${msg.sender!},`);
-      });
-    }
-    console.log("\n\n\n ABOUT TO EMIT THIS ", )
     msgBox.emit(MsgEvents.PROOFS, {sid: playerSid, type, messages} as ProofsEmitMessage);
   })); 
 }); 
@@ -115,7 +78,7 @@ function registerGameHandlers(socket: GameSocket) {
                           AND BROADCASTING
   //////////////////////////////////////////////////////////////*/
   msgBox.on(MsgEvents.PROOFS, async (p: ProofsEmitMessage) => {
-    console.log(`MSG-LOG-BROADCAST: MESSAGES: ${p.messages}, LEN: ${p.messages.length}. EMITTED...\n\n\n`);
+    // console.log(`MSG-LOG-BROADCAST: MESSAGES: ${p.messages}, LEN: ${p.messages.length}. EMITTED...\n\n\n`);
     await socket.to(p.sid).timeout(TIMEOUT).emitWithAck(
       GameMsg.PROOFS,
       {
@@ -207,7 +170,7 @@ export function addGameNamespace(server: Server): Server {
         
 
     let player: string | PlayerProps = playerStorage.getPlayer(playerId);
-    if (player === Err.NOTFOUND){
+    if (player === Err.NOT_FOUND){
       player = {
         id: playerId,
         sid: socket.id,

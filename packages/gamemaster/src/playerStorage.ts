@@ -33,19 +33,10 @@ export class PlayerStorage extends EventEmitter {
     if (player) {
       return player;
     } else {
-      return Err.NOTFOUND;
+      return Err.NOT_FOUND;
     }
   }
   
-  // getPlayerBySeat(seat: PlayerSeat): Err | PlayerProps {
-  //   const player: PlayerProps = [...this.players.entries()].find(([key, value]) => value.seat === seat)![1];
-  //   if (player) {
-  //     return player;
-  //   } else {
-  //     return Err.NOTFOUND;
-  //   }
-  // }
-
   /// It's assumed that you already know the player exists
   /// when this method is called.
   getSocketId(id: PlayerId): SocketId {
@@ -64,7 +55,7 @@ export class PlayerStorage extends EventEmitter {
   updatePlayerSid(id: PlayerId, currentSid: SocketId): Err | void {
     // take player id, update their sid if needed
     let player: Err| PlayerProps = this.getPlayer(id);
-    if (player === Err.NOTFOUND) {
+    if (player === Err.NOT_FOUND) {
       return player;
     } else {
       player = player as PlayerProps;
@@ -79,25 +70,4 @@ export class PlayerStorage extends EventEmitter {
       return;
     } 
   }
-
-  // updatePlayerSeat(id: PlayerId, seat: PlayerSeat): Err | void {
-  //   // take player id, update their seat if needed
-  //   let player: Err| PlayerProps = this.getPlayer(id);
-  //   if (player === Err.NOTFOUND) {
-  //     return player;
-  //   } else {
-  //     player = player as PlayerProps;
-  //     if (player.seat === seat) {
-  //       console.log("PLAYER-SEAT-UPDATE: disregarded");
-  //       return Err.DISREGARDED;
-  //     }
-  //     console.log(`PLAYER-SEAT-UPDATE: seat updated from ${player.seat} to ${seat}`);
-  //     player.seat = seat;
-  //
-  //     this.players.set(id, player);
-  //     this.emit("SEAT", id);
-  //     return;
-  //   }
-  // }
-
 }

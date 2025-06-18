@@ -47,15 +47,15 @@ export type SocketId = string;
 export type Name = string;
 
 export enum Err {
-  NOTFOUND = "not_found",
-  EXISTING = "already_exists",
-  DISREGARDED = "update_diregarded",
+  NOT_FOUND =   "err:not_found",
+  EXISTING =    "err:existing",
+  DISREGARDED = "err:diregarded",
 }
 
 export type PlayerProps = {
-  id: PlayerId;                   // unique id
-  sid: SocketId;                  // changes each session
-  name: Name;                     // just the player name
+  id:   PlayerId;                // unique id
+  sid:  SocketId;                // changes each session
+  name: Name;                    // just the player name
   seat: undefined | PlayerSeat;  // changes each game
 };
 
@@ -65,7 +65,7 @@ export type StoredPlayers = Map<PlayerId, PlayerProps>;
 /// -- --- --- Game --- --- -- ///
 
 export interface JwtPayload {
-  id: string;
+  id:   string;
   name: string;
 }
 
@@ -79,36 +79,36 @@ export type AnswerData = {
   proof: ProofData;
 };
 export type UpdatesData = {
-  proof: ProofData;
+  proof:      ProofData;
   collision?: Collision;
-  died?: boolean;
+  died?:      boolean;
 };
 export type ReportData = {
-  proof: ProofData;
+  proof:     ProofData;
   impacted?: boolean;
-  died?: boolean;
+  died?:     boolean;
 }
 
 export type SetupData = Map<Player, ProofData>; 
 
 export interface TurnInfo {
-  turn: number;
-  round: Player[];
+  turn:         number;
+  round:        Player[];
   activePlayer: Player;
-  nextPlayer: Player;
+  nextPlayer:   Player;
 };
 
 export interface TurnData {
   activePlayer: Player;
-  action: TurnAction;
-  queries: Map<Player, QueryData>;
-  answers: Map<Player, AnswerData>;
-  updates: Map<Player, UpdatesData>;
-  report: ReportData | null;
+  action:       TurnAction;
+  queries:      Map<Player, QueryData>;
+  answers:      Map<Player, AnswerData>;
+  updates:      Map<Player, UpdatesData>;
+  report:       ReportData | null;
 };
 
 export type TurnAction = {
   reason: AgentLocation;  // Origin coordinates 
   target: AgentLocation;  // Target coordinates
-  trap: boolean;          // To trap or not to trap
+  trap:   boolean;          // To trap or not to trap
 };
