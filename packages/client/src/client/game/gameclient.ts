@@ -1,17 +1,22 @@
-import { Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
+import { Action, Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo } from "../../types/game.js";
-import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
+import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerSeat, IJ, AnswerData, JwtPayload, ReportData} from "../../types/game.js";
+import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { passTime } from "../../utils.js";
 import { SocketManager } from "../sockets/socketManager.js";
-import { IZklib } from 'zklib/types';
+import { Collision, IZkLib, ProofData } from 'zklib/types';
+import { secretKeySample, publicKeySample } from 'keypairs';
+import { Board } from './board.js';
+import { Connection, IfEvents, Impact, Interfacer, Turn } from '../interfacer.js';
+
 
 enum Actors {
   notifyReady = "notifyReady",
   advertiseWaiting = "advertiseWaiting",
   processActivePlayer = "processActivePlayer",
   processNonActivePlayer = "processNonActivePlayer",
-  processEliminated = "processEliminated"
+  processEliminated = "processEliminated",
+  preparePlayer = "preparePlayer"
 }
 
 enum Guards {
@@ -22,6 +27,7 @@ enum Guards {
 }
 
 enum PlayerStates {
+  Prepare = "PREPARE",
   Ready = "READY",
   UpdateTurnInfo = "UPDATE_TURN_INFO",
   SelectActive = "SELECT_ACTIVE",
@@ -42,28 +48,28 @@ enum ClientEvent {
 }
 
 interface QueryWaitingEvent extends AnyEventObject {
-  type: ClientEvent.QueryWaiting
+  type: ClientEvent.QueryWaiting;
 }
 
 interface TurnStartEvent {
-  type: GameMsg.TURN_START
-  turnInfo: TurnInfo
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.TURN_START;
+  turnInfo: TurnInfo;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface TurnEndEvent {
-  type: GameMsg.TURN_END
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.TURN_END;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface WaitingEvent {
-  type: GameMsg.WAITING
-  output: null  // Dummy field until we figure out how to properly type Guards
+  type: GameMsg.WAITING;
+  output: null;  // Dummy field until we figure out how to properly type Guards
 }
 
 interface OutputEvent {
-  type: "ouptut"
-  output: any
+  type: "output";
+  output: any;
 }
 
 type Events = AnyEventObject
@@ -73,18 +79,19 @@ type Events = AnyEventObject
   | WaitingEvent
   | QueryWaitingEvent
 
+
 function isTurnStartEvent(event: Events): event is TurnStartEvent {
-  return event.type === GameMsg.TURN_START
+  return event.type === GameMsg.TURN_START;
 }
 
 interface Context {
-  turnInfo: TurnInfo
-  waiting: boolean
+  turnInfo: TurnInfo;
+  waiting: boolean;
 }
 
 interface ActionInput {
-  event: Events,
-  context: Context
+  event: Events;
+  context: Context;
 }
 
 function _createLogger(name: string, sender: string) {
@@ -104,24 +111,35 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 
 export class GameClient {
   readonly log: (...args: any[]) => void;
-  readonly token: string;
-
+  
   sockets: SocketManager;
   turnsData: TurnData[];
   turnData: TurnData;
+  token: string;
   gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
+  private initialPlayerSeatValue: undefined | PlayerSeat;
+  activePlayerLocation: undefined | AgentLocation;
+  private playerIdValue: undefined | string = undefined;
+  private playerSocketIdValue: undefined | string = undefined;
+  private playerNameValue: undefined | string = undefined;
+  private interfacer: Interfacer;
+  validate: boolean = false;
 
-  constructor(token: string, sockets: SocketManager, readonly zklib: IZklib) {
+  constructor(sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
     this.turnsData = [];
     this.turnData = GameClient._emptyTurnData();
-    this.log = _createLogger(token, sockets.sender)
-    this.token = token;
+    this.log = _createLogger(sockets.playerName, sockets.sender);
+    this.token = sockets.token;
+    this.initialPlayerSeatValue = undefined;
+    this.activePlayerLocation = undefined;
+    this.interfacer = Interfacer.getInstance();
   }
 
   static _emptyTurnData(): TurnData {
     return {
       activePlayer: "",
+      action: { reason: 0, target: 0, trap: false },
       queries: new Map(),
       answers: new Map(),
       updates: new Map(),
@@ -130,18 +148,46 @@ export class GameClient {
   }
 
   get playerId(): string {
-    return this.sockets.game!.id!
+    if (this.playerIdValue === undefined) {
+      const pid = this.sockets.playerId; 
+      this.log("PLAYER-ID: GOT FROM SOCKETS-GAME: ", pid);
+      this.playerIdValue = pid;
+    }
+    return this.playerIdValue;
+  }
+  
+  get playerName(): string {
+    if (this.playerNameValue === undefined) {
+      const name = this.sockets.playerName;
+      this.playerNameValue = name;
+    }
+    return this.playerNameValue;
   }
 
   async play() {
-    await this.setupGame();
-
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
+
+    this.validate = false;
+
+    this.interfacer.on(IfEvents.Deploy, async (agents: Locations) => {
+      // console.log("\n\nINTERFACER - GOT A DEPLOY EVENT", agents)
+      this.interfacer.deploys = agents; 
+    });
+    this.interfacer.on(IfEvents.Action, async (action: TurnAction) => {
+      // console.log("\n\nINTERFACER - GOT AN ACTION EVENT", action)
+      this.interfacer.action = action; 
+    });
+  }
+  
+  async prepareSetup() {
+    this.initialPlayerSeatValue = await this.sockets.waitForPlayerSeat();
+    this.log("PREPARE-SETUP: GET-PLAYER-INDEX:", this.playerSeat); //TODO remove log
+    await this.setupGame(); 
   }
 
   async notifyPlayerReady() {
-    await this.sockets.advertisePlayerAsReady();
+    await this.sockets.advertisePlayerAsReady(); 
     this.log("We are ready!");
   }
 
@@ -180,172 +226,296 @@ export class GameClient {
     }
   }
 
+  get activePlayerIndex() {
+    return this.round.indexOf(this.activePlayer);
+  }
+
+  get playerSeat() {
+    return this.initialPlayerSeatValue;
+  }
+
   gameLog(...args: any[]) {
     this.log(this.activeStatus, ...args);
   }
 
   async setupGame() {
     this.log("Setting up game...")
-    // query players/turn order
-    // setup pieces
-    // zk setup
-    // emit ready (or wrap setup within emitAck from master)
+
+    const seat = this.playerSeat as PlayerSeat;
+    
+    this.log("\n\n\nEMITTING CONNECT EVENT on INTERFACER", seat);
+    // Send seat, await agent deployment (based on allowed deployment tiles)
+    this.interfacer.emit(IfEvents.Connect, {seat} as Connection);
+    
+    const deploys = await this.interfacer.waitForDeploy();
+
+    const sk = secretKeySample(seat);
+    const pks = [0,1,2,3].map(publicKeySample);
+
+    // this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${!!pks[0]},${!!pks[1]},${!!pks[2]},${!!pks[3]}`);
+
+    this.zklib.setup(seat, sk, pks, {mockProof: true}); 
+    await this.setupAgents(deploys);
+ 
+    this.validateDeploys()
   }
 
   async processActivePlayer() {
-
-    const otherPlayers = this.round.filter(x => x !== this.playerId);
-
+    
+    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: true} as Turn);
+    
     // STEP 2
     // wait for queries | take action
+    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR QUERIES (3)\n\n");
     await Promise.all([
-      this.waitForQuery(otherPlayers),
+      this.waitForQuery(),
       this.takeAction()
     ])
 
     // STEP 3
     // create answer
+    this.gameLog("\n\nACTIVE-PLAYER - CREATE ANSWERS (3)\n\n");
     const answers = await this.createAnswers();
+
     // broadcast answers
     await Promise.all(answers.map(async (answer) => {
-      this.gameLog("Broadcasting answers")
+      this.gameLog("\nACTIVE-PLAYER - Broadcasting answers\n");
       await this.sockets.broadcastAnswer(this.turn, answer.to, answer);
     }))
-    this.gameLog("NO MORE ANSWERS TO BROADCAST", stringify(this.turnData.answers));
+    this.gameLog("\nACTIVE-PLAYER - NO MORE ANSWERS TO BROADCAST\n");
 
     // STEP 6
-    // wait for udpates
-    await this.waitForUpdates(otherPlayers);
+    // wait for updates
+    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR UPDATES (3)\n\n");
+    await this.waitForUpdates();
 
     // STEP 7
     // broadcast reports
     const report = await this.createReport();
-    this.gameLog("Broadcasting report")
+    this.gameLog("\n\nACTIVE-PLAYER - BROADCASTING REPORT \n\n");
     await this.sockets.broadcastReport(this.turn, report);
 
-    this.gameLog("Finishing turn.");
-    this.gameLog("No more duties.");
+    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS \n\n");
+    this.validateForeign()
+
+    this.gameLog("\n\nACTIVE-PLAYER - FINISHING TURN\n\n");
   }
 
   async processNonActivePlayer() {
 
-    const nonActivePlayers = this.round
-      .filter(x => x !== this.activePlayer);
-
-    const otherNonActivePlayers = nonActivePlayers
-      .filter(x => x !== this.playerId);
-
+    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: false} as Turn);
+    
     // STEP 1
     // if query ready, broadcast query
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE QUERY\n\n");
     const query = await this.getQuery();
+
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST QUERY (1) AND WAIT FOR QUERIES (2)\n\n");
     await Promise.all([
       this.sockets.broadcastQuery(this.turn, this.activePlayer, query),
-      this.waitForQuery(otherNonActivePlayers),  // we have our query, but we need the other NA-players'
+      this.waitForQuery(),  // we have our query, but we need the other NA-players'
     ]);
-    this.gameLog("NO MORE QUERIES TO BROADCAST", stringify(this.turnData.queries));
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - NO MORE QUERIES TO BROADCAST\n\n");
 
     // STEP 4
     // wait for answer
-    await this.waitForAnswer(nonActivePlayers);
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR ANSWERS (2)\n\n");
+    await this.waitForAnswers();
 
     // STEP 5
     // process update
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE UPDATE\n\n");
     const update = await this.createUpdate();
     // broadcast update
     await Promise.all([
       await this.sockets.broadcastUpdate(this.turn, this.activePlayer, update),
-      await this.waitForUpdates(otherNonActivePlayers),
+      await this.waitForUpdates(),
     ]);
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST UPDATE (1) AND WAIT FOR UPDATES (2)\n\n");
 
     // STEP 8
     // wait for report
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (1)\n\n");
     await this.waitForReport();
-    this.gameLog("No more duties.")
+    
+    
+    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS \n\n");
+    this.validateForeign()
+    
+    this.gameLog("NON-ACTIVE-PLAYER - No more duties.")
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                          ALL PLAYER METHODS
+  //////////////////////////////////////////////////////////////*/
+
+  async setupAgents(agentsLocations: Locations) {
+    // this.log(`\nSETUP-AGENTS: AGENTS-LOCATIONS: ${agentsLocations}\n`);
+    const myDeploys = await this.zklib.createDeploys(agentsLocations);
+    // this.log(`\nSETUP-AGENTS: MY-DEPLOYS-PROOF: ${myDeploys.proof}\n`);
+    
+    // this.log(this.zklib.own_state.board_used);
+
+    // Broadcast your deployment proofs
+    this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
   }
 
   /*///////////////////////////////////////////////////////////////
                           NON-ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
   async getQuery(): Promise<GameQueryPayload> {
-    const payload = {
-      mockQueryData: {
-        token: this.token,
-        turn: `Mock-Q${this.contextTurnInfo.turn}`,
-      }
-    };
-    this.turnData.queries.set(this.playerId, payload)
-    return payload
+    const query = await this.zklib.createQueries(Number(this.activePlayerIndex)); 
+    // this.gameLog(`\n\n\n GET-QUERY: QUERY-LENGTH: ${JSON.stringify(query).length}\n`);
+    // this.gameLog(`\nGET-QUERY: QUERY-PROOF: ${query}\n`);
+
+    return {queries: query.proof}
   }
 
-  async waitForAnswer(players: Player[]) {
-    this.gameLog("STARTING WAIT FOR ANSWER");
-    // there is an answer for each non-active player (N_players - 1). Eliminated players still answer.
-    const answers = await this.sockets.waitForAnswer(this.turn, this.activePlayer, players);
-    this.gameLog("Returned answer", stringify(answers))
-    this.turnData.answers = answers
+  async waitForAnswers() {
+    // there is an answer for each non-active player (N_players - 1). Eliminated players still have to answer.
+    const answers = await this.sockets.waitForAnswers(this.turn);
+
+    // this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);
+    
+    answers.forEach( (payload) => {
+      // this.gameLog(`WAIT-FOR-ANSWERS: PAYLOAD ${payload.to}, ${payload.proof}, SENDER: ${sender}`);
+      this.turnData.answers.set(payload.to, {proof: payload.proof});
+    });
   }
 
-  async createUpdate(): Promise<GameUpdatePayload> {
-    this.gameLog("Creating update for active player");
-    const payload = {
-      mockUpdateData: {
-        token: this.token,
-        turn: `Mock-U${this.turn}`,
-      }
-    }
-    this.turnData.updates.set(this.playerId, payload)
-    return payload;
+  async createUpdate(): Promise<GameUpdatePayload> { 
+    const answer = this.turnData.answers.get(this.playerId) as AnswerData;
+
+    // this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${answer} ...`);
+    const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex); 
+    this.turnData.updates.set(this.playerId, data); 
+    // TODO: deal with 'died'
+    
+    this.interfacer.emit(IfEvents.Collision, data.collision as Collision);
+
+    return {proof: data.proof};
   }
 
   async waitForReport() {
-    const report = await this.sockets.waitForReport(this.turn, this.activePlayer);
-    this.gameLog("Returned report", stringify(report))
-    this.turnData.report = report
+    const report = await this.sockets.waitForReport(this.turn);
+    this.turnData.report = report as ReportData;  
   }
+
 
   /*///////////////////////////////////////////////////////////////
                           ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
-  async takeAction() {
+  
+  async validateDeploys() {
+     
+    // TODO make this happen 
+    const deploys = await this.sockets.waitForDeploys();
+
+    const enemyDeploys = Array.from(
+      deploys.entries()
+        .filter(([k,v]) => k !== this.playerId)
+        .map(([_,v]) => v.deploys)
+    );
+    if (this.validate) {
+      this.zklib.verifyDeploys(enemyDeploys);
+    }
   }
 
-  async waitForQuery(players: Player[]) {
-    const queries = await this.sockets.waitForQuery(this.turn, this.activePlayer, players)
-    this.gameLog("Returned queries", stringify(queries))
+  async validateForeign() {
+
+    //TODO validate implementation with Pablo
+    const queries = Array.from(this.turnData.queries.values()).map((x) => x.queries);
+    const answers = Array.from(this.turnData.answers.values()).map(answer => answer.proof);
+    const updates = Array.from(this.turnData.updates.values()).map(answer => answer.proof);
+    const report  = this.turnData.report!.proof;
+    
+    if (this.validate) {
+      this.zklib.verifyForeign(queries, answers, updates, report, this.playerSeat as number, false)
+    }
+  }
+
+  async takeAction() {
+
+    const action = await this.interfacer.waitForAction();
+    console.log(action);
+
+  
+    // this.log(`TAKE-ACTION: PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
+
+    this.turnData.action = action;
+  }
+
+  async waitForQuery() {
+    let queries: Map<Player, GameQueryPayload>;
+
+    queries = await this.sockets.waitForQueries(this.turn);
+
+    // this.log("QUERIES WE'VE BEEN WAITING FOR");
     queries.forEach((payload, player) => {
-      this.turnData.queries.set(player, payload)
+      this.log(`QUERY NUMBER: ${player}, QUERY VALUE: ${payload.queries}`);
+      this.turnData.queries.set(player, {queries: payload.queries});
     })
+    // this.log("TURNDATA, QUERIES: ", this.turnData.queries);
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
-    const otherPlayers = this.round.filter(x => x !== this.playerId);
-    const payloads: GameAnswerPayload[] = [];
-    for (const player of otherPlayers) {
-      const payload = {
-        from: this.token,
-        to: player,
-        data: `Mock-A${this.contextTurnInfo.turn}`,
-      }
-      payloads.push(payload);
-      this.turnData.answers.set(player, payload.data)
-    }
-    return payloads;
+    const payloads: GameAnswerPayload[] = new Array();
+    // const queryKeys =
+    // order queries
+
+    const queryValues = Array.from(this.turnData.queries.values());
+    const queryData = queryValues.map((x) => x.queries);
+
+    // this.log(`\nCREATE-ANSWERS: QUERIES: ${queryData}`);
+    
+    const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
+    
+    // this.log(`\nCREATE-DATA: ALL-ANSWERS: ${answers}\n`);
+    // this.log(`\nCREATE-DATA: ANSWERS: ${answers.playerProofs}\n`);
+    let i = 0;
+    this.turnData.queries.forEach((_, pid) => {
+      const proof = answers.playerProofs[i]!;
+      i++
+      this.turnData.answers.set(pid, { proof });
+      payloads.push({to: pid, proof})
+    });
+
+
+    return payloads 
   }
 
-  async waitForUpdates(players: Player[]) {
-    this.gameLog("Waiting for updates");
-    const updates = await this.sockets.waitForUpdates(this.turn, this.activePlayer, players)
-    this.gameLog("Returned updates", stringify(updates))
-    this.turnData.updates = updates;
+  
+  async waitForUpdates() {
+    const updates = await this.sockets.waitForUpdates(this.turn);
+
+    // this.log("UPDATES RECEIVED: ", updates);
+ 
+    updates.forEach((value, key) => {
+      // this.log(`\nUPDATES: UPDATE-VALUES-SET: KEY:${key}, VALUE:${value}, `);
+      this.turnData.updates.set(key, value) 
+    });
   }
 
   async createReport(): Promise<GameReportPayload> {
-    return {
-      mockReportData: {
-        token: this.token,
-        turn: `Mock-R${this.contextTurnInfo.turn}`,
-      }
-    }
+    const turnUpdates = this.turnData.updates;
+
+    // this.log(`\nWITNESS: REPORTS(TURN-UPDATES): ${turnUpdates}\n`);
+    
+    const updates: ProofData[] = Array.from(turnUpdates.entries())
+      .filter(([id]) => id !== this.activePlayer)
+      .map(([, { proof }]) => proof);
+
+    // this.log(`\nWITNESS: REPORT: (UPDATES): ${updates}\n`);
+
+    const report = await this.zklib.createReports(updates);
+    // TODO: deal with 'died'
+    
+    this.interfacer.emit(IfEvents.Impact, report.impacted as Impact)   
+     
+    // this.log(`\nPROOFDATA: REPORT: ${report}\n`);
+    this.turnData.report = report as ReportData;
+
+    return { proof: report.proof };
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -421,9 +591,8 @@ export class GameClient {
         [Guards.isNonActivePlayer]: ({ context }) => this.isNonActivePlayer(context.turnInfo),
       },
       actors: {
+        [Actors.preparePlayer]: fromPromise<void, void>(this.prepareSetup.bind(this)),
         [Actors.notifyReady]: fromPromise<void, void>(this.notifyPlayerReady.bind(this)),
-        // [Actors.processActivePlayer]: fromPromise<void, void>(async () => { await passTime(3_000); this.log("Finished Active") } ),
-        // [Actors.processNonActivePlayer]: fromPromise<void, void>(async () => { await passTime(3_000); this.log("Finished NonActive") }),
         [Actors.processActivePlayer]: fromPromise<void, void>(this.processActivePlayer.bind(this)),
         [Actors.processNonActivePlayer]: fromPromise<void, void>(this.processNonActivePlayer.bind(this)),
       },
@@ -437,8 +606,12 @@ export class GameClient {
       .createMachine({
         id: 'game_loop',
         context: { turnInfo: null as any as TurnInfo, waiting: false },
-        initial: PlayerStates.Ready,
+        initial: PlayerStates.Prepare,
         states: {
+          [PlayerStates.Prepare]: {
+            entry: [{ type: Actions.log, params: PlayerStates.Prepare }],
+            invoke: { src: Actors.preparePlayer, onDone: { target: PlayerStates.Ready } }
+          },         
           [PlayerStates.Ready]: {
             entry: [{ type: Actions.log, params: PlayerStates.Ready }],
             invoke: { src: Actors.notifyReady, onDone: { target: PlayerStates.UpdateTurnInfo } }

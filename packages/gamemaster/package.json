@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc -p ./tsconfig.json --outDir dist",
-    "start": "node ./dist/index.js"
+    "start": "node ./dist/index.js | tee /tmp/gamemaster.log | tee -a /tmp/game_0"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",

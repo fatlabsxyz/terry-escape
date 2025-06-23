@@ -8,25 +8,24 @@ import { FRONTEND_URLS } from  './app.js'
 
 export function addIoSockets(server: HttpServer): Server {
   let io = new Server(server, {
-      cors: {
-        origin: FRONTEND_URLS[0],
-        methods: ["GET", "POST"]
-      }
-    })
+    maxHttpBufferSize: 8e7, // 80 mb (8 * 7 bytes)
+    pingTimeout: 60000,
+    pingInterval: 30000,
+    cors: {
+      origin: FRONTEND_URLS[0],
+      methods: ["GET", "POST"]
+    }
+  })
 
   io.on('connection', (socket: Socket) => {
-    // console.log("User connection", socket.id)
-    console.log(`user connected with token: ${socket.handshake.auth.token}`);
-    
-    const SECRET_KEY = 'test-key';
-    jwt.verify(socket.handshake.auth.token, SECRET_KEY, (err: jwt.VerifyErrors | null, decoded: unknown) => {
+
+    jwt.verify(socket.handshake.auth.token, 'test-key', (err: jwt.VerifyErrors | null, decoded: unknown) => {
       if (err) {
         console.log('Invalid Token')
       }
-      const data = decoded as JwtPayload; 
-      console.log(`id: ${data.id}`);
-      console.log(`username: ${data.name}`);
-    });
+      const data = decoded as JwtPayload;
+      console.log(`user ${data.name} connected with id: ${data.id}`);
+    }); 
   });
 
   io = addLobby(io);
