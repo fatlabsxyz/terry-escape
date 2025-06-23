@@ -79,6 +79,10 @@ export class SocketManager extends EventEmitter {
     })
 
     this.game.on(GameMsg.TURN_START, (p, ack) => {
+      // SocketIo apparently trips up when an object has 
+      // a map<string:bool> inside of it, and sends it as empty.
+      // this is why TurnInfoPayload converts round to an object 
+      // before sending it, and then re-converts it
       const turnInfo = {
         turn:         p.turn,
         round:        new Map<PlayerId, boolean>(Object.entries(p.round)),
