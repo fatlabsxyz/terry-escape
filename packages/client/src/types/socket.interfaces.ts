@@ -1,6 +1,6 @@
 import { Socket } from "socket.io-client";
-import { TurnInfo } from "./game.js";
-import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, GamePlayerSeatMsg, GameMessage, RetrieveMsg, GameProofsPayload } from "./gameMessages.js";
+import { TurnInfo, TurnInfoPayload } from "./game.js";
+import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, GamePlayerSeatMsg, GameMessage, RetrieveMsg, GameProofsPayload, GameEndPayload, GameEndMsg } from "./gameMessages.js";
 
 
 type Ack = () => void;
@@ -38,6 +38,8 @@ export interface GameNspClientToServerEvents {
   [GameMsg.REPORT]: (p: GameReportMsg, cb: Ack) => void;
   
   [GameMsg.FETCH_PROOFS]: (w: RetrieveMsg, cb: Ack) => void; 
+  
+  [GameMsg.WINNER]: (p: GameEndMsg) => void;
 }
 
 export interface GameNspServerToClientEvents {
@@ -46,7 +48,7 @@ export interface GameNspServerToClientEvents {
   [GameMsg.STARTED]: (cb: Ack) => void;
   [GameMsg.FINISHED]: (cb: Ack) => void;
 
-  [GameMsg.TURN_START]: (turnInfo: TurnInfo, ack: Ack) => void;
+  [GameMsg.TURN_START]: (turnInfo: TurnInfoPayload, ack: Ack) => void;
   [GameMsg.TURN_END]: (cb: Ack) => void;
   [GameMsg.WAITING]: (cb: (waitingRes: { player: string, waiting: boolean }) => void) => void;
   [GameMsg.READY]: (cb: Ack) => void;
@@ -78,7 +80,9 @@ export interface GameNspServerToClientEvents {
   
   [GameMsg.PLAYER_SEAT]: (p: GamePlayerSeatMsg) => void;
    
-  [GameMsg.PROOFS]: (w: GameProofsPayload , cb: Ack) => void;
+  [GameMsg.PROOFS]: (p: GameProofsPayload , cb: Ack) => void;
+  
+  [GameMsg.WINNER]: (p: GameEndPayload) => void;
 }
 
 export type GameSocket = Socket<GameNspServerToClientEvents, GameNspClientToServerEvents>;

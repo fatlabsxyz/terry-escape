@@ -24,7 +24,9 @@ export enum GameMsg {
 
   PLAYER_SEAT = "game:player_seat",
   FETCH_PROOFS = "game:fetch_proofs",
-  PROOFS = "game:proofs"
+  PROOFS = "game:proofs",
+
+  WINNER = "game:winner"
 }
 
 export interface GamePayload {
@@ -54,10 +56,16 @@ export interface GameAnswerPayload extends GamePayload {
 
 export interface GameUpdatePayload extends GamePayload {
   proof: ProofData;
+  died: boolean;
 }
 
 export interface GameReportPayload extends GamePayload {
   proof: ProofData;
+  died: boolean;
+}
+
+export interface GameEndPayload extends GamePayload {
+  winner: string;
 }
 
 export interface IGameMessage extends Message {
@@ -94,11 +102,15 @@ export interface GameProofsMsg extends IGameMessage {
   payload: GameProofsPayload;
 }
 
+export interface GameEndMsg extends IGameMessage {
+  payload: GameEndPayload;
+}
+
 export interface RetrieveMsg {
   event: `${GameMsg}`;
   turn: number;
 }
 
-export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg | GamePlayerSeatMsg;
+export type GameMessage = GameDeployMsg | GameQueryMsg | GameAnswerMsg | GameUpdateMsg | GameReportMsg | GamePlayerSeatMsg | GameEndMsg;
 
-export type GameMessagePayload = GameDeployPayload | GameQueryPayload | GameAnswerPayload | GameUpdatePayload | GameReportPayload;
+export type GameMessagePayload = GameDeployPayload | GameQueryPayload | GameAnswerPayload | GameUpdatePayload | GameReportPayload | GameEndPayload;

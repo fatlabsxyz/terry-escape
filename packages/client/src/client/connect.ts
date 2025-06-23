@@ -5,7 +5,7 @@ import { ZkLibMock } from "./zklib-mock.js";
 import { ZkLib } from "zklib";
 import { Connection, IfEvents, Impact, Interfacer, Turn } from "./interfacer.js";
 import { Board } from "./game/board.js";
-import { AgentLocation, IJ, Player, PlayerSeat } from "../types/game.js";
+import { AgentLocation, IJ, PlayerSeat } from "../types/game.js";
 import { Collision } from "zklib/types";
 
 export const FRONTEND_URLS = ['http://localhost:8000'];

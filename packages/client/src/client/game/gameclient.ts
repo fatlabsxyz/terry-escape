@@ -1,12 +1,10 @@
-import { Action, Actor, AnyEventObject, assign, createActor, createMachine, emit, fromPromise, setup } from 'xstate';
+import { Actor, AnyEventObject, assign, createActor, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { Player, TurnData, TurnInfo, TurnAction, UpdatesData, Locations, QueryData, AgentLocation, PlayerSeat, IJ, AnswerData, JwtPayload, ReportData} from "../../types/game.js";
-import { GameAnswerPayload, GameMsg, GamePlayerSeatMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
-import { passTime } from "../../utils.js";
+import { TurnData, TurnInfo, TurnAction, UpdatesData, Locations, AgentLocation, PlayerSeat, AnswerData, ReportData, PlayerId, Name} from "../../types/game.js";
+import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { SocketManager } from "../sockets/socketManager.js";
 import { Collision, IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
-import { Board } from './board.js';
 import { Connection, IfEvents, Impact, Interfacer, Turn } from '../interfacer.js';
 
 
@@ -24,6 +22,7 @@ enum Guards {
   isNonActivePlayer = "isNonActivePlayer",
   isEliminated = "isEliminated",
   isWaiting = "isWaiting",
+  isGameFinished = "isGameFinished",
 }
 
 enum PlayerStates {
@@ -33,6 +32,7 @@ enum PlayerStates {
   SelectActive = "SELECT_ACTIVE",
   Active = "ACTIVE",
   NonActive = "NON_ACTIVE",
+  FinishGame = "FINISH_GAME"
 }
 
 enum Actions {
@@ -41,6 +41,7 @@ enum Actions {
   advertiseWait = "advertiseWait",
   markUsWaiting = "markUsWaiting",
   unMarkUsWaiting = "unMarkUsWaiting",
+  gameEnd = "gameEnd"
 }
 
 enum ClientEvent {
@@ -84,6 +85,10 @@ function isTurnStartEvent(event: Events): event is TurnStartEvent {
   return event.type === GameMsg.TURN_START;
 }
 
+function isTurnEndEvent(event: Events): event is TurnStartEvent {
+  return event.type === GameMsg.TURN_END;
+}
+
 interface Context {
   turnInfo: TurnInfo;
   waiting: boolean;
@@ -112,28 +117,26 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 export class GameClient {
   readonly log: (...args: any[]) => void;
   
-  sockets: SocketManager;
-  turnsData: TurnData[];
-  turnData: TurnData;
-  token: string;
-  gameMachine!: Actor<ReturnType<GameClient['stateMachine']>>;
-  private initialPlayerSeatValue: undefined | PlayerSeat;
-  activePlayerLocation: undefined | AgentLocation;
-  private playerIdValue: undefined | string = undefined;
-  private playerSocketIdValue: undefined | string = undefined;
-  private playerNameValue: undefined | string = undefined;
-  private interfacer: Interfacer;
-  validate: boolean = false;
+  token:                    string;
+  winner:                   undefined | PlayerId;
+  sockets:                  SocketManager;
+  verify:                 boolean = false;
+  turnData:                 TurnData;
+  gameMachine!:             Actor<ReturnType<GameClient['stateMachine']>>;
+  private interfacer:       Interfacer;
+  activePlayerLocation:     undefined | AgentLocation;
+  private playerIdValue:    undefined | PlayerId;
+  private playerNameValue:  undefined | Name;
+  private playerSeatValue:  undefined | PlayerSeat;
 
   constructor(sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
-    this.turnsData = [];
-    this.turnData = GameClient._emptyTurnData();
-    this.log = _createLogger(sockets.playerName, sockets.sender);
     this.token = sockets.token;
-    this.initialPlayerSeatValue = undefined;
+    this.playerSeatValue = undefined;
     this.activePlayerLocation = undefined;
     this.interfacer = Interfacer.getInstance();
+    this.turnData = GameClient._emptyTurnData();
+    this.log = _createLogger(sockets.playerName, sockets.sender);
   }
 
   static _emptyTurnData(): TurnData {
@@ -150,7 +153,6 @@ export class GameClient {
   get playerId(): string {
     if (this.playerIdValue === undefined) {
       const pid = this.sockets.playerId; 
-      this.log("PLAYER-ID: GOT FROM SOCKETS-GAME: ", pid);
       this.playerIdValue = pid;
     }
     return this.playerIdValue;
@@ -168,21 +170,23 @@ export class GameClient {
     this.gameMachine = createActor(this.stateMachine());
     this.gameMachine.start();
 
-    this.validate = false;
+    this.verify = false;
 
     this.interfacer.on(IfEvents.Deploy, async (agents: Locations) => {
-      // console.log("\n\nINTERFACER - GOT A DEPLOY EVENT", agents)
       this.interfacer.deploys = agents; 
     });
     this.interfacer.on(IfEvents.Action, async (action: TurnAction) => {
-      // console.log("\n\nINTERFACER - GOT AN ACTION EVENT", action)
       this.interfacer.action = action; 
     });
   }
   
   async prepareSetup() {
-    this.initialPlayerSeatValue = await this.sockets.waitForPlayerSeat();
-    this.log("PREPARE-SETUP: GET-PLAYER-INDEX:", this.playerSeat); //TODO remove log
+    this.playerSeatValue = await this.sockets.waitForPlayerSeat();
+
+    this.gameMachine.on("winner", (winner) => {
+      this.sockets.emit(GameMsg.WINNER, winner);
+    });
+
     await this.setupGame(); 
   }
 
@@ -227,11 +231,12 @@ export class GameClient {
   }
 
   get activePlayerIndex() {
-    return this.round.indexOf(this.activePlayer);
+    const playerIndex = Array.from(this.round.keys()).indexOf(this.activePlayer);
+    return playerIndex;
   }
 
   get playerSeat() {
-    return this.initialPlayerSeatValue;
+    return this.playerSeatValue;
   }
 
   gameLog(...args: any[]) {
@@ -243,7 +248,6 @@ export class GameClient {
 
     const seat = this.playerSeat as PlayerSeat;
     
-    this.log("\n\n\nEMITTING CONNECT EVENT on INTERFACER", seat);
     // Send seat, await agent deployment (based on allowed deployment tiles)
     this.interfacer.emit(IfEvents.Connect, {seat} as Connection);
     
@@ -251,8 +255,6 @@ export class GameClient {
 
     const sk = secretKeySample(seat);
     const pks = [0,1,2,3].map(publicKeySample);
-
-    // this.log(`\nSETUP: PUBLIC-KEYS [1,2,3,4]: ${!!pks[0]},${!!pks[1]},${!!pks[2]},${!!pks[3]}`);
 
     this.zklib.setup(seat, sk, pks, {mockProof: true}); 
     await this.setupAgents(deploys);
@@ -266,7 +268,7 @@ export class GameClient {
     
     // STEP 2
     // wait for queries | take action
-    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR QUERIES (3)\n\n");
+    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR QUERIES\n\n");
     await Promise.all([
       this.waitForQuery(),
       this.takeAction()
@@ -274,28 +276,27 @@ export class GameClient {
 
     // STEP 3
     // create answer
-    this.gameLog("\n\nACTIVE-PLAYER - CREATE ANSWERS (3)\n\n");
+    this.gameLog("\n\nACTIVE-PLAYER - CREATE ANSWERS\n\n");
     const answers = await this.createAnswers();
 
-    // broadcast answers
     await Promise.all(answers.map(async (answer) => {
-      this.gameLog("\nACTIVE-PLAYER - Broadcasting answers\n");
+      this.gameLog("\nACTIVE-PLAYER - BROADCASTING ANSWER\n");
       await this.sockets.broadcastAnswer(this.turn, answer.to, answer);
     }))
     this.gameLog("\nACTIVE-PLAYER - NO MORE ANSWERS TO BROADCAST\n");
 
     // STEP 6
     // wait for updates
-    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR UPDATES (3)\n\n");
+    this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR UPDATES\n\n");
     await this.waitForUpdates();
 
     // STEP 7
     // broadcast reports
     const report = await this.createReport();
-    this.gameLog("\n\nACTIVE-PLAYER - BROADCASTING REPORT \n\n");
+    this.gameLog("\n\nACTIVE-PLAYER - BROADCASTING REPORT\n\n");
     await this.sockets.broadcastReport(this.turn, report);
 
-    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS \n\n");
+    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS\n\n");
     this.validateForeign()
 
     this.gameLog("\n\nACTIVE-PLAYER - FINISHING TURN\n\n");
@@ -310,7 +311,7 @@ export class GameClient {
     this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE QUERY\n\n");
     const query = await this.getQuery();
 
-    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST QUERY (1) AND WAIT FOR QUERIES (2)\n\n");
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST QUERY AND WAIT FOR QUERIES\n\n");
     await Promise.all([
       this.sockets.broadcastQuery(this.turn, this.activePlayer, query),
       this.waitForQuery(),  // we have our query, but we need the other NA-players'
@@ -319,7 +320,7 @@ export class GameClient {
 
     // STEP 4
     // wait for answer
-    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR ANSWERS (2)\n\n");
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR ANSWERS\n\n");
     await this.waitForAnswers();
 
     // STEP 5
@@ -331,15 +332,15 @@ export class GameClient {
       await this.sockets.broadcastUpdate(this.turn, this.activePlayer, update),
       await this.waitForUpdates(),
     ]);
-    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST UPDATE (1) AND WAIT FOR UPDATES (2)\n\n");
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST UPDATE AND WAIT FOR UPDATES\n\n");
 
     // STEP 8
     // wait for report
-    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT (1)\n\n");
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT\n\n");
     await this.waitForReport();
     
     
-    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS \n\n");
+    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS\n\n");
     this.validateForeign()
     
     this.gameLog("NON-ACTIVE-PLAYER - No more duties.")
@@ -350,12 +351,8 @@ export class GameClient {
   //////////////////////////////////////////////////////////////*/
 
   async setupAgents(agentsLocations: Locations) {
-    // this.log(`\nSETUP-AGENTS: AGENTS-LOCATIONS: ${agentsLocations}\n`);
     const myDeploys = await this.zklib.createDeploys(agentsLocations);
-    // this.log(`\nSETUP-AGENTS: MY-DEPLOYS-PROOF: ${myDeploys.proof}\n`);
     
-    // this.log(this.zklib.own_state.board_used);
-
     // Broadcast your deployment proofs
     this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
   }
@@ -365,20 +362,14 @@ export class GameClient {
   //////////////////////////////////////////////////////////////*/
   async getQuery(): Promise<GameQueryPayload> {
     const query = await this.zklib.createQueries(Number(this.activePlayerIndex)); 
-    // this.gameLog(`\n\n\n GET-QUERY: QUERY-LENGTH: ${JSON.stringify(query).length}\n`);
-    // this.gameLog(`\nGET-QUERY: QUERY-PROOF: ${query}\n`);
-
     return {queries: query.proof}
   }
 
   async waitForAnswers() {
     // there is an answer for each non-active player (N_players - 1). Eliminated players still have to answer.
     const answers = await this.sockets.waitForAnswers(this.turn);
-
-    // this.gameLog("WAIT-FOR-ANSWERS: ANSWERS:", answers);
-    
+ 
     answers.forEach( (payload) => {
-      // this.gameLog(`WAIT-FOR-ANSWERS: PAYLOAD ${payload.to}, ${payload.proof}, SENDER: ${sender}`);
       this.turnData.answers.set(payload.to, {proof: payload.proof});
     });
   }
@@ -386,19 +377,19 @@ export class GameClient {
   async createUpdate(): Promise<GameUpdatePayload> { 
     const answer = this.turnData.answers.get(this.playerId) as AnswerData;
 
-    // this.gameLog(`CREATE-UPDATE: ANSWER-FOR-UPDATE: ${answer} ...`);
     const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex); 
-    this.turnData.updates.set(this.playerId, data); 
-    // TODO: deal with 'died'
-    
+    this.turnData.updates.set(this.playerId, data);  
     this.interfacer.emit(IfEvents.Collision, data.collision as Collision);
 
-    return {proof: data.proof};
+    return {proof: data.proof, died: data.died!};
   }
 
   async waitForReport() {
     const report = await this.sockets.waitForReport(this.turn);
-    this.turnData.report = report as ReportData;  
+    this.turnData.report = report as ReportData; 
+    if (this.turnData.report.died) {
+      this.gameMachine.getSnapshot().context.turnInfo.round.set(this.activePlayer, true)
+    }
   }
 
 
@@ -408,29 +399,26 @@ export class GameClient {
   
   async validateDeploys() {
      
-    // TODO make this happen 
     const deploys = await this.sockets.waitForDeploys();
 
-    const enemyDeploys = Array.from(
-      deploys.entries()
-        .filter(([k,v]) => k !== this.playerId)
-        .map(([_,v]) => v.deploys)
+    const deployList = Array.from(
+      deploys.values().map( v => v.deploys )
     );
-    if (this.validate) {
-      this.zklib.verifyDeploys(enemyDeploys);
+    if (this.verify) {
+      this.zklib.verifyDeploys(deployList);
     }
   }
 
   async validateForeign() {
 
-    //TODO validate implementation with Pablo
     const queries = Array.from(this.turnData.queries.values()).map((x) => x.queries);
     const answers = Array.from(this.turnData.answers.values()).map(answer => answer.proof);
     const updates = Array.from(this.turnData.updates.values()).map(answer => answer.proof);
     const report  = this.turnData.report!.proof;
     
-    if (this.validate) {
-      this.zklib.verifyForeign(queries, answers, updates, report, this.playerSeat as number, false)
+    if (this.verify) {
+      // TODO: last argument should be true in prod
+      this.zklib.verifyForeign(queries, answers, updates, report, this.activePlayerIndex, false);
     }
   }
 
@@ -439,39 +427,27 @@ export class GameClient {
     const action = await this.interfacer.waitForAction();
     console.log(action);
 
-  
-    // this.log(`TAKE-ACTION: PLAYER: ${index}, REASON:${reason}, TARGET:${target}`)
-
     this.turnData.action = action;
   }
 
   async waitForQuery() {
-    let queries: Map<Player, GameQueryPayload>;
+    let queries: Map<PlayerId, GameQueryPayload>;
 
     queries = await this.sockets.waitForQueries(this.turn);
 
-    // this.log("QUERIES WE'VE BEEN WAITING FOR");
     queries.forEach((payload, player) => {
-      this.log(`QUERY NUMBER: ${player}, QUERY VALUE: ${payload.queries}`);
       this.turnData.queries.set(player, {queries: payload.queries});
     })
-    // this.log("TURNDATA, QUERIES: ", this.turnData.queries);
   }
 
   async createAnswers(): Promise<GameAnswerPayload[]> {
     const payloads: GameAnswerPayload[] = new Array();
-    // const queryKeys =
-    // order queries
 
     const queryValues = Array.from(this.turnData.queries.values());
     const queryData = queryValues.map((x) => x.queries);
 
-    // this.log(`\nCREATE-ANSWERS: QUERIES: ${queryData}`);
-    
     const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
     
-    // this.log(`\nCREATE-DATA: ALL-ANSWERS: ${answers}\n`);
-    // this.log(`\nCREATE-DATA: ANSWERS: ${answers.playerProofs}\n`);
     let i = 0;
     this.turnData.queries.forEach((_, pid) => {
       const proof = answers.playerProofs[i]!;
@@ -480,7 +456,6 @@ export class GameClient {
       payloads.push({to: pid, proof})
     });
 
-
     return payloads 
   }
 
@@ -488,41 +463,38 @@ export class GameClient {
   async waitForUpdates() {
     const updates = await this.sockets.waitForUpdates(this.turn);
 
-    // this.log("UPDATES RECEIVED: ", updates);
- 
     updates.forEach((value, key) => {
-      // this.log(`\nUPDATES: UPDATE-VALUES-SET: KEY:${key}, VALUE:${value}, `);
-      this.turnData.updates.set(key, value) 
+      this.turnData.updates.set(key, value)
+      if (value.died) {
+        this.gameMachine.getSnapshot().context.turnInfo.round.set(key, true)
+      }
     });
   }
 
   async createReport(): Promise<GameReportPayload> {
     const turnUpdates = this.turnData.updates;
 
-    // this.log(`\nWITNESS: REPORTS(TURN-UPDATES): ${turnUpdates}\n`);
-    
     const updates: ProofData[] = Array.from(turnUpdates.entries())
       .filter(([id]) => id !== this.activePlayer)
       .map(([, { proof }]) => proof);
 
-    // this.log(`\nWITNESS: REPORT: (UPDATES): ${updates}\n`);
-
     const report = await this.zklib.createReports(updates);
-    // TODO: deal with 'died'
+    
+    if (report.died) {
+      // TODO: deal with 'died'
+    }
     
     this.interfacer.emit(IfEvents.Impact, report.impacted as Impact)   
      
-    // this.log(`\nPROOFDATA: REPORT: ${report}\n`);
     this.turnData.report = report as ReportData;
 
-    return { proof: report.proof };
+    return { proof: report.proof, died: report.died };
   }
 
   /*///////////////////////////////////////////////////////////////
                           STATE MACHINE
   //////////////////////////////////////////////////////////////*/
   rotateTurnData(turnInfo: TurnInfo) {
-    this.turnsData.push(this.turnData);
     this.turnData = GameClient._emptyTurnData();
     this.turnData.activePlayer = turnInfo.activePlayer
   }
@@ -532,8 +504,32 @@ export class GameClient {
   }
 
   isNonActivePlayer(turnInfo: TurnInfo): boolean {
-    return (turnInfo.round.indexOf(this.playerId) > -1)
-      && (this.playerId !== turnInfo.activePlayer)
+
+    console.log("\n\n\nROUND: ", JSON.stringify(turnInfo.round));
+    const round = Object.keys(turnInfo.round);
+    console.log("\n\n\nROUND KEYS: ", round);
+    if (round.length > 0) {
+      const playerIndex = round.indexOf(this.playerId);
+      const isDead = turnInfo.round.get(this.playerId);
+      return (isDead) || ( playerIndex > -1) && (this.playerId !== turnInfo.activePlayer)
+    }
+    return true;
+  }
+
+  isGameFinished(turnInfo: TurnInfo) {
+    if (Object.keys(turnInfo.round).length > 0) {
+      console.log("")
+      const round = turnInfo.round;
+      const deadPlayers = Array.from(round.entries())
+        .filter(([_, v]) => v === true);
+      const allEnemiesDead = deadPlayers.length <= 3;
+      if (allEnemiesDead) {
+        const dp = Array.from(new Map(deadPlayers).keys())
+        this.winner = Array.from(round.entries())
+          .filter(([pid,_]) => dp.includes(pid))[0]![0]
+      }
+      turnInfo.gameOver = allEnemiesDead;
+    } else {}
   }
 
   machineSetup() {
@@ -544,6 +540,7 @@ export class GameClient {
                             MACHINE EVENT HANDLERS
     //////////////////////////////////////////////////////////////*/
     this.sockets.addListener(GameMsg.TURN_START, (turnInfo) => {
+      console.log("\n\n\n TURN-INFO: ", JSON.stringify(turnInfo))
       if (self.gameMachine) {
         self.gameMachine.send({ type: GameMsg.TURN_START, turnInfo })
       }
@@ -562,8 +559,13 @@ export class GameClient {
       if (isTurnStartEvent(event)) {
         self.rotateTurnData(event.turnInfo);
         return { turnInfo: event.turnInfo }
+        // } else if (isTurnEndEvent(event)){
+        // TODO: check how to make this work
+        // self.isGameFinished(event.turnInfo);
+        // return { turnInfo: event.turnInfo}
+      } else { 
+        return context
       }
-      else return context
     }
 
     const markUsWaitingAction = ({ event, context }: ActionInput) => {
@@ -585,15 +587,18 @@ export class GameClient {
         [Actions.updateTurnInfo]: assign(updateTurnInfoAction),
         [Actions.markUsWaiting]: assign(markUsWaitingAction),
         [Actions.unMarkUsWaiting]: assign(unMarkUsWaitingAction),
+        [Actions.gameEnd]: emit({type: "winner", winner: this.winner }),
       },
       guards: {
-        [Guards.isActivePlayer]: ({ context }) => this.isActivePlayer(context.turnInfo),
+        [Guards.isGameFinished]: ({ context }) => context.turnInfo?.gameOver === true ,
+
+        [Guards.isActivePlayer]:    ({ context }) => this.isActivePlayer(context.turnInfo),
         [Guards.isNonActivePlayer]: ({ context }) => this.isNonActivePlayer(context.turnInfo),
       },
       actors: {
-        [Actors.preparePlayer]: fromPromise<void, void>(this.prepareSetup.bind(this)),
-        [Actors.notifyReady]: fromPromise<void, void>(this.notifyPlayerReady.bind(this)),
-        [Actors.processActivePlayer]: fromPromise<void, void>(this.processActivePlayer.bind(this)),
+        [Actors.preparePlayer]:          fromPromise<void, void>(this.prepareSetup.bind(this)),
+        [Actors.notifyReady]:            fromPromise<void, void>(this.notifyPlayerReady.bind(this)),
+        [Actors.processActivePlayer]:    fromPromise<void, void>(this.processActivePlayer.bind(this)),
         [Actors.processNonActivePlayer]: fromPromise<void, void>(this.processNonActivePlayer.bind(this)),
       },
     });
@@ -613,8 +618,8 @@ export class GameClient {
             invoke: { src: Actors.preparePlayer, onDone: { target: PlayerStates.Ready } }
           },         
           [PlayerStates.Ready]: {
-            entry: [{ type: Actions.log, params: PlayerStates.Ready }],
-            invoke: { src: Actors.notifyReady, onDone: { target: PlayerStates.UpdateTurnInfo } }
+            entry: [{ type: Actions.log, params: PlayerStates.Ready }],  
+            invoke: { src: Actors.notifyReady, onDone: { target: PlayerStates.UpdateTurnInfo } },
           },
           [PlayerStates.UpdateTurnInfo]: {
             entry: [
@@ -623,6 +628,7 @@ export class GameClient {
             ],
             on: {
               [GameMsg.TURN_START]: [
+                { guard: Guards.isGameFinished, target: PlayerStates.FinishGame },
                 { actions: { type: Actions.updateTurnInfo }, target: PlayerStates.SelectActive },
               ]
             },
@@ -644,6 +650,11 @@ export class GameClient {
           [PlayerStates.NonActive]: {
             entry: [{ type: Actions.log, params: PlayerStates.NonActive }],
             invoke: { src: Actors.processNonActivePlayer, onDone: { target: PlayerStates.UpdateTurnInfo } },
+          },
+          [PlayerStates.FinishGame]: {
+            type: 'final',
+            entry: [{ type: Actions.log, params: PlayerStates.FinishGame}],
+            emit: [{ type: Actions.gameEnd}] 
           },
         },
       });

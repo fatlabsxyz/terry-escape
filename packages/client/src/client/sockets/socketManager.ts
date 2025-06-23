@@ -1,7 +1,7 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
 import { jwtDecode } from 'jwt-decode';
-import { JwtPayload, Player, PlayerId, PlayerSeat, TurnInfo } from "../../types/game.js";
+import { JwtPayload, PlayerId, PlayerSeat, TurnInfo, TurnInfoPayload } from "../../types/game.js";
 import {
   GameAnswerMsg,
   GameAnswerPayload,
@@ -78,18 +78,23 @@ export class SocketManager extends EventEmitter {
       ack();
     })
 
-    this.game.on(GameMsg.TURN_START, (turnInfo, ack) => {
+    this.game.on(GameMsg.TURN_START, (p, ack) => {
+      const turnInfo = {
+        turn:         p.turn,
+        round:        new Map<PlayerId, boolean>(Object.entries(p.round)),
+        activePlayer: p.activePlayer,
+        nextPlayer:   p.nextPlayer,
+        gameOver:     p.gameOver   
+      }
+      console.log("\n\nNEW TURN INFO JUST GOT HERE: ", JSON.stringify(turnInfo));
       self.emit(GameMsg.TURN_START, turnInfo)
       ack();
     })
 
     this.game.on(GameMsg.PLAYER_SEAT, async (msg: GamePlayerSeatMsg) => {
-      // console.log("\n\n\nPLAYER SEAT MESSAGE\n\n\n")
       const seat = msg.payload.seat;
 
-      // console.log("SEAT RECIEVED: ", seat);
       if (this.playerSeat != seat) {
-        // console.log("\n\n\nUPDATING SEAT\n\n\n")
         this.playerSeat = seat 
       }
     });
@@ -147,8 +152,6 @@ export class SocketManager extends EventEmitter {
     
   async advertisePlayerAsReady() {
     const playerIndex = await this.game.timeout(TIMEOUT).emitWithAck(GameMsg.READY);
-
-    // console.log("READY: PLAYER-INDEX", playerIndex);
     return playerIndex;
   }
 
@@ -219,7 +222,6 @@ export class SocketManager extends EventEmitter {
       while (true) {
        
         const recieved = (this.playerSeat !== undefined);
-        // console.log("CURRENT PLAYER SEAT: ", this.playerSeat);
         if (recieved) { break; } else { await passTime(100); }
       }
       res(this.playerSeat as PlayerSeat)
@@ -227,7 +229,7 @@ export class SocketManager extends EventEmitter {
   }
 
   async waitForDeploys(): Promise<Map<string, GameDeployPayload>> {
-    const deploys: Map<Player, GameDeployPayload> = new Map();
+    const deploys: Map<PlayerId, GameDeployPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
@@ -248,7 +250,7 @@ export class SocketManager extends EventEmitter {
   }
 
   async waitForQueries(turn: number): Promise<Map<string, GameQueryPayload>> {
-    const queries: Map<Player, GameQueryPayload> = new Map();
+    const queries: Map<PlayerId, GameQueryPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
@@ -269,7 +271,7 @@ export class SocketManager extends EventEmitter {
   }
 
   async waitForAnswers(turn: number): Promise<Map<string, GameAnswerPayload>> {
-    const answers: Map<Player, GameAnswerPayload> = new Map();
+    const answers: Map<PlayerId, GameAnswerPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
@@ -290,7 +292,7 @@ export class SocketManager extends EventEmitter {
   }
 
   async waitForUpdates(turn: number): Promise<Map<string, GameUpdatePayload>> {
-    const updates: Map<Player, GameUpdatePayload> = new Map();
+    const updates: Map<PlayerId, GameUpdatePayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
       while (true) {
@@ -339,11 +341,11 @@ export class SocketManager extends EventEmitter {
     });
   }
 
-  async waitForTurnStartEvent(): Promise<TurnInfo> {
+  async waitForTurnStartEvent(): Promise<TurnInfoPayload> {
     // TODO: add setTimeout to run rej branch
     return new Promise((res, rej) => {
       setTimeout(rej, TIMEOUT);
-      this.game.once(GameMsg.TURN_START, (data: TurnInfo, ack) => { 
+      this.game.once(GameMsg.TURN_START, (data: TurnInfoPayload, ack) => { 
         ack(); 
         
         this.msgBox.clearOldMessages()

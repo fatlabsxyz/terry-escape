@@ -1,7 +1,7 @@
-import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg, ProofsEmitMessage} from 'client/types';
+import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg, ProofsEmitMessage, GameEndPayload, GameEndMsg} from 'client/types';
 import { MessageBox, MsgEvents } from 'client';
 import { Namespace, Server, Socket } from 'socket.io';
-import { getGameOrNewOne, Player, PlayerStatus } from '../game.js';
+import { getGameOrNewOne, PlayerStatus } from '../game.js';
 import jwt from 'jsonwebtoken';
 import { PlayerStorage } from '../playerStorage.js';
 
@@ -132,10 +132,13 @@ function registerGameHandlers(socket: GameSocket) {
 
   socket.on(GameMsg.READY, async (ack: Ack) => {
     const game = getGameOrNewOne(socket.nsp);
-    game.readyPlayer(socket.data.id as Player);
+    game.readyPlayer(socket.data.id as PlayerId);
     ack();
   });
   
+  socket.on(GameMsg.WINNER, async (p: GameEndMsg) => {
+    msgBox.storeValue(p);
+  });
 }
 
 export function addGameNamespace(server: Server): Server {
@@ -185,7 +188,7 @@ export function addGameNamespace(server: Server): Server {
 
     const p = player as PlayerProps;
 
-    game.addPlayer(p.id as Player);
+    game.addPlayer(p.id as PlayerId);
     console.log(`welcome ${p.name} with id ${p.id} :\) \n and socketId ${p.sid}`);
     
     socket.on("disconnect", async (reason) => {

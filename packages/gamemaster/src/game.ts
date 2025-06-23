@@ -52,12 +52,12 @@ interface SmEvent extends AnyEventObject {
 
 interface AddPlayerEvent extends SmEvent {
   type: Events.AddPlayer,
-  data: { player: Player }
+  data: { player: PlayerId }
 }
 
 interface PlayerReadyEvent extends SmEvent {
   type: Events.PlayerReady,
-  data: { player: Player }
+  data: { player: PlayerId }
 }
 
 interface EmitSeatEvent extends SmEvent {
@@ -80,12 +80,13 @@ function isPlayerReadyEvent(event: EventsSm): event is PlayerReadyEvent {
 
 interface Context {
   minPlayers: number;
-  players: Map<Player, PlayerStatus>;
+  players: Map<PlayerId, PlayerStatus>;
   turn: number;
-  round: Player[];
-  activePlayer: Player | null;
-  nextPlayer: Player | null;
+  round: Map<PlayerId, boolean>;
+  activePlayer: PlayerId;
+  nextPlayer: PlayerId;
   turnInfo: TurnInfo
+  gameOver: boolean;
 }
 
 interface ActionInput {
@@ -93,14 +94,14 @@ interface ActionInput {
   context: Context
 }
 
-export type Player = string & { readonly __brand: unique symbol };
+// export type Player = string & { readonly __brand: unique symbol };
 
 export interface PlayerStatus {
   eliminated: boolean;
   ready: boolean;
   waiting: boolean;
   seat: number;
-  id: Player;
+  id: PlayerId;
 }
 
 
@@ -116,8 +117,8 @@ export class Game {
 
   private msgBox: MessageBox;
 
-  private _activePlayer: Player | null = null;
-  private _nextPlayer: Player | null = null;
+  private _activePlayer: PlayerId | null = null;
+  private _nextPlayer: PlayerId | null = null;
   nsp: GameNsp;
   playerStorage: PlayerStorage;
 
@@ -125,7 +126,7 @@ export class Game {
   broadcastTimeout: number;
   minPlayers: number;
   playerSeat: undefined | number = undefined;
-    playerEmitData: any;
+  playerEmitData: any;
 
   constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
@@ -151,11 +152,12 @@ export class Game {
   static _defaultContext(minPlayers: number): Context {
     const context = {
       players: new Map(),
-      round: [],
+      round: new Map(),
       minPlayers,
       turn: 0,
-      activePlayer: null,
-      nextPlayer: null,
+      activePlayer: "",
+      nextPlayer: "",
+      gameOver: false,
     }
     return {
       ...context,
@@ -187,19 +189,19 @@ export class Game {
     });
   }
 
-  storedPlayerId(player: Player) {
+  storedPlayerId(player: PlayerId) {
     return this.playerStorage.getSocketId(player) as string;
   }
 
-  addPlayer(player: Player) {
+  addPlayer(player: PlayerId) {
     this.gameMachine.send({ type: Events.AddPlayer, data: { player } });
   }
 
-  readyPlayer(player: Player) {
+  readyPlayer(player: PlayerId) {
     this.gameMachine.send({ type: Events.PlayerReady, data: { player } });
   }
 
-  getPlayerIndex(playerId: Player): number | undefined {
+  getPlayerIndex(playerId: PlayerId): number | undefined {
     const playerStatus = this.gameMachine
       .getSnapshot()
       .context
@@ -208,27 +210,29 @@ export class Game {
     return playerStatus?.seat;
   }
 
-  static nextPlayers(finishingPlayer: Player, round: Player[]): [Player, Player] {
-    let activePlayer: Player, nextPlayer: Player;
-    const activeIndex = round.indexOf(finishingPlayer);
+  static nextPlayers(finishingPlayer: PlayerId, round: Map<PlayerId, boolean>): [PlayerId, PlayerId] {
+    let activePlayer: PlayerId, nextPlayer: PlayerId;
+    const roundPlayers = Array.from(round.keys());
+    const activeIndex = roundPlayers.indexOf(finishingPlayer);
     if (activeIndex < 0) {
       console.log(`Active player ${finishingPlayer} has been eliminated`)
-      activePlayer = round[0]!;
-      nextPlayer = round[1]!;
+      activePlayer = roundPlayers[0]!;
+      nextPlayer = roundPlayers[1]!;
     } else {
-      activePlayer = round[(activeIndex + 1) % round.length]!
-      nextPlayer = round[(activeIndex + 2) % round.length]!
+      activePlayer = roundPlayers[(activeIndex + 1) % roundPlayers.length]!
+      nextPlayer = roundPlayers[(activeIndex + 2) % roundPlayers.length]!
     }
     return [activePlayer, nextPlayer]
   }
 
   static turnInfoFromContext(context: Omit<Context, 'turnInfo'>): TurnInfo {
-    const { turn, round, activePlayer, nextPlayer } = context;
+    const { turn, round, activePlayer, nextPlayer, gameOver } = context;
     return {
       turn,
       round,
-      activePlayer: activePlayer!,
-      nextPlayer: nextPlayer!,
+      activePlayer,
+      nextPlayer,
+      gameOver,
     }
   }
 
@@ -236,19 +240,32 @@ export class Game {
 
     const { turn, players, activePlayer: finishingPlayer } = context;
 
-    // we remove eliminated players
-    const round = Array.from(players.values())
-      .sort((a, b) => b.seat - a.seat)
-      .filter(x => !x.eliminated)
-      .map(x => x.id);
+    // we mark eliminated players
+    const round: Map<PlayerId, boolean> = new Map();
+    const playersSorted: PlayerStatus[] = Array.from(players.values()).sort((a, b) => b.seat - a.seat);
+    console.log("\n\n\n\n pLAYERS SORTED: ", playersSorted)
+    
+    playersSorted.forEach((p) => {
+      round.set(p.id, p.eliminated);
+      // TODO maybe should set players as eliminated through event from client
+    });
 
-    let activePlayer, nextPlayer;
+    console.log("\n\nROUND: ", round);
+
+    let activePlayer: string, nextPlayer: string;
     if (!finishingPlayer) {
       // We just started the game
-      [activePlayer, nextPlayer] = [round[0]!, round[1]!]
+      const [p1, p2] = [playersSorted[0]!, playersSorted[1]!]
+      activePlayer = p1.id;
+      nextPlayer = p2.id;
+      
+      console.log("\n\n\n\n NEW ACTIVE PLAYER: ", activePlayer)
+      console.log("\n NEW NEXT PLAYER: ", nextPlayer)
     } else {
       [activePlayer, nextPlayer] = this.nextPlayers(finishingPlayer, round);
     }
+
+    let gameOver = false; //TODO update this later based on dead players
 
     const justContext = {
       players: context.players,
@@ -257,6 +274,7 @@ export class Game {
       round,
       activePlayer,
       nextPlayer,
+      gameOver,
     };
 
     const newContext = {
@@ -276,7 +294,15 @@ export class Game {
   }
 
   private async broadcastTurn(turnInfo: TurnInfo) {
-    await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.TURN_START, turnInfo);
+    const newTurnInfo = {
+        turn:         turnInfo.turn,
+        round:        Object.fromEntries(turnInfo.round),
+        activePlayer: turnInfo.activePlayer,
+        nextPlayer:   turnInfo.nextPlayer,
+        gameOver:     turnInfo.gameOver   
+    }
+    console.log("\n\n BROADCASTING TURN new-turn-info: ", stringify(newTurnInfo))
+    await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.TURN_START, newTurnInfo);
     this.msgBox.emitClean();
   }
 
@@ -286,7 +312,7 @@ export class Game {
 
   async newTurn(context: Context): Promise<Context> {
     const newContext = Game.nextContext(context);
-    this.log("oldContext", stringify(context), "newContext", stringify(newContext))
+    this.log("\noldContext", stringify(context), "\nnewContext", stringify(newContext))
     await this.broadcastTurn(newContext.turnInfo);
     return newContext;
   }
@@ -294,10 +320,10 @@ export class Game {
   async queryWaiting(context: Context): Promise<Context> {
     const waitingResponse = await this.broadcastQueryWaiting()
     waitingResponse.forEach(({ player: id, waiting }) => {
-      const player = context.players.get(id as Player)
+      const player = context.players.get(id as PlayerId)
       if (player) {
         player.waiting = waiting;
-        context.players.set(id as Player, player)
+        context.players.set(id as PlayerId, player)
       }
     })
     return { ...context, players: context.players }

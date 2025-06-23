@@ -31,6 +31,10 @@ export type Placements = {
 export type PlayerSeat = 0|1|2|3; 
 
 // location of an agent in the board
+// 00, 01, 02, 03
+// 04, 05, 06, 07
+// 08, 09, 10, 11
+// 12, 13, 14, 15
 export type AgentLocation = 0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15;
 
 export type BoardLocation = Map<PlayerSeat, AgentLocation>
@@ -69,9 +73,6 @@ export interface JwtPayload {
   name: string;
 }
 
-// Represents a socket-id ( TODO verify if this is still sid, probably not)
-export type Player = string;
-
 export type QueryData = {
   queries: ProofData[]; 
 };
@@ -89,26 +90,37 @@ export type ReportData = {
   died?:     boolean;
 }
 
-export type SetupData = Map<Player, ProofData>; 
+export type SetupData = Map<PlayerId, ProofData>; 
+
+export type Dead = boolean;
 
 export interface TurnInfo {
   turn:         number;
-  round:        Player[];
-  activePlayer: Player;
-  nextPlayer:   Player;
+  round:        Map<PlayerId, Dead>;
+  activePlayer: PlayerId;
+  nextPlayer:   PlayerId;
+  gameOver:     boolean;
+};
+
+export interface TurnInfoPayload {
+  turn:         number;
+  round:        Object;
+  activePlayer: PlayerId;
+  nextPlayer:   PlayerId;
+  gameOver:     boolean;
 };
 
 export interface TurnData {
-  activePlayer: Player;
+  activePlayer: PlayerId;
   action:       TurnAction;
-  queries:      Map<Player, QueryData>;
-  answers:      Map<Player, AnswerData>;
-  updates:      Map<Player, UpdatesData>;
+  queries:      Map<PlayerId, QueryData>;
+  answers:      Map<PlayerId, AnswerData>;
+  updates:      Map<PlayerId, UpdatesData>;
   report:       ReportData | null;
 };
 
 export type TurnAction = {
   reason: AgentLocation;  // Origin coordinates 
   target: AgentLocation;  // Target coordinates
-  trap:   boolean;          // To trap or not to trap
+  trap:   boolean;        // To trap or not to trap
 };
