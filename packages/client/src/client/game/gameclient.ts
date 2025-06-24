@@ -118,12 +118,12 @@ export class GameClient {
   readonly log: (...args: any[]) => void;
   
   token:                    string;
-  winner:                   undefined | PlayerId;
   sockets:                  SocketManager;
-  verify:                 boolean = false;
+  verify:                   boolean = false;
   turnData:                 TurnData;
   gameMachine!:             Actor<ReturnType<GameClient['stateMachine']>>;
   private interfacer:       Interfacer;
+  private winner:           undefined | PlayerId;
   activePlayerLocation:     undefined | AgentLocation;
   private playerIdValue:    undefined | PlayerId;
   private playerNameValue:  undefined | Name;
@@ -184,7 +184,8 @@ export class GameClient {
     this.playerSeatValue = await this.sockets.waitForPlayerSeat();
 
     this.gameMachine.on("winner", (winner) => {
-      this.sockets.emit(GameMsg.WINNER, winner);
+      console.log("EMITTING WINNER TO FRONTEND: ", winner)
+      this.interfacer.emit(IfEvents.Winner, winner);
     });
 
     await this.setupGame(); 
@@ -504,32 +505,24 @@ export class GameClient {
   }
 
   isNonActivePlayer(turnInfo: TurnInfo): boolean {
-
-    console.log("\n\n\nROUND: ", JSON.stringify(turnInfo.round));
-    const round = Object.keys(turnInfo.round);
-    console.log("\n\n\nROUND KEYS: ", round);
-    if (round.length > 0) {
-      const playerIndex = round.indexOf(this.playerId);
-      const isDead = turnInfo.round.get(this.playerId);
-      return (isDead) || ( playerIndex > -1) && (this.playerId !== turnInfo.activePlayer)
+    const pidRound = Object.keys(turnInfo.round);
+    if (pidRound.length > 0) {
+      const playerIndex = pidRound.indexOf(this.playerId);
+      return ( playerIndex > -1) && (this.playerId !== turnInfo.activePlayer)
     }
     return true;
   }
 
-  isGameFinished(turnInfo: TurnInfo) {
-    if (Object.keys(turnInfo.round).length > 0) {
-      console.log("")
-      const round = turnInfo.round;
-      const deadPlayers = Array.from(round.entries())
-        .filter(([_, v]) => v === true);
-      const allEnemiesDead = deadPlayers.length <= 3;
-      if (allEnemiesDead) {
-        const dp = Array.from(new Map(deadPlayers).keys())
-        this.winner = Array.from(round.entries())
-          .filter(([pid,_]) => dp.includes(pid))[0]![0]
-      }
-      turnInfo.gameOver = allEnemiesDead;
-    } else {}
+  isGameOver(turnInfo:TurnInfo): boolean {
+    console.log("\nturn info for real: ",turnInfo);
+    if (turnInfo && turnInfo.gameOver){
+      console.log("\nGAMEOVER in turn info");
+      this.winner = turnInfo.gameOver;
+      return true;
+    } else {
+      console.log("\nGAMEOVER not in turn info");
+      return false;
+    }
   }
 
   machineSetup() {
@@ -559,10 +552,6 @@ export class GameClient {
       if (isTurnStartEvent(event)) {
         self.rotateTurnData(event.turnInfo);
         return { turnInfo: event.turnInfo }
-        // } else if (isTurnEndEvent(event)){
-        // TODO: check how to make this work
-        // self.isGameFinished(event.turnInfo);
-        // return { turnInfo: event.turnInfo}
       } else { 
         return context
       }
@@ -584,14 +573,13 @@ export class GameClient {
       },
       actions: {
         log: (o, step: PlayerStates) => this.log(step ? `[${step}]` : '', o.event.type, JSON.stringify(o.context)),
-        [Actions.updateTurnInfo]: assign(updateTurnInfoAction),
-        [Actions.markUsWaiting]: assign(markUsWaitingAction),
-        [Actions.unMarkUsWaiting]: assign(unMarkUsWaitingAction),
-        [Actions.gameEnd]: emit({type: "winner", winner: this.winner }),
+        [Actions.updateTurnInfo]:   assign(updateTurnInfoAction),
+        [Actions.markUsWaiting]:    assign(markUsWaitingAction),
+        [Actions.unMarkUsWaiting]:  assign(unMarkUsWaitingAction),
+        [Actions.gameEnd]:          emit({type: "winner", winner: this.winner }),
       },
       guards: {
-        [Guards.isGameFinished]: ({ context }) => context.turnInfo?.gameOver === true ,
-
+        [Guards.isGameFinished]:    ({ context }) => this.isGameOver(context.turnInfo),
         [Guards.isActivePlayer]:    ({ context }) => this.isActivePlayer(context.turnInfo),
         [Guards.isNonActivePlayer]: ({ context }) => this.isNonActivePlayer(context.turnInfo),
       },
@@ -646,7 +634,7 @@ export class GameClient {
           [PlayerStates.Active]: {
             entry: [{ type: Actions.log, params: PlayerStates.Active }],
             invoke: { src: Actors.processActivePlayer, onDone: { target: PlayerStates.UpdateTurnInfo } },
-          },
+           },
           [PlayerStates.NonActive]: {
             entry: [{ type: Actions.log, params: PlayerStates.NonActive }],
             invoke: { src: Actors.processNonActivePlayer, onDone: { target: PlayerStates.UpdateTurnInfo } },

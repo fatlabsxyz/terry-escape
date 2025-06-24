@@ -38,8 +38,6 @@ export interface GameNspClientToServerEvents {
   [GameMsg.REPORT]: (p: GameReportMsg, cb: Ack) => void;
   
   [GameMsg.FETCH_PROOFS]: (w: RetrieveMsg, cb: Ack) => void; 
-  
-  [GameMsg.WINNER]: (p: GameEndMsg) => void;
 }
 
 export interface GameNspServerToClientEvents {
@@ -81,8 +79,6 @@ export interface GameNspServerToClientEvents {
   [GameMsg.PLAYER_SEAT]: (p: GamePlayerSeatMsg) => void;
    
   [GameMsg.PROOFS]: (p: GameProofsPayload , cb: Ack) => void;
-  
-  [GameMsg.WINNER]: (p: GameEndPayload) => void;
 }
 
 export type GameSocket = Socket<GameNspServerToClientEvents, GameNspClientToServerEvents>;

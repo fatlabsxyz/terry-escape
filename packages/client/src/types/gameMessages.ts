@@ -25,8 +25,6 @@ export enum GameMsg {
   PLAYER_SEAT = "game:player_seat",
   FETCH_PROOFS = "game:fetch_proofs",
   PROOFS = "game:proofs",
-
-  WINNER = "game:winner"
 }
 
 export interface GamePayload {

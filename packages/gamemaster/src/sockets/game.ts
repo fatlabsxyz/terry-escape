@@ -136,9 +136,6 @@ function registerGameHandlers(socket: GameSocket) {
     ack();
   });
   
-  socket.on(GameMsg.WINNER, async (p: GameEndMsg) => {
-    msgBox.storeValue(p);
-  });
 }
 
 export function addGameNamespace(server: Server): Server {

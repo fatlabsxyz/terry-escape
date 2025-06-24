@@ -11,6 +11,7 @@ export enum IfEvents {
   Impact    = "inter:impact",
   Collision = "inter:collision",
   Died      = "inter:died",
+  Winner    = "inter:winner",
 }
 
 export type Turn = {

@@ -79,18 +79,20 @@ export class SocketManager extends EventEmitter {
     })
 
     this.game.on(GameMsg.TURN_START, (p, ack) => {
-      // SocketIo apparently trips up when an object has 
-      // a map<string:bool> inside of it, and sends it as empty.
+      // SocketIo apparently has trouble serializing and deserializing 
+      // an object when it has a map<string:bool> inside of it, and sends it as an empty obj.
       // this is why TurnInfoPayload converts round to an object 
-      // before sending it, and then re-converts it
+      // before sending it, and then re-converts it.
+      const roundEntries: [string, boolean][] = Object.entries(p.round);
+      // const round = roundEntries.reduce((round, [key, value]) => round.set(key, value), new Map<string, boolean>());
+      // const round = new Map<string, boolean>(roundEntries)); //this used to work idk why it doesn't now
       const turnInfo = {
         turn:         p.turn,
-        round:        new Map<PlayerId, boolean>(Object.entries(p.round)),
+        round:        new Map<string, boolean>(roundEntries),
         activePlayer: p.activePlayer,
         nextPlayer:   p.nextPlayer,
-        gameOver:     p.gameOver   
+        gameOver:     p.gameOver! 
       }
-      console.log("\n\nNEW TURN INFO JUST GOT HERE: ", JSON.stringify(turnInfo));
       self.emit(GameMsg.TURN_START, turnInfo)
       ack();
     })

@@ -9,7 +9,8 @@ enum GameState {
   setup = "GM:SETUP",
   newTurn = "GM:NEW_TURN",
   turn = "GM:TURN",
-  cleanup = "GM:CLEANUP"
+  cleanup = "GM:CLEANUP",
+  end = "GM:END"
 }
 
 enum Actors {
@@ -22,12 +23,14 @@ enum Events {
   EmitSeat = "EmitSeat",
   PlayerReady = "PlayerReady",
   AllPlayersReadyToStart = "AllPlayerReadyToStart",
-  AllPlayersDead = "AllPlayersDied"
+  AllPlayersDead = "AllPlayersDied",
+  GameEnded = "GameEnded"
 }
 
 enum Guards {
   allPlayersReady = "allPlayersReady",
   allPlayersWaiting = "allPlayersWaiting",
+  gameEnded = "gameEnded",
 }
 
 enum Actions {
@@ -38,6 +41,7 @@ enum Actions {
   updatePlayers = "updatePlayers",
   cleanup = "cleanup",
   emitSeat = "emitSeat",
+  endGame = "endGame"
 }
 
 type PlayerData = { 
@@ -86,7 +90,6 @@ interface Context {
   activePlayer: PlayerId;
   nextPlayer: PlayerId;
   turnInfo: TurnInfo
-  gameOver: boolean;
 }
 
 interface ActionInput {
@@ -128,6 +131,8 @@ export class Game {
   playerSeat: undefined | number = undefined;
   playerEmitData: any;
 
+  winner: undefined | PlayerId;
+
   constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
     this.broadcastTimeout = 30_000; //originally 2_000
@@ -157,7 +162,6 @@ export class Game {
       turn: 0,
       activePlayer: "",
       nextPlayer: "",
-      gameOver: false,
     }
     return {
       ...context,
@@ -209,30 +213,88 @@ export class Game {
       .get(playerId);
     return playerStatus?.seat;
   }
+  
+  isGameFinished(turnInfo: TurnInfo) {
+    if (Object.keys(turnInfo.round).length > 0) {
+      console.log("")
+      const round = turnInfo.round;
+      const deadPlayers = Array.from(round.entries())
+        .filter(([_, v]) => v === true);
+      const allEnemiesDead = deadPlayers.length <= 3;
+      if (allEnemiesDead) {
+        const dp = Array.from(new Map(deadPlayers).keys())
+        const winner = Object.keys(round)
+          .find((pid) => !dp.includes(pid)) as PlayerId;
+        this.winner = winner;
+        turnInfo.gameOver = winner;
+      }
+    } else {
+      // do something
+    }
+  }
 
   static nextPlayers(finishingPlayer: PlayerId, round: Map<PlayerId, boolean>): [PlayerId, PlayerId] {
-    let activePlayer: PlayerId, nextPlayer: PlayerId;
     const roundPlayers = Array.from(round.keys());
-    const activeIndex = roundPlayers.indexOf(finishingPlayer);
-    if (activeIndex < 0) {
-      console.log(`Active player ${finishingPlayer} has been eliminated`)
-      activePlayer = roundPlayers[0]!;
-      nextPlayer = roundPlayers[1]!;
-    } else {
-      activePlayer = roundPlayers[(activeIndex + 1) % roundPlayers.length]!
-      nextPlayer = roundPlayers[(activeIndex + 2) % roundPlayers.length]!
+    const livingPlayers = Array.from(round.entries())
+      .filter(([_, v]) => v === false)
+      .map(([k,_]) => k);
+ 
+    if (livingPlayers.includes(finishingPlayer)){
+      // finishing player still alive
+      // keep player as option
+      // pick next player from living players
+      const activeIndex  = livingPlayers.indexOf(finishingPlayer) as PlayerSeat;
+      
+      return this.findNextPlayer(activeIndex, livingPlayers)
+    } else { // if active died, find next active
+      // check if there is a next player with larger seat
+      let activeIndex: PlayerSeat;
+      const oldActiveIndex = roundPlayers.indexOf(finishingPlayer);
+
+      const upperPlayer = roundPlayers.find((p) => {
+        roundPlayers.indexOf(p) > oldActiveIndex && livingPlayers.includes(p)
+      });
+
+      if (upperPlayer) {
+        activeIndex = livingPlayers.indexOf(upperPlayer) as PlayerSeat;
+      } else { //if there is no player with higher seat
+        // find the next player with lowest seat
+        const lowerPlayer = roundPlayers.find((p) => {
+          roundPlayers.indexOf(p) < oldActiveIndex && livingPlayers.includes(p)
+        });
+
+        activeIndex = livingPlayers.indexOf(lowerPlayer!) as PlayerSeat;
+      }
+      
+      return this.findNextPlayer(activeIndex, livingPlayers);      
     }
-    return [activePlayer, nextPlayer]
+  }
+
+  static findNextPlayer(activeIndex: PlayerSeat, livingPlayers: PlayerId[]): [PlayerId,PlayerId] {
+    
+    let activePlayer: PlayerId, nextPlayer: PlayerId;
+    if (livingPlayers.length > activeIndex + 1) {       // if there's at least 1 more player, set active
+      activePlayer = livingPlayers[activeIndex + 1]!;
+      if (livingPlayers.length > activeIndex + 2) {     // if there's one more, set as next
+        nextPlayer = livingPlayers[activeIndex + 2]!;
+      } else {                                          // otherwise, set the first one as next
+        nextPlayer = livingPlayers[0]!;
+      }
+    } else {                                            // if there's not more players, start at the beginning
+      activePlayer = livingPlayers[0]!;
+      nextPlayer = livingPlayers[1]!; 
+    }
+    return [activePlayer, nextPlayer];
   }
 
   static turnInfoFromContext(context: Omit<Context, 'turnInfo'>): TurnInfo {
-    const { turn, round, activePlayer, nextPlayer, gameOver } = context;
+    const { turn, round, activePlayer, nextPlayer,  } = context;
     return {
       turn,
       round,
       activePlayer,
       nextPlayer,
-      gameOver,
+      gameOver: undefined
     }
   }
 
@@ -240,32 +302,45 @@ export class Game {
 
     const { turn, players, activePlayer: finishingPlayer } = context;
 
-    // we mark eliminated players
+    let gameOver = undefined; 
+  
     const round: Map<PlayerId, boolean> = new Map();
     const playersSorted: PlayerStatus[] = Array.from(players.values()).sort((a, b) => b.seat - a.seat);
     console.log("\n\n\n\n pLAYERS SORTED: ", playersSorted)
     
     playersSorted.forEach((p) => {
-      round.set(p.id, p.eliminated);
-      // TODO maybe should set players as eliminated through event from client
+      round.set(p.id, p.eliminated);  // we mark eliminated players
+      // TODO: maybe should set players as eliminated through event from client
     });
+
+    // check which is the last dead player, mark as winner 
+    // TODO: (could fail if the last two players die in the same turn)
+    // i.e. non-active player1 has agent and bomb in square 0
+    // active player2 has agent in square 1, moves to square 0, 
+    // kills player1 and dies to the bomb: [should declare a tie]
+    const deadPlayers = Array.from(round.entries())
+      .filter(([_, v]) => v === true);
+    const allEnemiesDead = deadPlayers.length <= 3;
+    if (allEnemiesDead) {
+      const dp = Array.from(new Map(deadPlayers).keys())
+      const winner = Object.keys(round)
+        .find((pid) => !dp.includes(pid)) as PlayerId;
+      gameOver = winner;
+    }
 
     console.log("\n\nROUND: ", round);
 
     let activePlayer: string, nextPlayer: string;
+
     if (!finishingPlayer) {
       // We just started the game
+
       const [p1, p2] = [playersSorted[0]!, playersSorted[1]!]
       activePlayer = p1.id;
-      nextPlayer = p2.id;
-      
-      console.log("\n\n\n\n NEW ACTIVE PLAYER: ", activePlayer)
-      console.log("\n NEW NEXT PLAYER: ", nextPlayer)
+      nextPlayer = p2.id; 
     } else {
       [activePlayer, nextPlayer] = this.nextPlayers(finishingPlayer, round);
     }
-
-    let gameOver = false; //TODO update this later based on dead players
 
     const justContext = {
       players: context.players,
@@ -312,7 +387,7 @@ export class Game {
 
   async newTurn(context: Context): Promise<Context> {
     const newContext = Game.nextContext(context);
-    this.log("\noldContext", stringify(context), "\nnewContext", stringify(newContext))
+    this.log("\n oldContext", stringify(context), "\n newContext", stringify(newContext), "\n")
     await this.broadcastTurn(newContext.turnInfo);
     return newContext;
   }
@@ -343,8 +418,6 @@ export class Game {
           id: event.data.player,
           waiting: false
         }
-
-        // this.log(`New player seat: ${player.seat}, ID: ${player.id}`);
         context.players.set(player.id, player);
           
         this.playerEmitData = {
@@ -396,8 +469,6 @@ export class Game {
 
     const self = this;
     function allPlayersReadyGuard(context: Context): boolean {
-      // self.log("Checking all players ready", stringify(context));
-      
       if (context.players.size >= context.minPlayers) {
         const msgBox = MessageBox.getInstance();
         const playerStatuses = Array.from(context.players.values());
@@ -408,8 +479,6 @@ export class Game {
     }
 
     function allPlayersWaitingGuard(context: Context): boolean {
-      // self.log("Checking all players waiting", stringify(context));
-
       const nonEliminated = Array.from(context.players.values()).filter(x => !x.eliminated);
       return nonEliminated.every(x => x.waiting)
     }
@@ -427,8 +496,10 @@ export class Game {
         [Actions.updateContextOnDone]: assign(updateContextOnDoneAction),
         [Actions.updatePlayers]: assign(updatePlayersAction),
         [Actions.cleanup]: assign(cleanupAction),
+        [Actions.endGame]: emit({type: Events.GameEnded, winner: this.winner}),
       },
       guards: {
+        [Guards.gameEnded]: ({ context }) => !!this.winner,
         [Guards.allPlayersReady]: ({ context }) => allPlayersReadyGuard(context),
         [Guards.allPlayersWaiting]: ({ context }) => allPlayersWaitingGuard(context),
       },
@@ -506,10 +577,16 @@ export class Game {
             }
           },
           [GameState.cleanup]: {
-            entry: [{ type: Actions.log, params: GameState.cleanup }],
+            guard: Guards.gameEnded, target: GameState.end,
+            entry: [{ type: Actions.log, params: GameState.cleanup }], 
             always: [
               { actions: [{ type: Actions.cleanup }], target: GameState.newTurn }
             ]
+          },
+          [GameState.end]: {
+            type: 'final',
+            entry: [{ type: Actions.log, params: GameState.end}],
+            emit: [{ type: Actions.endGame}] 
           },
         }
       });

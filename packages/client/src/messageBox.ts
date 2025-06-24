@@ -98,12 +98,6 @@ export class MessageBox extends EventEmitter {
         this.evalBroadcast(event, [this.reports.get(turn)!]);
         break; 
       };
-      case GameMsg.WINNER: {
-        const winner = msg as GameEndMsg
-        this.winners.push(winner);
-        this.evalBroadcast(event, this.winners);
-        break;
-      };
     }
   }
 
@@ -111,17 +105,15 @@ export class MessageBox extends EventEmitter {
     console.log(`EVALUATING EMISSION OF ${event}`)
 
     if (
-      ( event === GameMsg.DEPLOY || 
-        event === GameMsg.WINNER
-      ) && (values.length === MAX_PLAYERS)) {                       // 4 deploys/winners
+      ( event === GameMsg.DEPLOY) && (values.length === MAX_PLAYERS)) { // 4 deploys
       this.broadcast(event, values);
     } else if (
       ( event === GameMsg.UPDATE ||
         event === GameMsg.QUERY  ||
         event === GameMsg.ANSWER
-      ) && (values.length === MAX_PLAYERS - 1)) {                   // 3 queries/updates/answers
+      ) && (values.length === MAX_PLAYERS - 1)) {                      // 3 queries/updates/answers
       this.broadcast(event, values);
-    } else if (event === GameMsg.REPORT && (values.length === 1)){  // 1 report
+    } else if (event === GameMsg.REPORT && (values.length === 1)){     // 1 report
       this.broadcast(event, values);
     }
   }

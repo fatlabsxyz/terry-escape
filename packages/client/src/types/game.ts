@@ -99,7 +99,7 @@ export interface TurnInfo {
   round:        Map<PlayerId, Dead>;
   activePlayer: PlayerId;
   nextPlayer:   PlayerId;
-  gameOver:     boolean;
+  gameOver?:    PlayerId;
 };
 
 export interface TurnInfoPayload {
@@ -107,7 +107,7 @@ export interface TurnInfoPayload {
   round:        Object;
   activePlayer: PlayerId;
   nextPlayer:   PlayerId;
-  gameOver:     boolean;
+  gameOver?:    PlayerId;
 };
 
 export interface TurnData {
