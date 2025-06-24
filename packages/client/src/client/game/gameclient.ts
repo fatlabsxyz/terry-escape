@@ -476,15 +476,12 @@ export class GameClient {
     const turnUpdates = this.turnData.updates;
 
     const updates: ProofData[] = Array.from(turnUpdates.entries())
-      .filter(([id]) => id !== this.activePlayer)
-      .map(([, { proof }]) => proof);
+      // .filter(([pid]) => pid !== this.activePlayer)
+      .map(([_, { proof }]) => proof);
 
     const report = await this.zklib.createReports(updates);
-    
-    if (report.died) {
-      // TODO: deal with 'died'
-    }
-    
+     
+    console.log("\n\nIMPACTED: ", report.impacted);
     this.interfacer.emit(IfEvents.Impact, report.impacted as Impact)   
      
     this.turnData.report = report as ReportData;

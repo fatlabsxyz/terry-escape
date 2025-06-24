@@ -1,4 +1,4 @@
-import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId } from 'client/types';
+import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, UpdatesData, GameUpdateMsg, GameAnswerMsg } from 'client/types';
 import { GameNsp } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
@@ -118,7 +118,7 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 
 export class Game {
 
-  private msgBox: MessageBox;
+  msgBox: MessageBox;
 
   private _activePlayer: PlayerId | null = null;
   private _nextPlayer: PlayerId | null = null;
@@ -168,7 +168,10 @@ export class Game {
       turnInfo: this.turnInfoFromContext(context),
     }
   }
-
+  
+  get messageBox() {
+    return this.msgBox;
+  }
   get activePlayer() {
     return this._activePlayer!;
   }
@@ -299,19 +302,31 @@ export class Game {
   }
 
   static nextContext(context: Context): Context {
-
-    const { turn, players, activePlayer: finishingPlayer } = context;
+    const { turn, players, activePlayer: finishingPlayer } = context; 
 
     let gameOver = undefined; 
-  
+     
     const round: Map<PlayerId, boolean> = new Map();
     const playersSorted: PlayerStatus[] = Array.from(players.values()).sort((a, b) => b.seat - a.seat);
-    console.log("\n\n\n\n pLAYERS SORTED: ", playersSorted)
-    
+
     playersSorted.forEach((p) => {
-      round.set(p.id, p.eliminated);  // we mark eliminated players
-      // TODO: maybe should set players as eliminated through event from client
+      round.set(p.id, p.eliminated);
     });
+
+    if (turn > 1) { // mark eliminated players
+      const msgBox: MessageBox = MessageBox.getInstance();
+      const updates = msgBox.updates.get(turn - 1)!;
+      const report =  msgBox.reports.get(turn - 1)!;
+      updates.forEach((u) => { if (u.payload.died) {
+        // update player on round
+        round.set(u.sender, true);
+        // update player status
+        const pdata = players.get(u.sender)!;
+        pdata.eliminated = true;
+        players.set(u.sender, pdata);
+      }});
+      if (report.payload.died) {round.set(report.sender, true)}
+    }
 
     // check which is the last dead player, mark as winner 
     // TODO: (could fail if the last two players die in the same turn)
