@@ -4,7 +4,7 @@ import { GameClient } from "./../client/game/gameclient.js";
 
 import { SocketManager } from "./../client/sockets/socketManager.js";
 import { getAuthToken, AuthRequestData } from "./../utils.js";
-import { AgentLocation, IJ, PlayerSeat, TurnAction } from "../types/game.js";
+import { AgentLocation, IJ, Locations, PlayerSeat, TurnAction } from "../types/game.js";
 import { Board } from "../client/game/board.js";
 import { Connection, IfEvents, Impact, Interfacer, Turn } from "../client/interfacer.js";
 import { Collision } from "zklib/types";
@@ -16,6 +16,8 @@ export function passTime(ms: number): Promise<void> {
     setTimeout(res, ms)
   })
 }
+
+const END: boolean = false;
 
 export async function initCli() {
     
@@ -48,8 +50,13 @@ export async function initCli() {
     // this should be done outside the function...
     const seat = await interfacer.waitForSeat();
     const board = new Board(seat);
-  
-    const agents = mockDeploys(board, seat);
+     
+    let agents: Locations;
+    if (END) {
+      agents = mockQuickEndDeploys(board, seat);
+    } else {
+      agents = mockInfiniteDeploys(board, seat);
+    }
     interfacer.deployAgents(agents);
 
     interfacer.on(IfEvents.Impact, (p: Impact) => {
@@ -90,7 +97,12 @@ function attachListeners(i: Interfacer) {
       i.turn = newTurn;
     }
     if (i.turn.active) {
-      const action = mockInfiniteAction(i.seat!);
+      let action: TurnAction;
+      if (END) {
+        action = mockQuickEndAction(i.seat!);
+      } else {
+        action = mockInfiniteAction(i.seat!);
+      }
       i.takeAction(action);
     } else {
       // non-active wait for your turn
@@ -98,7 +110,7 @@ function attachListeners(i: Interfacer) {
   });
 }
 
-function mockDeploys(board: Board, seat: PlayerSeat) {
+function mockInfiniteDeploys(board: Board, seat: PlayerSeat): Locations {
  
   let agents: IJ[];
   if (seat % 2 === 0) {
@@ -108,6 +120,13 @@ function mockDeploys(board: Board, seat: PlayerSeat) {
   }
 
   console.log("MOCK-DEPLOYS: PROPOSED-AGENTS:", agents);
+
+  return board.addAgents({agents})
+}
+
+function mockQuickEndDeploys(board: Board, seat: PlayerSeat): Locations { 
+  let agents: IJ[];
+  agents = [board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0], board.allowedPlacements[0]];
 
   return board.addAgents({agents})
 }
@@ -151,6 +170,47 @@ function bounce(current: number, min: number, max: number, direction: number): {
   return { target: current + direction as AgentLocation, direction };
 }
 
+let currentTurn = 0;
+function mockQuickEndAction(index: PlayerSeat): TurnAction {
+  // player 0 kills player 1, 
+  // player 2 kills player 3, 
+  // and player 0 kills player 2,
+  // starting here (depending on their seat):
+  // 0 1 _ _   
+  // 2 3 _ _   
+  // _ _ _ _   
+  // _ _ _ _   
+  const playerStartLoc = { 
+    0: 0,
+    1: 1,
+    2: 5,
+    3: 6
+  };
+
+  const loc = activePlayerLocation;
+
+  activePlayerLocation = loc || (playerStartLoc[index] as AgentLocation);
+  
+  const reason = activePlayerLocation;
+  let target: AgentLocation = 0;
+
+  if (currentTurn === 0) {
+    switch (index){
+      case 0: target = 1;
+      // p1 died
+      case 2: target = 6;
+      // p3 died
+    }
+  } else if (currentTurn === 1) {
+    switch (index){
+      case 0: target = 6;
+      // p2 died
+      default: console.log("TURN: ", currentTurn, "SOMETHING WIERD HAPPENED, seat: ", index);
+    }
+  }
+  currentTurn += 1;
+  return { reason, target, trap: false };
+}
 
 initCli().catch((e) => {
   console.error(e);
