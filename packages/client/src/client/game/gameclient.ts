@@ -501,6 +501,7 @@ export class GameClient {
       console.log("PLAYER ORDER SET: ", players);
       this.allPlayersOrdered = players;
     }
+    console.log("\n\nOLD TURN DATA: ", JSON.stringify(this.turnData), "\n\nNEW TURN DATA: ", JSON.stringify(turnInfo));
     this.turnData = GameClient._emptyTurnData();
     this.turnData.activePlayer = turnInfo.activePlayer
   }

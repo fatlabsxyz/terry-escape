@@ -194,25 +194,25 @@ function mockQuickEndAction(seat: PlayerSeat): TurnAction {
   let reason = activePlayerLocation;
   let target: AgentLocation = 0;
   
-  if (currentTurn === 0) {
+  if (currentTurn == 0) {
 
     console.log("CURRENT tURN: ZERo: ", currentTurn);
-    if (seat === 3) {
+    if (seat == 3) {
       target = 4;       // kills all p2
-    } else if (seat===1) {
+    } else if (seat == 1) {
       target = 0;       // kills all p0
     } 
-  } else if (currentTurn === 1) {
+  } else if (currentTurn == 1) {
     console.log("CURRENT tURN: ONE: ", currentTurn);
-    if (seat === 3){
+    if (seat == 3){
       target = 1;       // almost kills p1, one remaining at 0
-    } else if (seat === 1){
+    } else if (seat == 1){
       reason = 0;
       target = 1;       // kills one unit of p3
     } 
-  } else if (currentTurn === 2) {
+  } else if (currentTurn == 2) {
     console.log("CURRENT tURN: TWO: ", currentTurn);
-    if (seat === 3){
+    if (seat == 3){
       target = 1;       // kills p1
     } 
   }

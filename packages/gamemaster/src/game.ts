@@ -312,20 +312,29 @@ export class Game {
     playersSorted.forEach((p) => {
       round.set(p.id, p.eliminated);
     });
+    
 
+    // TODO: check why this is not getting run 
     if (turn > 1) { // mark eliminated players
+      console.log("\n\n\n\n AFTER TURN ONE \n\n check reports")
       const msgBox: MessageBox = MessageBox.getInstance();
       const updates = msgBox.updates.get(turn - 1)!;
+      console.log("\n found updates: ", updates);
       const report =  msgBox.reports.get(turn - 1)!;
-      updates.forEach((u) => { if (u.payload.died) {
-        // update player on round
-        round.set(u.sender, true);
-        // update player status
+      console.log("\n found report: ", report);
+      updates.forEach((u) => { 
+        if (u.payload.died) {
+        round.set(u.sender, true);                // set as dead in round 
         const pdata = players.get(u.sender)!;
         pdata.eliminated = true;
-        players.set(u.sender, pdata);
+        players.set(u.sender, pdata);             // set as dead in players
       }});
-      if (report.payload.died) {round.set(report.sender, true)}
+      if (report.payload.died) {
+        round.set(report.sender, true);           // set as dead in round 
+        const pdata = players.get(report.sender)!;
+        pdata.eliminated = true;
+        players.set(report.sender, pdata);        // set as dead in players
+      }
     }
 
     // check which is the last dead player, mark as winner 
