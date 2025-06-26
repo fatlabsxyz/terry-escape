@@ -1,4 +1,7 @@
 import { connect, getNewToken } from 'client';
+import { IfEvents } from 'client/types';
+import { Interfacer } from '../../client/dist/client/interfacer.js';
+import { Board } from '../../client/dist/client/game/board.js'
 
 interface Agent {
     id: number;
@@ -49,7 +52,7 @@ try {
         const newToken = await getNewToken("gordo-web", url);
         if (newToken) {
             setCookie("auth", newToken);
-            connect(newToken, url, "0");
+            await connect(newToken, url, "0");
         } else {
             console.error("Could not get new auth token")
         }
@@ -58,6 +61,7 @@ try {
 } catch (e) {
     console.error("Client failed to initialize");
 }
+
 
 // Main game logic
 document.addEventListener("DOMContentLoaded", () => {
@@ -73,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const maxAgents: number = 4;
     let selectedAgentCell: CellPosition | null = null;
     let actionMode: ActionMode = null;
+    let mustAct: boolean; let reason: number;
 
     function initializeGrid(): void {
         for (let i = 0; i < 16; i++) {
@@ -88,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logMessage("GAME STARTED");
 
     moveBtn.addEventListener("click", () => {
-        if (turn > 0) {
+        if (turn > 0 && mustAct) {
             actionMode = "move";
             moveBtn.classList.add("active");
             trapBtn.classList.remove("active");
@@ -98,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     trapBtn.addEventListener("click", () => {
-        if (turn > 0) {
+        if (turn > 0 && mustAct) {
             actionMode = "trap";
             trapBtn.classList.add("active");
             moveBtn.classList.remove("active");
@@ -130,7 +135,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (agents.length === maxAgents) {
                     turn = 1;
                     logMessage("DEPLOYMENT COMPLETE - TURN 1");
+                    clearPossibleHighlights();
                     updateTutorial();
+		    interfacer.emit(IfEvents.Deploy, { agents: agents.map(e => e.row*4 + e.col)} );
+		    board.addAgents({ agents: agents.map(e => [e.row, e.col]) });
                 }
             }
         } else if (turn > 0 && actionMode) {
@@ -141,12 +149,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 logMessage(`CELL (${row + 1},${col + 1}) SELECTED`);
                 highlightPossibleCells(row, col);
                 updateTutorial();
+		reason = index;
             } else if (selectedAgentCell) {
                 if (actionMode === "move") {
                     moveAgent(row, col);
+		    board.moveAgent([row,col], undefined, [col,row]);
                 } else if (actionMode === "trap") {
                     deployTrap(row, col);
+		    board.setTrap([row,col]);
                 }
+	        interfacer.emit(IfEvents.Action, { reason, target: index, trap: actionMode === "trap" });
             }
         } else if (turn > 0 && !actionMode) {
             showError("SELECT MOVE OR TRAP FIRST");
@@ -262,6 +274,26 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (actionMode === "trap" && selectedAgentCell) {
                 tutorial.textContent = "CLICK AN ADJACENT CELL TO DEPLOY TRAP";
             }
+            if (!mustAct) { tutorial.textContent = "PLEASE STAND BY"; }
         }
     }
+
+
+    let board: Board; let interfacer = Interfacer.getInstance();
+
+    interfacer.on(IfEvents.Connect, event => {
+        board = new Board(event.seat);
+        board.allowedPlacementIndices.forEach(index => {
+            (grid.children[index] as HTMLElement).classList.add("possible");
+	});
+    });
+
+    interfacer.on(IfEvents.Turn, event => {
+        turn = event.round;
+	mustAct = event.active;
+	updateTutorial();
+    });
+
+    interfacer.on(IfEvents.Collision, event => console.log(event));  // TODO
+    interfacer.on(IfEvents.Impact, event => console.log(event)); // TODO
 });

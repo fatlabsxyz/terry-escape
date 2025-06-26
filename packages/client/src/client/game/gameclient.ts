@@ -263,7 +263,7 @@ export class GameClient {
     this.zklib.setup(seat, sk, pks, {mockProof: true}); 
     await this.setupAgents(deploys);
  
-    this.validateDeploys()
+    //this.validateDeploys() // TODO: remember to uncomment
   }
 
   async processActivePlayer() {
