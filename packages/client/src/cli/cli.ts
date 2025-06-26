@@ -17,7 +17,7 @@ export function passTime(ms: number): Promise<void> {
   })
 }
 
-const END: boolean = false;
+const END: boolean = true;
 
 export async function initCli() {
     
@@ -156,10 +156,10 @@ function mockInfiniteAction(index: PlayerSeat): TurnAction {
   let target: AgentLocation = 0;
 
   switch (index) {
-    case 0: ( {target, direction} = bounce(reason, 0,  3,  direction) );
-    case 1: ( {target, direction} = bounce(reason, 8,  11, direction) );
-    case 2: ( {target, direction} = bounce(reason, 4,  7,  direction) );
     case 3: ( {target, direction} = bounce(reason, 12, 15, direction) );    
+    case 2: ( {target, direction} = bounce(reason, 4,  7,  direction) );
+    case 1: ( {target, direction} = bounce(reason, 8,  11, direction) );
+    case 0: ( {target, direction} = bounce(reason, 0,  3,  direction) );
   }
   return { reason, target, trap: false };
 }
@@ -171,10 +171,10 @@ function bounce(current: number, min: number, max: number, direction: number): {
 }
 
 let currentTurn = 0;
-function mockQuickEndAction(index: PlayerSeat): TurnAction {
-  // player 0 kills player 1, 
-  // player 2 kills player 3, 
-  // and player 0 kills player 2,
+function mockQuickEndAction(seat: PlayerSeat): TurnAction {
+  // player 3 kills player 2, 
+  // player 1 kills player 0, 
+  // and player 3 kills player 1,
   // starting here (depending on their seat):
   // 0 1 _ _   
   // 2 3 _ _   
@@ -183,32 +183,42 @@ function mockQuickEndAction(index: PlayerSeat): TurnAction {
   const playerStartLoc = { 
     0: 0,
     1: 1,
-    2: 5,
-    3: 6
+    2: 4,
+    3: 5
   };
 
   const loc = activePlayerLocation;
 
-  activePlayerLocation = loc || (playerStartLoc[index] as AgentLocation);
+  activePlayerLocation = loc || (playerStartLoc[seat] as AgentLocation);
   
-  const reason = activePlayerLocation;
+  let reason = activePlayerLocation;
   let target: AgentLocation = 0;
-
+  
   if (currentTurn === 0) {
-    switch (index){
-      case 0: target = 1;
-      // p1 died
-      case 2: target = 6;
-      // p3 died
-    }
+
+    console.log("CURRENT tURN: ZERo: ", currentTurn);
+    if (seat === 3) {
+      target = 4;       // kills all p2
+    } else if (seat===1) {
+      target = 0;       // kills all p0
+    } 
   } else if (currentTurn === 1) {
-    switch (index){
-      case 0: target = 6;
-      // p2 died
-      default: console.log("TURN: ", currentTurn, "SOMETHING WIERD HAPPENED, seat: ", index);
-    }
+    console.log("CURRENT tURN: ONE: ", currentTurn);
+    if (seat === 3){
+      target = 1;       // almost kills p1, one remaining at 0
+    } else if (seat === 1){
+      reason = 0;
+      target = 1;       // kills one unit of p3
+    } 
+  } else if (currentTurn === 2) {
+    console.log("CURRENT tURN: TWO: ", currentTurn);
+    if (seat === 3){
+      target = 1;       // kills p1
+    } 
   }
   currentTurn += 1;
+
+  console.log("PLAYER: ", seat, "ACTION: ", reason, " => ", target);
   return { reason, target, trap: false };
 }
 
