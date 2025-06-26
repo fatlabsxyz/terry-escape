@@ -219,7 +219,7 @@ export class Game {
   
   isGameFinished(turnInfo: TurnInfo) {
     if (Object.keys(turnInfo.round).length > 0) {
-      console.log("")
+      console.log("\n\nCHECKING if game finished?")
       const round = turnInfo.round;
       const deadPlayers = Array.from(round.entries())
         .filter(([_, v]) => v === true);

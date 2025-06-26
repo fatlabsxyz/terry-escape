@@ -116,7 +116,8 @@ const stringify = (o: any) => JSON.stringify(o, (_, v: any) => v instanceof Map 
 
 export class GameClient {
   readonly log: (...args: any[]) => void;
-  
+ 
+  allPlayersOrdered:        PlayerId[];
   token:                    string;
   sockets:                  SocketManager;
   verify:                   boolean = false;
@@ -136,6 +137,7 @@ export class GameClient {
     this.activePlayerLocation = undefined;
     this.interfacer = Interfacer.getInstance();
     this.turnData = GameClient._emptyTurnData();
+    this.allPlayersOrdered = new Array();
     this.log = _createLogger(sockets.playerName, sockets.sender);
   }
 
@@ -216,7 +218,8 @@ export class GameClient {
   }
 
   get activePlayer() {
-    return this.contextTurnInfo.activePlayer
+    const activePlayer = this.contextTurnInfo.activePlayer;
+    return activePlayer;
   }
 
   get nextPlayer() {
@@ -232,7 +235,7 @@ export class GameClient {
   }
 
   get activePlayerIndex() {
-    const playerIndex = Array.from(this.round.keys()).indexOf(this.activePlayer);
+    const playerIndex = this.allPlayersOrdered.indexOf(this.activePlayer);
     return playerIndex;
   }
 
@@ -493,6 +496,11 @@ export class GameClient {
                           STATE MACHINE
   //////////////////////////////////////////////////////////////*/
   rotateTurnData(turnInfo: TurnInfo) {
+    if (this.allPlayersOrdered.length === 0) {
+      const players: PlayerId[] = Array.from(turnInfo.round.keys()).reverse();
+      console.log("PLAYER ORDER SET: ", players);
+      this.allPlayersOrdered = players;
+    }
     this.turnData = GameClient._emptyTurnData();
     this.turnData.activePlayer = turnInfo.activePlayer
   }
@@ -511,7 +519,6 @@ export class GameClient {
   }
 
   isGameOver(turnInfo:TurnInfo): boolean {
-    console.log("\nturn info for real: ",turnInfo);
     if (turnInfo && turnInfo.gameOver){
       console.log("\nGAMEOVER in turn info");
       this.winner = turnInfo.gameOver;

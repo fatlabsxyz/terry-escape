@@ -16,7 +16,8 @@ import {
   GameUpdatePayload,
   GameProofsPayload,
   GamePlayerSeatMsg,
-  RetrieveMsg
+  RetrieveMsg,
+  GameMessage
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime, setEqual } from "../../utils.js";
@@ -108,32 +109,57 @@ export class SocketManager extends EventEmitter {
     this.game.on(GameMsg.PROOFS, (msg: GameProofsPayload, ack: () => void) => {
 
       const turn = msg.messages[0]?.turn as number;
-  
+
       switch (msg.type) {
-        case GameMsg.DEPLOY: { 
-          this.msgBox.deploys = msg.messages.map(x => x as GameDeployMsg);
+        case GameMsg.DEPLOY: {
+          if (this.msgBox.deploys.length === 0) {
+            this.msgBox.deploys = msg.messages.map(x => x as GameDeployMsg);
+            // this.printMessagesRecieved(msg.messages);
+          }
           break;
         }; 
-        case GameMsg.QUERY: { 
-          this.msgBox.queries.set(turn, msg.messages.map(x => x as GameQueryMsg));
+        case GameMsg.QUERY: {
+          if (this.msgBox.queries.get(turn) === undefined) {
+            this.msgBox.queries.set(turn, msg.messages.map(x => x as GameQueryMsg));
+            // this.printMessagesRecieved(msg.messages);
+          }
           break
         };
         case GameMsg.ANSWER: {
+          if (this.msgBox.answers.get(turn) === undefined) {
           this.msgBox.answers.set(turn, msg.messages.map(x => x as GameAnswerMsg));
+            // this.printMessagesRecieved(msg.messages);
+          }
           break;
         };
         case GameMsg.UPDATE: { 
+          if (this.msgBox.updates.get(turn) === undefined) {
           this.msgBox.updates.set(turn, msg.messages.map(x => x as GameUpdateMsg));
+            // this.printMessagesRecieved(msg.messages);
+          }
           break;
         };
         case GameMsg.REPORT: { 
+          if (this.msgBox.reports.get(turn) === undefined) {
           this.msgBox.reports.set(turn, msg.messages.map(x => x as GameReportMsg)[0]!);
+            // this.printMessagesRecieved(msg.messages);
+          }
           break;
         };
       }
       ack();
     })    
   }
+
+
+  // printMessagesRecieved(messages: GameMessage[]){
+  //   //TODO remove this function later
+  //   console.log("\n\n\n MESSAGES RECIEVED: ")
+  //   messages.forEach((message) => {
+  //     console.log("event: ", message.event, " -from- ", message.sender, " -to- ", message.to, "\n")
+  //   });
+  // }
+
 
   get sender(): PlayerId {;
     return this.playerId; // Player id (NOT socket id)
