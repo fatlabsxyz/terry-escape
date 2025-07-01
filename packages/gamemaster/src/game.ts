@@ -8,8 +8,7 @@ import { MessageBox, MsgEvents } from 'client';
 enum GameState {
   setup = "GM:SETUP",
   updateTurn = "GM:UPDATE_TURN",
-  checkForWinner = "GM:ANY_WINNER",
-  emitNewTurn = "GM:EMIT_NEW_TURN",
+  checkForWinner = "GM:CHECK_WINNER",
   turn = "GM:TURN",
   cleanup = "GM:CLEANUP",
   end = "GM:END"
@@ -539,7 +538,6 @@ export class Game {
         [Actions.emitTurn]:             assign(emitTurnAction),
         [Actions.updatePlayers]:        assign(updatePlayersAction),
         [Actions.cleanup]:              assign(cleanupAction),
-        // [Actions.endGame]:              assign(endGameAction),
       },
       guards: {
         [Guards.gameEnded]: ({context}) => {
@@ -603,27 +601,22 @@ export class Game {
               src: Actors.newTurn,
               input: ({ context }) => context,
               onDone: {
-                actions: [Actions.updateContextOnDone], //this used to emit the turn
-                target: GameState.checkForWinner
+                actions: [Actions.updateContextOnDone],
+                target: GameState.checkForWinner, 
               }
             },
+
           },
           [GameState.checkForWinner]: {
             always: [
               { guard: Guards.gameEnded, target: GameState.end }, 
-              { guard: Guards.gameContinues, target: GameState.emitNewTurn }, 
+              { guard: Guards.gameContinues, 
+                actions: [{
+                  type: Actions.emitTurn
+                }],  
+                target: GameState.turn, 
+              },
             ],
-          },
-          [GameState.emitNewTurn]: {
-            entry: [
-              {type: Actions.log, params: GameState.emitNewTurn },
-              {type: Actions.emitTurn} // now turn emits here
-            ],
-            after: {
-              [1_000]: [
-                { target: GameState.turn }
-              ]
-            }
           },
           [GameState.turn]: {
             entry: [
