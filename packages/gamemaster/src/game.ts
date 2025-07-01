@@ -1,4 +1,4 @@
-import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, UpdatesData, GameUpdateMsg, GameAnswerMsg } from 'client/types';
+import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId } from 'client/types';
 import { GameNsp } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
@@ -7,7 +7,9 @@ import { MessageBox, MsgEvents } from 'client';
 /// STATE MACHINE TYPES
 enum GameState {
   setup = "GM:SETUP",
-  newTurn = "GM:NEW_TURN",
+  updateTurn = "GM:UPDATE_TURN",
+  checkForWinner = "GM:ANY_WINNER",
+  emitNewTurn = "GM:EMIT_NEW_TURN",
   turn = "GM:TURN",
   cleanup = "GM:CLEANUP",
   end = "GM:END"
@@ -31,6 +33,7 @@ enum Guards {
   allPlayersReady = "allPlayersReady",
   allPlayersWaiting = "allPlayersWaiting",
   gameEnded = "gameEnded",
+  gameContinues = "GameContinues",
 }
 
 enum Actions {
@@ -41,6 +44,7 @@ enum Actions {
   updatePlayers = "updatePlayers",
   cleanup = "cleanup",
   emitSeat = "emitSeat",
+  emitTurn = "emitTurn",
   endGame = "endGame"
 }
 
@@ -140,7 +144,7 @@ export class Game {
     this.playerStorage = PlayerStorage.getInstance();
     this.msgBox = MessageBox.getInstance();
 
-    this.gameMachine = createActor(this.stateMachine(Game._defaultContext(this.minPlayers)));
+    this.gameMachine = createActor(this.stateMachine(this._defaultContext(this.minPlayers)));
     
     this.gameMachine.start();
 
@@ -154,7 +158,7 @@ export class Game {
     return _log(...args);
   }
 
-  static _defaultContext(minPlayers: number): Context {
+  _defaultContext(minPlayers: number): Context {
     const context = {
       players: new Map(),
       round: new Map(),
@@ -194,6 +198,23 @@ export class Game {
  
       this.nsp.to(this.playerEmitData.sid).emit(GameMsg.PLAYER_SEAT, payload);
     });
+
+    this.gameMachine.on(Events.GameEnded, async (event) => {
+      console.log("GAME ENDED, winner: ", this.winner);
+      this.nsp.disconnectSockets(); //TODO make this better
+
+      // this.playerStore.getAllSocketIds().forEach((sid, pid) => {
+      //   const payload = {
+      //     event: GameMsg.WINNER,
+      //     sender:"gamemaster",
+      //     to: pid,
+      //     turn:0,
+      //     payload: {winner: this.winner}
+      //   };
+      //
+      //   this.nsp.to(sid).emit(GameMsg.WINNER, payload);
+      // });
+    });
   }
 
   storedPlayerId(player: PlayerId) {
@@ -216,27 +237,8 @@ export class Game {
       .get(playerId);
     return playerStatus?.seat;
   }
-  
-  isGameFinished(turnInfo: TurnInfo) {
-    if (Object.keys(turnInfo.round).length > 0) {
-      console.log("\n\nCHECKING if game finished?")
-      const round = turnInfo.round;
-      const deadPlayers = Array.from(round.entries())
-        .filter(([_, v]) => v === true);
-      const allEnemiesDead = deadPlayers.length <= 3;
-      if (allEnemiesDead) {
-        const dp = Array.from(new Map(deadPlayers).keys())
-        const winner = Object.keys(round)
-          .find((pid) => !dp.includes(pid)) as PlayerId;
-        this.winner = winner;
-        turnInfo.gameOver = winner;
-      }
-    } else {
-      // do something
-    }
-  }
 
-  static nextPlayers(finishingPlayer: PlayerId, round: Map<PlayerId, boolean>): [PlayerId, PlayerId] {
+  nextPlayers(finishingPlayer: PlayerId, round: Map<PlayerId, boolean>): [PlayerId, PlayerId] {
     const roundPlayers = Array.from(round.keys());
     const livingPlayers = Array.from(round.entries())
       .filter(([_, v]) => v === false)
@@ -273,7 +275,7 @@ export class Game {
     }
   }
 
-  static findNextPlayer(activeIndex: PlayerSeat, livingPlayers: PlayerId[]): [PlayerId,PlayerId] {
+  findNextPlayer(activeIndex: PlayerSeat, livingPlayers: PlayerId[]): [PlayerId,PlayerId] {
     
     let activePlayer: PlayerId, nextPlayer: PlayerId;
     if (livingPlayers.length > activeIndex + 1) {       // if there's at least 1 more player, set active
@@ -290,7 +292,7 @@ export class Game {
     return [activePlayer, nextPlayer];
   }
 
-  static turnInfoFromContext(context: Omit<Context, 'turnInfo'>): TurnInfo {
+  turnInfoFromContext(context: Omit<Context, 'turnInfo'>): TurnInfo {
     const { turn, round, activePlayer, nextPlayer,  } = context;
     return {
       turn,
@@ -301,7 +303,7 @@ export class Game {
     }
   }
 
-  static nextContext(context: Context): Context {
+  nextContext(context: Context): Context {
     const { turn, players, activePlayer: finishingPlayer } = context; 
 
     let gameOver = undefined; 
@@ -312,16 +314,25 @@ export class Game {
     playersSorted.forEach((p) => {
       round.set(p.id, p.eliminated);
     });
-    
 
-    // TODO: check why this is not getting run 
-    if (turn > 1) { // mark eliminated players
-      console.log("\n\n\n\n AFTER TURN ONE \n\n check reports")
+    console.log("\n\nROUND: ", round);
+
+    let activePlayer: string, nextPlayer: string;
+
+    if (!finishingPlayer) {
+      // We just started the game
+
+      console.log("\n\nGAME START  - NOT running nextPlayers()");
+      const [p1, p2] = [playersSorted[0]!, playersSorted[1]!]
+      activePlayer = p1.id;
+      nextPlayer = p2.id; 
+    } else {
+      console.log("\n\nNOT GAME START  -  running nextPlayers()");
+     
+      // CHECK for dead players and update round && players
       const msgBox: MessageBox = MessageBox.getInstance();
-      const updates = msgBox.updates.get(turn - 1)!;
-      console.log("\n found updates: ", updates);
-      const report =  msgBox.reports.get(turn - 1)!;
-      console.log("\n found report: ", report);
+      const updates = msgBox.updates.get(turn)!;
+      const report =  msgBox.reports.get(turn)!;
       updates.forEach((u) => { 
         if (u.payload.died) {
         round.set(u.sender, true);                // set as dead in round 
@@ -335,34 +346,18 @@ export class Game {
         pdata.eliminated = true;
         players.set(report.sender, pdata);        // set as dead in players
       }
-    }
 
-    // check which is the last dead player, mark as winner 
-    // TODO: (could fail if the last two players die in the same turn)
-    // i.e. non-active player1 has agent and bomb in square 0
-    // active player2 has agent in square 1, moves to square 0, 
-    // kills player1 and dies to the bomb: [should declare a tie]
-    const deadPlayers = Array.from(round.entries())
-      .filter(([_, v]) => v === true);
-    const allEnemiesDead = deadPlayers.length <= 3;
-    if (allEnemiesDead) {
-      const dp = Array.from(new Map(deadPlayers).keys())
-      const winner = Object.keys(round)
-        .find((pid) => !dp.includes(pid)) as PlayerId;
-      gameOver = winner;
-    }
+      // check which is the last dead player, mark as winner 
+      // TODO: (could fail if the last two players die in the same turn)
+      // i.e. non-active player1 has agent and bomb in square 0
+      // active player2 has agent in square 1, moves to square 0, 
+      // kills player1 and dies to the bomb: [should declare a tie]
+      const deadPlayers = Array.from(round.entries())
+        .filter(([_, v]) => v === true).map(([pid,_]) => pid);
+      const allPlayers = Array.from(round.keys());
 
-    console.log("\n\nROUND: ", round);
+      gameOver = this.isGameFinished(deadPlayers, allPlayers)!;
 
-    let activePlayer: string, nextPlayer: string;
-
-    if (!finishingPlayer) {
-      // We just started the game
-
-      const [p1, p2] = [playersSorted[0]!, playersSorted[1]!]
-      activePlayer = p1.id;
-      nextPlayer = p2.id; 
-    } else {
       [activePlayer, nextPlayer] = this.nextPlayers(finishingPlayer, round);
     }
 
@@ -384,6 +379,18 @@ export class Game {
     return newContext;
   }
 
+  isGameFinished(deadPlayers: PlayerId[], allPlayers: PlayerId[]): PlayerId | undefined {
+    console.log("\n\nCHECKING if game finished?")
+    const allEnemiesDead = deadPlayers.length === 3;
+    if (allEnemiesDead) {
+      const winner = allPlayers.find((pid) => !deadPlayers.includes(pid)) as PlayerId;
+
+      this.winner = winner;
+      console.log("\n\n\nWINNER: ", winner);
+    }
+    return this.winner;
+  }
+
   async broadcastGameStarted() {
     await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.STARTED);
   }
@@ -392,7 +399,7 @@ export class Game {
     await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.FINISHED);
   }
 
-  private async broadcastTurn(turnInfo: TurnInfo) {
+  private broadcastTurn(turnInfo: TurnInfo) {
     const newTurnInfo = {
         turn:         turnInfo.turn,
         round:        Object.fromEntries(turnInfo.round),
@@ -400,8 +407,8 @@ export class Game {
         nextPlayer:   turnInfo.nextPlayer,
         gameOver:     turnInfo.gameOver   
     }
-    console.log("\n\n BROADCASTING TURN new-turn-info: ", stringify(newTurnInfo))
-    await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.TURN_START, newTurnInfo);
+    // await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.TURN_START, newTurnInfo);
+    this.msgBox.emitNewTurn(newTurnInfo);
     this.msgBox.emitClean();
   }
 
@@ -410,9 +417,8 @@ export class Game {
   } 
 
   async newTurn(context: Context): Promise<Context> {
-    const newContext = Game.nextContext(context);
+    const newContext = this.nextContext(context);
     this.log("\n oldContext", stringify(context), "\n newContext", stringify(newContext), "\n")
-    await this.broadcastTurn(newContext.turnInfo);
     return newContext;
   }
 
@@ -429,6 +435,12 @@ export class Game {
   }
 
   machineSetup() {
+
+    const emitTurnAction = ({ event, context } : ActionInput) => {
+      console.log("\n\n emit context turnInfo: ", context.turnInfo);
+      this.broadcastTurn(context.turnInfo);
+      return context
+    };
 
     const addPlayerAction = ({ event, context }: ActionInput) => {
       
@@ -472,7 +484,7 @@ export class Game {
       self.log("Updating turnInfo", stringify(event));
       if (event.output) {
         return event.output
-      } else return {}
+      } else return { }
     }
 
     const updatePlayersAction = ({ event }: ActionInput) => {
@@ -480,6 +492,12 @@ export class Game {
       if (event.output) {
         return { players: event.output.players }
       } else return {}
+    }
+
+    const endGameAction = ({ event }: ActionInput) => {
+      self.log("GAME ENDED, WINNER: ", this.winner);
+      this.msgBox.emitWinner(this.winner!);
+      return {}
     }
 
     const cleanupAction = ({ context }: ActionInput) => {
@@ -514,22 +532,34 @@ export class Game {
       },
       actions: {
         [Actions.log]: ({ event, context }, step: GameState) => this.log(step ? `[${step}]` : '', event.type, stringify(context)),
-        [Actions.addPlayer]: assign(addPlayerAction),
-        [Actions.emitSeat]: emit({type: Events.EmitSeat, player: this.playerEmitData }), // race condition?
-        [Actions.markPlayerReady]: assign(markPlayerReadyAction),
-        [Actions.updateContextOnDone]: assign(updateContextOnDoneAction),
-        [Actions.updatePlayers]: assign(updatePlayersAction),
-        [Actions.cleanup]: assign(cleanupAction),
-        [Actions.endGame]: emit({type: Events.GameEnded, winner: this.winner}),
+        [Actions.addPlayer]:            assign(addPlayerAction),
+        [Actions.emitSeat]:             emit({type: Events.EmitSeat, player: this.playerEmitData }), // race condition?
+        [Actions.markPlayerReady]:      assign(markPlayerReadyAction),
+        [Actions.updateContextOnDone]:  assign(updateContextOnDoneAction),
+        // [Actions.emitTurn]:             emit({type: Events.EmitTurn, context.turnInfo }),
+        [Actions.emitTurn]:             assign(emitTurnAction),
+        [Actions.updatePlayers]:        assign(updatePlayersAction),
+        [Actions.cleanup]:              assign(cleanupAction),
+        // [Actions.endGame]:              emit({type: Events.GameEnded, winner: this.winner}),
+        [Actions.endGame]:              assign(endGameAction),
       },
       guards: {
-        [Guards.gameEnded]: ({ context }) => !!this.winner,
-        [Guards.allPlayersReady]: ({ context }) => allPlayersReadyGuard(context),
-        [Guards.allPlayersWaiting]: ({ context }) => allPlayersWaitingGuard(context),
+        [Guards.gameEnded]: ({context}) => {
+           const aWinner = this.winner !== undefined;
+          if (aWinner) {console.log("\n\n\nWE HAVE A WINNER:===: ", aWinner)}
+          return aWinner; 
+        },
+        [Guards.gameContinues]: ({context}) => {
+          const notWinner = this.winner === undefined;
+          if (notWinner) {console.log("\n\n\nNO WINNER FOUND")}
+          return notWinner; 
+        },
+        [Guards.allPlayersReady]:    ({ context }) => allPlayersReadyGuard(context),
+        [Guards.allPlayersWaiting]:  ({ context }) => allPlayersWaitingGuard(context),
       },
       actors: {
-        [Actors.newTurn]: fromPromise<Context, Context>(({ input }) => this.newTurn.bind(this)(input)),
-        [Actors.queryWaiting]: fromPromise<Context, Context>(({ input }) => this.queryWaiting.bind(this)(input)),
+        [Actors.newTurn]:       fromPromise<Context, Context>(({ input }) => this.newTurn.bind(this)(input)),
+        [Actors.queryWaiting]:  fromPromise<Context, Context>(({ input }) => this.queryWaiting.bind(this)(input)),
       }
     })
     return template;
@@ -560,7 +590,7 @@ export class Game {
               1_000: [
                 {
                   guard: Guards.allPlayersReady,
-                  target: GameState.newTurn,
+                  target: GameState.updateTurn,
                 },
                 {
                   target: GameState.setup,
@@ -569,19 +599,38 @@ export class Game {
               ]
             }
           },
-          [GameState.newTurn]: {
-            entry: [{ type: Actions.log, params: GameState.newTurn }],
+          [GameState.updateTurn]: {
+            entry: [{ type: Actions.log, params: GameState.updateTurn }],
             invoke: {
               src: Actors.newTurn,
               input: ({ context }) => context,
               onDone: {
-                actions: [Actions.updateContextOnDone],
-                target: GameState.turn
+                actions: [Actions.updateContextOnDone], //this used to emit the turn
+                target: GameState.checkForWinner
               }
             },
           },
+          [GameState.checkForWinner]: {
+            always: [
+              { guard: Guards.gameEnded, target: GameState.end }, 
+              { guard: Guards.gameContinues, target: GameState.emitNewTurn }, 
+            ],
+          },
+          [GameState.emitNewTurn]: {
+            entry: [
+              {type: Actions.log, params: GameState.emitNewTurn },
+              {type: Actions.emitTurn} // now turn emits here
+            ],
+            after: {
+              [1_000]: [
+                { target: GameState.turn }
+              ]
+            }
+          },
           [GameState.turn]: {
-            entry: [{ type: Actions.log, params: GameState.turn }],
+            entry: [
+              { type: Actions.log, params: GameState.turn },
+            ],
             invoke: {
               src: Actors.queryWaiting,
               input: ({ context }) => context,
@@ -601,16 +650,15 @@ export class Game {
             }
           },
           [GameState.cleanup]: {
-            guard: Guards.gameEnded, target: GameState.end,
             entry: [{ type: Actions.log, params: GameState.cleanup }], 
             always: [
-              { actions: [{ type: Actions.cleanup }], target: GameState.newTurn }
+              { actions: [{ type: Actions.cleanup }], target: GameState.updateTurn }
             ]
           },
           [GameState.end]: {
             type: 'final',
             entry: [{ type: Actions.log, params: GameState.end}],
-            emit: [{ type: Actions.endGame}] 
+            always: { actions: [ { type: Actions.endGame}] }
           },
         }
       });

@@ -1,6 +1,7 @@
 import { EventEmitter } from "eventemitter3";
 import { GameAnswerMsg, GameDeployMsg, GameEndMsg, GameMessage, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg } from "./types/gameMessages.js";
-import { PlayerId, PlayerSeat } from "./types/game.js";
+import { PlayerId, PlayerSeat, TurnInfoPayload } from "./types/game.js";
+import { TurnEmitMessage } from "./types/messages.js";
 
 
 const MAX_PLAYERS = 4;
@@ -11,6 +12,9 @@ export enum MsgEvents  {
   PROOFS    = "msg:proofs",
   PLAYERS   = "msg:players",
   CLEAN     = "msg:clean",
+  NEWTURN   = "msg:new_turn",
+  TURN      = "msg:turn",
+  END       = "msg:end",
 }
 
 export type Players = Map<PlayerId, PlayerSeat>
@@ -145,6 +149,19 @@ export class MessageBox extends EventEmitter {
   
   emitClean() {
     this.emit(MsgEvents.CLEAN);
+  }
+
+  emitNewTurn(turnInfo: TurnInfoPayload) {
+    console.log("\n\n BROADCASTING TURN new-turn-info: ", JSON.stringify(turnInfo))
+    this.emit(MsgEvents.NEWTURN, turnInfo)
+  }
+
+  emitTurn(turnInfo: TurnEmitMessage) {
+    this.emit(MsgEvents.TURN, turnInfo)
+  }
+
+  emitWinner(winner: PlayerId) {
+    this.emit(MsgEvents.END, {winner});
   }
 } 
 

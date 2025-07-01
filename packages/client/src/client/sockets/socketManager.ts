@@ -96,7 +96,8 @@ export class SocketManager extends EventEmitter {
       }
       self.emit(GameMsg.TURN_START, turnInfo)
       ack();
-    })
+    });
+
 
     this.game.on(GameMsg.PLAYER_SEAT, async (msg: GamePlayerSeatMsg) => {
       const seat = msg.payload.seat;

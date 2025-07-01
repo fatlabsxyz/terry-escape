@@ -1,4 +1,4 @@
-import { SocketId } from "./game.js";
+import { SocketId, TurnInfoPayload } from "./game.js";
 import { GameMessage, GameMsg, GamePayload } from "./gameMessages.js"
 import { LobbyMsg, LobbyPayload } from "./lobbyMessages.js"
 
@@ -13,6 +13,11 @@ export type ProofsEmitMessage = {
   sid: SocketId;
   type: GameMsg;
   messages: GameMessage[]; 
+}
+
+export type TurnEmitMessage = {
+  sid: SocketId;
+  turnInfo: TurnInfoPayload; 
 }
 
 export interface Message {

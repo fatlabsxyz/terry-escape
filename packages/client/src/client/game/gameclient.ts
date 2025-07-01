@@ -186,7 +186,10 @@ export class GameClient {
     this.playerSeatValue = await this.sockets.waitForPlayerSeat();
 
     this.gameMachine.on("winner", (winner) => {
-      console.log("EMITTING WINNER TO FRONTEND: ", winner)
+      console.log("GAME ENDED, winner: ", this.winner);
+      console.log("EMITTING WINNER TO FRONTEND: ", winner);
+      this.sockets.game.disconnect()
+      console.log("DISCONNECTED FROM SOCKETS")
       this.interfacer.emit(IfEvents.Winner, winner);
     });
 
@@ -519,8 +522,9 @@ export class GameClient {
     return true;
   }
 
-  isGameOver(turnInfo:TurnInfo): boolean {
-    if (turnInfo && turnInfo.gameOver){
+  isGameOver(turnInfo: TurnInfo): boolean {
+    console.log("\n\n\n IS GAME OVER: ", JSON.stringify(turnInfo))
+    if (turnInfo && turnInfo.gameOver) {
       console.log("\nGAMEOVER in turn info");
       this.winner = turnInfo.gameOver;
       return true;
@@ -647,7 +651,8 @@ export class GameClient {
           [PlayerStates.FinishGame]: {
             type: 'final',
             entry: [{ type: Actions.log, params: PlayerStates.FinishGame}],
-            emit: [{ type: Actions.gameEnd}] 
+            always: { actions: [ { type: Actions.gameEnd}] }
+            // emit: [{ type: Actions.gameEnd}] 
           },
         },
       });

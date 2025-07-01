@@ -1,4 +1,4 @@
-import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg, ProofsEmitMessage, GameEndPayload, GameEndMsg, GameMessage} from 'client/types';
+import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg, ProofsEmitMessage, GameEndPayload, GameEndMsg, GameMessage, TurnEmitMessage} from 'client/types';
 import { MessageBox, MsgEvents, passTime } from 'client';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, PlayerStatus } from '../game.js';
@@ -79,6 +79,13 @@ msgBox.on(MsgEvents.CLEAN, () => {
   msgBox.clearOldMessages();
 });
 
+msgBox.on(MsgEvents.NEWTURN, (turnInfo) => {
+  const allPlayers: SocketId[]= Array.from(playerStorage.getAllSocketIds().values())
+  allPlayers.forEach((sid) => { 
+    msgBox.emitTurn({sid, turnInfo});
+  });
+});
+
 const TIMEOUT = 300_000;
 
 function registerGameHandlers(socket: GameSocket): boolean {
@@ -97,6 +104,29 @@ function registerGameHandlers(socket: GameSocket): boolean {
       }
     );
   });
+
+  msgBox.on(MsgEvents.TURN, async (p: TurnEmitMessage) => {
+    
+    await socket.to(p.sid).timeout(TIMEOUT).emitWithAck( GameMsg.TURN_START, p.turnInfo );
+
+  });
+
+  // msgBox.on(MsgEvents.END, async (winner: PlayerId) => { 
+  //
+  //   const allPlayers: Map<PlayerId, SocketId> = playerStorage.getAllSocketIds()
+  //
+  //
+  //   await Promise.all([...allPlayers.values()].map( async ([_, playerSid]) => { 
+  //     const players = msgBox.players;
+  //     await socket.to(p.sid).timeout(TIMEOUT).emitWithAck(
+  //       GameMsg.WINNER,
+  //       {
+  //
+  //       }
+  //     );
+  //   }));
+  // });
+  //
 
   socket.on(GameMsg.FETCH_PROOFS, async (p: RetrieveMsg, ack: Ack) => {
 
