@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+// import crypto from 'crypto';
 import { ProofData } from '@aztec/bb.js';
 import { Action, Field, Public_Key, Secret_Key, State } from './types.js';
 import { Collision, IZkLib } from './zklib.interface.js';
