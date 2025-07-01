@@ -536,12 +536,10 @@ export class Game {
         [Actions.emitSeat]:             emit({type: Events.EmitSeat, player: this.playerEmitData }), // race condition?
         [Actions.markPlayerReady]:      assign(markPlayerReadyAction),
         [Actions.updateContextOnDone]:  assign(updateContextOnDoneAction),
-        // [Actions.emitTurn]:             emit({type: Events.EmitTurn, context.turnInfo }),
         [Actions.emitTurn]:             assign(emitTurnAction),
         [Actions.updatePlayers]:        assign(updatePlayersAction),
         [Actions.cleanup]:              assign(cleanupAction),
-        // [Actions.endGame]:              emit({type: Events.GameEnded, winner: this.winner}),
-        [Actions.endGame]:              assign(endGameAction),
+        // [Actions.endGame]:              assign(endGameAction),
       },
       guards: {
         [Guards.gameEnded]: ({context}) => {
@@ -658,7 +656,11 @@ export class Game {
           [GameState.end]: {
             type: 'final',
             entry: [{ type: Actions.log, params: GameState.end}],
-            always: { actions: [ { type: Actions.endGame}] }
+            // always: { actions: [ { type: Actions.endGame}] }
+            output: () => {
+              console.log("GAME ENDED, WINNER: ", this.winner);
+              this.msgBox.emitWinner(this.winner!);
+            },
           },
         }
       });
