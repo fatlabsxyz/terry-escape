@@ -77,7 +77,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const maxAgents: number = 4;
     let selectedAgentCell: CellPosition | null = null;
     let actionMode: ActionMode = null;
-    let mustAct: boolean; let reason: number;
+    let mustAct: boolean;
+    let reason: number; let targeted: number
 
     function initializeGrid(): void {
         for (let i = 0; i < 16; i++) {
@@ -160,7 +161,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     deployTrap(row, col);
 		    board.setTrap([row,col]);
                 }
-	        interfacer.emit(IfEvents.Action, { reason, target: index, trap: actionMode === "trap" });
+		targeted = index;
+	        interfacer.emit(IfEvents.Action, { reason, target: targeted, trap: actionMode === "trap" });
+	        mustAct = false;
+        	updateTutorial();
             }
         } else if (turn > 0 && !actionMode) {
             showError("SELECT MOVE OR TRAP FIRST");
@@ -238,8 +242,6 @@ document.addEventListener("DOMContentLoaded", () => {
         actionMode = null;
         moveBtn.classList.remove("active");
         trapBtn.classList.remove("active");
-        turn++;
-        logMessage(`TURN ${turn}`);
         updateTutorial();
     }
 
@@ -293,9 +295,22 @@ document.addEventListener("DOMContentLoaded", () => {
     interfacer.on(IfEvents.Turn, event => {
         turn = event.round;
 	mustAct = event.active;
+        logMessage(`TURN ${turn}`);
 	updateTutorial();
     });
 
-    interfacer.on(IfEvents.Collision, event => console.log(event));  // TODO
-    interfacer.on(IfEvents.Impact, event => console.log(event)); // TODO
+    interfacer.on(IfEvents.Collision, event => {
+        if (event) {
+            let where = Number(event);
+            logMessage(`HEARD LOUD BANG FROM ROOM #${where}!!!`);
+            (grid.children[where] as HTMLElement).innerHTML = '';
+	}
+    });
+    interfacer.on(IfEvents.Impact, event => {
+	logMessage(`ACTION COMPLETED`);
+	if (event) {
+	    logMessage(`HIT REPORTED ON ROOM #${targeted}!!!!`);
+            (grid.children[targeted] as HTMLElement).innerHTML = '';
+	}
+    });
 });
