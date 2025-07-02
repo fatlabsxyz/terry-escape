@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const row = Math.floor(index / 4);
         const col = index % 4;
 
-        if (turn === 0) {
+        if (turn === 0 && cell.classList.contains('possible')) {
             if (agents.length < maxAgents) {
                 const agent = document.createElement("div");
                 agent.className = "agent";
@@ -137,7 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     logMessage("DEPLOYMENT COMPLETE - TURN 1");
                     clearPossibleHighlights();
                     updateTutorial();
-		    interfacer.emit(IfEvents.Deploy, { agents: agents.map(e => e.row*4 + e.col)} );
+		    let deployment_data = board.allowedPlacementIndices.map((i: number) =>
+                        (grid.children[i] as HTMLElement).children.length );
+		    interfacer.emit(IfEvents.Deploy, deployment_data);
 		    board.addAgents({ agents: agents.map(e => [e.row, e.col]) });
                 }
             }
