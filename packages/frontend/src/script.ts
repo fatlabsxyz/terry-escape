@@ -1,7 +1,7 @@
 import { connect, getNewToken } from 'client';
 import { IfEvents } from 'client/types';
-import { Interfacer } from '../../client/dist/client/interfacer.js';
-import { Board } from '../../client/dist/client/game/board.js'
+import { Board } from 'client'
+import { Interfacer } from 'client';
 
 interface Agent {
     id: number;

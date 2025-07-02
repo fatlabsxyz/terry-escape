@@ -35,12 +35,13 @@ export function random_bool() { return Math.random() < 0.5; };  // TODO: Is Math
 
 // https://noir-lang.org/docs/tutorials/noirjs_app#some-more-js
 
-import initACVM from "@noir-lang/acvm_js";
-import initNoirC from "@noir-lang/noirc_abi";
+// import initACVM from "@noir-lang/acvm_js";
+// import initNoirC from "@noir-lang/noirc_abi";
+// UNCOMMENT NEXT TWO LINES FOR BROWSER (vite) BUILD
 // import acvm from "@noir-lang/acvm_js/web/acvm_js_bg.wasm?url";
 // import noirc from "@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm?url";
 // await Promise.all([initACVM(fetch(acvm)), initNoirC(fetch(noirc))]);
-
+//
 /****************/
 
 import { abiEncode, Abi } from '@noir-lang/noirc_abi';
@@ -90,6 +91,7 @@ export async function generate_proof(circuit: Circuit, inputs: any, options: { m
     if (name == "oracle_detect") { informed_detect = _inputs[0]; }
     return [];
   };
+  console.log(inputs);
   const { witness, returnValue } = await circuit.noir.execute(inputs, oracle_handler);
   
   const publicAbi = {...circuit.abi, parameters: circuit.abi.parameters.filter(p => p.visibility == 'public') }
