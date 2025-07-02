@@ -1,4 +1,3 @@
-// import crypto from 'crypto';
 
 import {
   answers_updates_json,
@@ -23,13 +22,14 @@ import {
 const Grumpkin_field_order = "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001";
 
 export function random_Field() {
-  let bytes = Array.from(crypto.getRandomValues(new Uint8Array(32)));
+  // let bytes = Array.from(crypto.getRandomValues(new Uint8Array(32)));
+  let bytes = Array.from(Array(32), _ => Math.floor(Math.random()*256));
   bytes[0]! %= 0x40;
   const hex = "0x" + bytes.map(byte => byte.toString(16).padStart(2, "0")).join("");
   if (hex < Grumpkin_field_order) { return hex; } else { return random_Field(); }
 };
 
-export function random_bool() { return Math.random() < 0.5; };  // TODO: Is Math.random() secure?
+export function random_bool() { return Math.random() < 0.5; };
 
 /****************/
 
@@ -91,7 +91,6 @@ export async function generate_proof(circuit: Circuit, inputs: any, options: { m
     if (name == "oracle_detect") { informed_detect = _inputs[0]; }
     return [];
   };
-  console.log(inputs);
   const { witness, returnValue } = await circuit.noir.execute(inputs, oracle_handler);
   
   const publicAbi = {...circuit.abi, parameters: circuit.abi.parameters.filter(p => p.visibility == 'public') }
