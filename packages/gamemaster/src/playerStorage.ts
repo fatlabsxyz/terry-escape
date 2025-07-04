@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { PlayerSeat, StoredPlayers, PlayerProps, Err, PlayerId, SocketId } from 'client/types';
+import { StoredPlayers, PlayerProps, Err, PlayerId, SocketId, Name } from 'client/types';
 
 
 export class PlayerStorage extends EventEmitter {
@@ -11,7 +11,6 @@ export class PlayerStorage extends EventEmitter {
     this.players = new Map();
   }
 
-  // i feel like java when I'm walking down the street
   public static getInstance(): PlayerStorage {
     if (!PlayerStorage.instance) {
       console.log("PLAYER-STORAGE: creating new instance");
@@ -37,6 +36,13 @@ export class PlayerStorage extends EventEmitter {
     }
   }
   
+  /// It's assumed that you already know the player exists
+  /// when this method is called.
+  getPlayerName(id: PlayerId): Name {
+    const player = this.players.get(id) as PlayerProps;
+    return player.name;
+  }
+   
   /// It's assumed that you already know the player exists
   /// when this method is called.
   getSocketId(id: PlayerId): SocketId {

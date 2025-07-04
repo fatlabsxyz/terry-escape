@@ -1,5 +1,5 @@
 import { EventEmitter } from "eventemitter3";
-import { AgentLocation, Locations, PlayerSeat, TurnAction } from "../types/game.js";
+import { LeaderBoard, Locations, PlayerId, PlayerSeat, TurnAction } from "../types/game.js";
 import { passTime } from "../utils.js";
 import { Collision } from "zklib/types";
 
@@ -35,12 +35,14 @@ export class Interfacer extends EventEmitter {
  
   private static instance: Interfacer;
 
-  turn:      Turn;
-  seat:      undefined | PlayerSeat = undefined;
-  impact:    undefined | Impact     = undefined;
-  collision: undefined | Collision  = undefined;
-  deploys:   undefined | Locations  = undefined;
-  action:    undefined | TurnAction = undefined;
+  turn:        Turn;
+  seat:        undefined | PlayerSeat  = undefined;
+  impact:      undefined | Impact      = undefined;
+  collision:   undefined | Collision   = undefined;
+  deploys:     undefined | Locations   = undefined;
+  action:      undefined | TurnAction  = undefined;
+  winner:      undefined | PlayerId    = undefined;
+  leaderboard: undefined | LeaderBoard = undefined;
   
   constructor(){
     super();

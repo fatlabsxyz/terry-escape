@@ -1,4 +1,4 @@
-import { PlayerId, PlayerSeat } from "./game.js"
+import { LeaderBoard, PlayerId, PlayerSeat, Turn } from "./game.js"
 import { Message } from "./messages.js"
 import { ProofData } from "zklib/types"
 
@@ -63,12 +63,13 @@ export interface GameReportPayload extends GamePayload {
 }
 
 export interface GameEndPayload extends GamePayload {
-  winner: string;
+  winner: PlayerId;
+  leaderboard: LeaderBoard;
 }
 
 export interface IGameMessage extends Message {
   event: `${GameMsg}`;
-  turn: number;
+  turn: Turn;
   to?: PlayerId; 
 }
 

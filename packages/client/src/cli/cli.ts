@@ -4,7 +4,7 @@ import { GameClient } from "./../client/game/gameclient.js";
 
 import { SocketManager } from "./../client/sockets/socketManager.js";
 import { getAuthToken, AuthRequestData } from "./../utils.js";
-import { AgentLocation, IJ, Locations, PlayerSeat, TurnAction } from "../types/game.js";
+import { AgentLocation, IJ, LeaderBoard, Locations, PlayerSeat, TurnAction } from "../types/game.js";
 import { Board } from "../client/game/board.js";
 import { Connection, IfEvents, Impact, Interfacer, Turn } from "../client/interfacer.js";
 import { Collision } from "zklib/types";
@@ -107,6 +107,15 @@ function attachListeners(i: Interfacer) {
     } else {
       // non-active wait for your turn
     }
+  });
+
+  i.on(IfEvents.Winner, async (leaderboard: LeaderBoard) => {
+    console.log("FRONTEND, END: winner: ", leaderboard[0]!.name, ", leaderboard:");
+
+    leaderboard.forEach((pos) => {
+      
+      console.log("\n[ #", leaderboard.indexOf(pos) + 1, " -name: ", pos.name, " -alive until: ", pos.turn );
+    });
   });
 }
 

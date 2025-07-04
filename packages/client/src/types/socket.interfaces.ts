@@ -44,7 +44,7 @@ export interface GameNspServerToClientEvents {
   [GameMsg.DUMMY]: (...args: any[]) => void;
 
   [GameMsg.STARTED]: (cb: Ack) => void;
-  [GameMsg.FINISHED]: (cb: Ack) => void;
+  [GameMsg.FINISHED]: (p: GameEndMsg) => void;
 
   [GameMsg.TURN_START]: (turnInfo: TurnInfoPayload, ack: Ack) => void;
   [GameMsg.TURN_END]: (cb: Ack) => void;

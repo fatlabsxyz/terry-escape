@@ -1,11 +1,9 @@
 import { EventEmitter } from "eventemitter3";
-import { GameAnswerMsg, GameDeployMsg, GameEndMsg, GameMessage, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg } from "./types/gameMessages.js";
-import { PlayerId, PlayerSeat, TurnInfoPayload } from "./types/game.js";
+import { GameAnswerMsg, GameDeployMsg, GameEndMsg, GameEndPayload, GameMessage, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg } from "./types/gameMessages.js";
+import { PlayerId, PlayerSeat, TurnInfoPayload, Turn } from "./types/game.js";
 import { TurnEmitMessage } from "./types/messages.js";
 
-
 const MAX_PLAYERS = 4;
-export type Turn = number;
 
 export enum MsgEvents  {
   BROADCAST = "msg:broadcast",
@@ -29,7 +27,6 @@ export class MessageBox extends EventEmitter {
   updates: Map<Turn, GameUpdateMsg[]>;
   answers: Map<Turn, GameAnswerMsg[]>;
   reports: Map<Turn, GameReportMsg>;
-  winners: GameEndMsg[]
 
   constructor() {
     super();
@@ -39,7 +36,6 @@ export class MessageBox extends EventEmitter {
     this.updates = new Map();
     this.answers = new Map();
     this.reports = new Map();
-    this.winners = new Array();
   }
 
   public static getInstance(): MessageBox {
@@ -158,10 +154,6 @@ export class MessageBox extends EventEmitter {
 
   emitTurn(turnInfo: TurnEmitMessage) {
     this.emit(MsgEvents.TURN, turnInfo)
-  }
-
-  emitWinner(winner: PlayerId) {
-    this.emit(MsgEvents.END, {winner});
   }
 } 
 

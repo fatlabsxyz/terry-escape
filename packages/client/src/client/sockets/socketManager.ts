@@ -1,7 +1,7 @@
 import { EventEmitter } from "eventemitter3";
 import { io, Socket } from "socket.io-client";
 import { jwtDecode } from 'jwt-decode';
-import { JwtPayload, PlayerId, PlayerSeat, TurnInfo, TurnInfoPayload } from "../../types/game.js";
+import { JwtPayload, PlayerId, PlayerSeat, TurnInfoPayload } from "../../types/game.js";
 import {
   GameAnswerMsg,
   GameAnswerPayload,
@@ -17,10 +17,9 @@ import {
   GameProofsPayload,
   GamePlayerSeatMsg,
   RetrieveMsg,
-  GameMessage
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
-import { passTime, setEqual } from "../../utils.js";
+import { passTime } from "../../utils.js";
 import { MessageBox } from "../../messageBox.js";
 
 const TIMEOUT = 300_000;
@@ -115,35 +114,30 @@ export class SocketManager extends EventEmitter {
         case GameMsg.DEPLOY: {
           if (this.msgBox.deploys.length === 0) {
             this.msgBox.deploys = msg.messages.map(x => x as GameDeployMsg);
-            // this.printMessagesRecieved(msg.messages);
           }
           break;
         }; 
         case GameMsg.QUERY: {
           if (this.msgBox.queries.get(turn) === undefined) {
             this.msgBox.queries.set(turn, msg.messages.map(x => x as GameQueryMsg));
-            // this.printMessagesRecieved(msg.messages);
           }
           break
         };
         case GameMsg.ANSWER: {
           if (this.msgBox.answers.get(turn) === undefined) {
           this.msgBox.answers.set(turn, msg.messages.map(x => x as GameAnswerMsg));
-            // this.printMessagesRecieved(msg.messages);
           }
           break;
         };
         case GameMsg.UPDATE: { 
           if (this.msgBox.updates.get(turn) === undefined) {
           this.msgBox.updates.set(turn, msg.messages.map(x => x as GameUpdateMsg));
-            // this.printMessagesRecieved(msg.messages);
           }
           break;
         };
         case GameMsg.REPORT: { 
           if (this.msgBox.reports.get(turn) === undefined) {
           this.msgBox.reports.set(turn, msg.messages.map(x => x as GameReportMsg)[0]!);
-            // this.printMessagesRecieved(msg.messages);
           }
           break;
         };
@@ -152,18 +146,8 @@ export class SocketManager extends EventEmitter {
     })    
   }
 
-
-  // printMessagesRecieved(messages: GameMessage[]){
-  //   //TODO remove this function later
-  //   console.log("\n\n\n MESSAGES RECIEVED: ")
-  //   messages.forEach((message) => {
-  //     console.log("event: ", message.event, " -from- ", message.sender, " -to- ", message.to, "\n")
-  //   });
-  // }
-
-
   get sender(): PlayerId {;
-    return this.playerId; // Player id (NOT socket id)
+    return this.playerId;
   }
 
   _lobbyReady(): boolean {
@@ -367,7 +351,6 @@ export class SocketManager extends EventEmitter {
   }
 
   async waitForGameStartEvent(): Promise<void> {
-    // TODO: add setTimeout to run rej branch
     return new Promise((res, rej) => {
       setTimeout(rej, TIMEOUT);
       this.game.once(GameMsg.STARTED, (ack) => { ack(); res() })
@@ -375,7 +358,6 @@ export class SocketManager extends EventEmitter {
   }
 
   async waitForTurnStartEvent(): Promise<TurnInfoPayload> {
-    // TODO: add setTimeout to run rej branch
     return new Promise((res, rej) => {
       setTimeout(rej, TIMEOUT);
       this.game.once(GameMsg.TURN_START, (data: TurnInfoPayload, ack) => { 

@@ -1,4 +1,4 @@
-import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId } from 'client/types';
+import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, LeaderBoard, Position, GameEndMsg, Turn } from 'client/types';
 import { GameNsp } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
@@ -135,6 +135,7 @@ export class Game {
   playerEmitData: any;
 
   winner: undefined | PlayerId;
+  leaderboard: LeaderBoard;
 
   constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
@@ -142,6 +143,7 @@ export class Game {
     this.minPlayers = 4;
     this.playerStorage = PlayerStorage.getInstance();
     this.msgBox = MessageBox.getInstance();
+    this.leaderboard = new Array();
 
     this.gameMachine = createActor(this.stateMachine(this._defaultContext(this.minPlayers)));
     
@@ -332,30 +334,39 @@ export class Game {
       const msgBox: MessageBox = MessageBox.getInstance();
       const updates = msgBox.updates.get(turn)!;
       const report =  msgBox.reports.get(turn)!;
+      
+      // check for dead passive players
       updates.forEach((u) => { 
         if (u.payload.died) {
-        round.set(u.sender, true);                // set as dead in round 
+        round.set(u.sender, true);                        // set as dead in round 
         const pdata = players.get(u.sender)!;
         pdata.eliminated = true;
-        players.set(u.sender, pdata);             // set as dead in players
+        players.set(u.sender, pdata);                     // set as dead in players
+        const p: Position = {
+          name: this.playerStore.getPlayerName(u.sender),
+          pid: u.sender,
+          turn
+        };
+        this.leaderboard.push(p)                          // add to leaderboard
       }});
+
+      // check if active player died
       if (report.payload.died) {
-        round.set(report.sender, true);           // set as dead in round 
-        const pdata = players.get(report.sender)!;
+        const pid = report.sender;
+        round.set(pid, true);                             // set as dead in round 
+        const pdata = players.get(pid)!;
         pdata.eliminated = true;
-        players.set(report.sender, pdata);        // set as dead in players
+        players.set(pid, pdata);                          // set as dead in players
+        const p: Position = {
+          name: this.playerStore.getPlayerName(pid),
+          pid,
+          turn
+        };
+        this.leaderboard.push(p)                          // add to leaderboard
       }
 
-      // check which is the last dead player, mark as winner 
-      // TODO: (could fail if the last two players die in the same turn)
-      // i.e. non-active player1 has agent and bomb in square 0
-      // active player2 has agent in square 1, moves to square 0, 
-      // kills player1 and dies to the bomb: [should declare a tie]
-      const deadPlayers = Array.from(round.entries())
-        .filter(([_, v]) => v === true).map(([pid,_]) => pid);
       const allPlayers = Array.from(round.keys());
-
-      gameOver = this.isGameFinished(deadPlayers, allPlayers)!;
+      gameOver = this.isGameFinished(allPlayers, turn)!;  // check if there's a winner
 
       [activePlayer, nextPlayer] = this.nextPlayers(finishingPlayer, round);
     }
@@ -378,15 +389,27 @@ export class Game {
     return newContext;
   }
 
-  isGameFinished(deadPlayers: PlayerId[], allPlayers: PlayerId[]): PlayerId | undefined {
-    console.log("\n\nCHECKING if game finished?")
-    const allEnemiesDead = deadPlayers.length === 3;
-    if (allEnemiesDead) {
-      const winner = allPlayers.find((pid) => !deadPlayers.includes(pid)) as PlayerId;
-
+  isGameFinished(allPlayers: PlayerId[], turn: Turn): PlayerId | undefined {
+    console.log("\n\nCHECKING if game finished")
+    if (this.leaderboard.length > 3) {
+      const winner = this.leaderboard[3]!.pid;
       this.winner = winner;
-      console.log("\n\n\nWINNER: ", winner);
+    } else if (this.leaderboard.length === 3) {
+      const deadPlayers = this.leaderboard.map((p) => p.pid); 
+
+      const winnerPid = allPlayers.find((pid) => !deadPlayers.includes(pid)) as PlayerId;
+      
+      const winnerPosition: Position = {
+        name: this.playerStore.getPlayerName(winnerPid),
+        pid: winnerPid,
+        turn,
+      }; 
+
+      this.leaderboard.push(winnerPosition);
+      
+      this.winner = winnerPid;
     }
+    console.log("\n\n\nTHERE IS A WINNER: ", this.winner !== undefined);
     return this.winner;
   }
 
@@ -394,8 +417,8 @@ export class Game {
     await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.STARTED);
   }
 
-  async broadcastEndGame() {
-    await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.FINISHED);
+  async broadcastEndGame(p: GameEndMsg) {
+    this.nsp.timeout(this.broadcastTimeout).emit(GameMsg.FINISHED, p);
   }
 
   private broadcastTurn(turnInfo: TurnInfo) {
@@ -406,7 +429,6 @@ export class Game {
         nextPlayer:   turnInfo.nextPlayer,
         gameOver:     turnInfo.gameOver   
     }
-    // await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.TURN_START, newTurnInfo);
     this.msgBox.emitNewTurn(newTurnInfo);
     this.msgBox.emitClean();
   }
@@ -491,12 +513,6 @@ export class Game {
       if (event.output) {
         return { players: event.output.players }
       } else return {}
-    }
-
-    const endGameAction = ({ event }: ActionInput) => {
-      self.log("GAME ENDED, WINNER: ", this.winner);
-      this.msgBox.emitWinner(this.winner!);
-      return {}
     }
 
     const cleanupAction = ({ context }: ActionInput) => {
@@ -605,7 +621,6 @@ export class Game {
                 target: GameState.checkForWinner, 
               }
             },
-
           },
           [GameState.checkForWinner]: {
             always: [
@@ -649,10 +664,20 @@ export class Game {
           [GameState.end]: {
             type: 'final',
             entry: [{ type: Actions.log, params: GameState.end}],
-            // always: { actions: [ { type: Actions.endGame}] }
-            output: () => {
+            output: (context) => {
               console.log("GAME ENDED, WINNER: ", this.winner);
-              this.msgBox.emitWinner(this.winner!);
+              const turn = this.leaderboard[3]!.turn;
+              const leaderboard = this.leaderboard.reverse();
+              const gameEndMsg: GameEndMsg = {
+                event: GameMsg.FINISHED,
+                sender: "gamemaster",
+                turn, 
+                payload : {
+                  winner: this.winner!,
+                  leaderboard
+                }
+              }
+              this.broadcastEndGame(gameEndMsg);
             },
           },
         }

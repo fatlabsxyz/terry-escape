@@ -1,7 +1,7 @@
 import { Actor, AnyEventObject, assign, createActor, emit, fromPromise, setup } from 'xstate';
 import 'xstate/guards';
-import { TurnData, TurnInfo, TurnAction, UpdatesData, Locations, AgentLocation, PlayerSeat, AnswerData, ReportData, PlayerId, Name} from "../../types/game.js";
-import { GameAnswerPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
+import { TurnData, TurnInfo, TurnAction, UpdatesData, Locations, AgentLocation, PlayerSeat, AnswerData, ReportData, PlayerId, Name, LeaderBoard} from "../../types/game.js";
+import { GameAnswerPayload, GameEndMsg, GameEndPayload, GameMsg, GameQueryPayload, GameReportPayload, GameUpdatePayload } from "../../types/gameMessages.js";
 import { SocketManager } from "../sockets/socketManager.js";
 import { Collision, IZkLib, ProofData } from 'zklib/types';
 import { secretKeySample, publicKeySample } from 'keypairs';
@@ -29,6 +29,7 @@ enum PlayerStates {
   Prepare = "PREPARE",
   Ready = "READY",
   UpdateTurnInfo = "UPDATE_TURN_INFO",
+  CheckForWinner = "CHECK_FOR_WINNER",
   SelectActive = "SELECT_ACTIVE",
   Active = "ACTIVE",
   NonActive = "NON_ACTIVE",
@@ -129,6 +130,7 @@ export class GameClient {
   private playerIdValue:    undefined | PlayerId;
   private playerNameValue:  undefined | Name;
   private playerSeatValue:  undefined | PlayerSeat;
+  leaderboard: LeaderBoard;
 
   constructor(sockets: SocketManager, readonly zklib: IZkLib) {
     this.sockets = sockets;
@@ -139,6 +141,7 @@ export class GameClient {
     this.turnData = GameClient._emptyTurnData();
     this.allPlayersOrdered = new Array();
     this.log = _createLogger(sockets.playerName, sockets.sender);
+    this.leaderboard = new Array();
   }
 
   static _emptyTurnData(): TurnData {
@@ -184,14 +187,6 @@ export class GameClient {
   
   async prepareSetup() {
     this.playerSeatValue = await this.sockets.waitForPlayerSeat();
-
-    this.gameMachine.on("winner", (winner) => {
-      console.log("GAME ENDED, winner: ", this.winner);
-      console.log("EMITTING WINNER TO FRONTEND: ", winner);
-      this.sockets.game.disconnect()
-      console.log("DISCONNECTED FROM SOCKETS")
-      this.interfacer.emit(IfEvents.Winner, winner);
-    });
 
     await this.setupGame(); 
   }
@@ -522,16 +517,14 @@ export class GameClient {
     return true;
   }
 
-  isGameOver(turnInfo: TurnInfo): boolean {
-    console.log("\n\n\n IS GAME OVER: ", JSON.stringify(turnInfo))
-    if (turnInfo && turnInfo.gameOver) {
-      console.log("\nGAMEOVER in turn info");
-      this.winner = turnInfo.gameOver;
-      return true;
-    } else {
-      console.log("\nGAMEOVER not in turn info");
-      return false;
-    }
+  isGameOver(): boolean {
+    console.log("\n\n\n EVAL IS GAME OVER: ")
+
+    if (this.winner !== undefined) {
+      console.log("\n\n\nWINNER: ", this.winner);
+      console.log("LEADERBOARD: ");
+      return true
+    } else {return false}
   }
 
   machineSetup() {
@@ -552,6 +545,13 @@ export class GameClient {
       if (self.gameMachine) {
         ack({ player: self.playerId, waiting: self.contextWaiting })
       }
+    });
+
+    this.sockets.game.on(GameMsg.FINISHED, (p: GameEndMsg) => {
+      this.winner = p.payload.winner;
+      this.leaderboard = p.payload.leaderboard;
+      console.log(`END MESSAGE: winner: ${this.winner}, leaderboard: \n${JSON.stringify(this.leaderboard)}`);
+      this.interfacer.emit(IfEvents.Winner, this.leaderboard);
     });
 
     /*///////////////////////////////////////////////////////////////
@@ -585,10 +585,9 @@ export class GameClient {
         [Actions.updateTurnInfo]:   assign(updateTurnInfoAction),
         [Actions.markUsWaiting]:    assign(markUsWaitingAction),
         [Actions.unMarkUsWaiting]:  assign(unMarkUsWaitingAction),
-        [Actions.gameEnd]:          emit({type: "winner", winner: this.winner }),
       },
       guards: {
-        [Guards.isGameFinished]:    ({ context }) => this.isGameOver(context.turnInfo),
+        [Guards.isGameFinished]:    () => this.isGameOver(),
         [Guards.isActivePlayer]:    ({ context }) => this.isActivePlayer(context.turnInfo),
         [Guards.isNonActivePlayer]: ({ context }) => this.isNonActivePlayer(context.turnInfo),
       },
@@ -625,11 +624,16 @@ export class GameClient {
             ],
             on: {
               [GameMsg.TURN_START]: [
-                { guard: Guards.isGameFinished, target: PlayerStates.FinishGame },
-                { actions: { type: Actions.updateTurnInfo }, target: PlayerStates.SelectActive },
+                { actions: { type: Actions.updateTurnInfo }, target: PlayerStates.CheckForWinner},
               ]
             },
             exit: [{ type: Actions.unMarkUsWaiting }]
+          },
+          [PlayerStates.CheckForWinner]: {
+            always: [
+              { guard: Guards.isGameFinished, target: PlayerStates.FinishGame },
+              { target: PlayerStates.SelectActive}
+            ],
           },
           [PlayerStates.SelectActive]: {
             entry: [
@@ -651,8 +655,13 @@ export class GameClient {
           [PlayerStates.FinishGame]: {
             type: 'final',
             entry: [{ type: Actions.log, params: PlayerStates.FinishGame}],
-            always: { actions: [ { type: Actions.gameEnd}] }
-            // emit: [{ type: Actions.gameEnd}] 
+            output: () => {
+              console.log("GAME ENDED, WINNER: ", this.winner);
+              console.log("EMITTING WINNER TO FRONTEND: ", this.winner);
+              this.sockets.game.disconnect()
+              console.log("DISCONNECTED FROM SOCKETS")
+              this.interfacer.emit(IfEvents.Winner, this.winner);
+            },
           },
         },
       });

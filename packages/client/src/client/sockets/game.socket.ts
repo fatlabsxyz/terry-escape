@@ -25,11 +25,7 @@ export function setupGame(options: GameOptions): GameSocket {
     // set player as disconnected in playerStore?
     console.log("\n\nPLAYER DISCONNECTED, REASON: ", reason);
   });
-
-  game.on(GameMsg.FINISHED, (ack: (ok: boolean) => void) => {
-    ack(true)
-  })
-
+  
   return game
 
 ;}
