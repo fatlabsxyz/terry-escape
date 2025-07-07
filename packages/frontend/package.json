@@ -12,12 +12,10 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.{ts,html,css}"
   },
-  "devDependencies": {
+  "dependencies": {
     "esbuild": "^0.25.3",
     "esbuild-serve": "^1.0.1",
-    "serve": "^14.2.4"
-  },
-  "dependencies": {
+    "serve": "^14.2.4",
     "client": "workspace:*"
   }
 }
