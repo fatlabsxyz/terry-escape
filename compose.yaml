@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  gamemaster:
+    build:
+      context: .
+      target: gamemaster
+    ports:
+      - '2448:2448'
+  frontend:
+    build:
+      context: .
+      target: frontend
+    ports:
+      - '8000:8000'
