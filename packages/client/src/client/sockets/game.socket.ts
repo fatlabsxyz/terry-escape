@@ -18,13 +18,14 @@ export function setupGame(options: GameOptions): GameSocket {
   });
 
   game.on("connect", () => {
-    console.log("Connected to game");
-  })
+    console.log("\n\n\nConnected to game");
+  });
 
-  game.on(GameMsg.FINISHED, (ack: (ok: boolean) => void) => {
-    ack(true)
-  })
-
+  game.on("disconnect", (reason) => {
+    // set player as disconnected in playerStore?
+    console.log("\n\nPLAYER DISCONNECTED, REASON: ", reason);
+  });
+  
   return game
 
-}
+;}

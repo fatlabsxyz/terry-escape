@@ -1,7 +1,12 @@
 import { GameClient } from "./game/gameclient.js";
 import { SocketManager } from "./sockets/socketManager.js";
 import { getAuthToken } from "./../utils.js";
-import { ZklibMock } from "./zklib-mock.js";
+import { ZkLibMock } from "./zklib-mock.js";
+import { ZkLib } from "zklib";
+import { Connection, IfEvents, Impact, Interfacer, Turn } from "./interfacer.js";
+import { Board } from "./game/board.js";
+import { AgentLocation, IJ, PlayerSeat } from "../types/game.js";
+import { Collision } from "zklib/types";
 
 export const FRONTEND_URLS = ['http://localhost:8000'];
 
@@ -10,7 +15,7 @@ export async function getNewToken(name: string, url: string) {
       return token || null;
 }
 
-export async function connect(token: string, url: string, gameId: string) {
+export async function connect(token: string, url: string, gameId: string): Promise<Interfacer> {
   const sockets = new SocketManager({
     serverUrl: url,
     token: token,
@@ -19,7 +24,41 @@ export async function connect(token: string, url: string, gameId: string) {
 
   await sockets.socketsReady();
 
-  const client = new GameClient(sockets.token, sockets, ZklibMock.newMock());
+  // const zklib = new ZkLib();
+  const zklib = new ZkLibMock();
+  const interfacer = new Interfacer();
+  attachListeners(interfacer);
+
+  const client = new GameClient(sockets, zklib);
 
   await client.play();
+
+  
+  return interfacer
 }
+
+function attachListeners(i: Interfacer) {
+
+  i.on(IfEvents.Connect,(data: Connection) => {
+    i.seat = data.seat; 
+  });
+
+  i.on(IfEvents.Turn, (newTurn: Turn) => {
+    if (i.turn.round < newTurn.round) {
+      i.turn = newTurn;
+    }
+    // if (i.turn.active) {
+    //   const action = mockAction(i.seat!);
+    //   i.takeAction(action);
+    // }
+  });
+
+  i.on(IfEvents.Impact, (p: Impact) => {
+    i.impact = p;
+  });  
+  
+  i.on(IfEvents.Collision, (p: Collision) => {
+    i.collision = p;
+  }); 
+}
+

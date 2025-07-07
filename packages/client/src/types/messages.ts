@@ -1,4 +1,5 @@
-import { GameMsg, GamePayload } from "./gameMessages.js"
+import { SocketId, TurnInfoPayload } from "./game.js";
+import { GameMessage, GameMsg, GamePayload } from "./gameMessages.js"
 import { LobbyMsg, LobbyPayload } from "./lobbyMessages.js"
 
 export enum Msg {
@@ -7,6 +8,17 @@ export enum Msg {
 
 export type Event = `${Msg}` | `${GameMsg}` | `${LobbyMsg}`
 export type MessagePayload = GamePayload | LobbyPayload;
+
+export type ProofsEmitMessage = {
+  sid: SocketId;
+  type: GameMsg;
+  messages: GameMessage[]; 
+}
+
+export type TurnEmitMessage = {
+  sid: SocketId;
+  turnInfo: TurnInfoPayload; 
+}
 
 export interface Message {
   sender: string
