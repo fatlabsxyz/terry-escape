@@ -42,33 +42,13 @@ function setCookie(name: string, value: string): void {
   document.cookie = `${name}=${encodeURIComponent(value)}${expires}; path=/; SameSite=Strict`;
 }
 
-try {
-    const token = getCookie("auth");
-    const url = "http://0.0.0.0:2448";
-
-    if (token != null) {
-        connect(token, url, "0");
-    } else {
-        const newToken = await getNewToken("gordo-web", url);
-        if (newToken) {
-            setCookie("auth", newToken);
-            await connect(newToken, url, "0");
-        } else {
-            console.error("Could not get new auth token")
-        }
-    }
-
-} catch (e) {
-    console.error("Client failed to initialize");
-}
-
-
 // Main game logic
 document.addEventListener("DOMContentLoaded", () => {
     const grid = document.getElementById("grid") as HTMLDivElement;
     const log = document.getElementById("log") as HTMLDivElement;
     const moveBtn = document.getElementById("move-btn") as HTMLButtonElement;
     const trapBtn = document.getElementById("trap-btn") as HTMLButtonElement;
+    const joinBtn = document.getElementById("join-btn") as HTMLButtonElement;
     const errorMessage = document.getElementById("error-message") as HTMLDivElement;
     const tutorial = document.getElementById("tutorial") as HTMLDivElement;
 
@@ -92,6 +72,61 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeGrid();
     updateTutorial();
     logMessage("GAME STARTED");
+
+    joinBtn.addEventListener("click", async () => {
+       let board: Board; let interfacer = Interfacer.getInstance();
+
+       interfacer.on(IfEvents.Connect, event => {
+           board = new Board(event.seat);
+           board.allowedPlacementIndices.forEach(index => {
+               (grid.children[index] as HTMLElement).classList.add("possible");
+	   });
+       });
+
+       interfacer.on(IfEvents.Turn, event => {
+           turn = event.round;
+	   mustAct = event.active;
+           logMessage(`TURN ${turn}`);
+	   updateTutorial();
+       });
+
+       interfacer.on(IfEvents.Collision, event => {
+           if (event) {
+               let where = Number(event);
+               logMessage(`HEARD LOUD BANG FROM ROOM #${where}!!!`);
+               (grid.children[where] as HTMLElement).innerHTML = '';
+	   }
+       });
+       interfacer.on(IfEvents.Impact, event => {
+	   logMessage(`ACTION COMPLETED`);
+	   if (event) {
+	       logMessage(`HIT REPORTED ON ROOM #${targeted}!!!!`);
+               (grid.children[targeted] as HTMLElement).innerHTML = '';
+	   }
+       });
+
+       document.getElementById("join-paywall")!.remove();
+
+try {
+    const token = getCookie("auth");
+    const url = "http://0.0.0.0:2448";
+
+    if (token != null) {
+        connect(token, url, "0");
+    } else {
+        const newToken = await getNewToken("gordo-web", url);
+        if (newToken) {
+            setCookie("auth", newToken);
+            await connect(newToken, url, "0");
+        } else {
+            console.error("Could not get new auth token")
+        }
+    }
+
+} catch (e) {
+    console.error("Client failed to initialize");
+}
+    });
 
     moveBtn.addEventListener("click", () => {
         if (turn > 0 && mustAct) {
