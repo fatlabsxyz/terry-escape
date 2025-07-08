@@ -3,16 +3,18 @@
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/client/index.js",
-      "types": "./dist/client/index.d.ts"
+      "import": "./dist/web/index.js",
+      "types": "./dist/web/client/index.d.ts",
+      "node": "./dist/node/client/index.d.ts"
     },
     "./cli": {
       "import": "./dist/cli/index.js",
       "types": "./dist/cli/index.d.ts"
     },
     "./types": {
-      "import": "./dist/types/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": "./dist/web/types.js",
+      "types": "./dist/web/types/index.d.ts",
+      "node": "./dist/node/types/index.d.ts"
     }
   },
   "directories": {
@@ -25,7 +27,8 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "tsc -p ./tsconfig.json --outDir dist",
+    "build": "tsc -p ./tsconfig.json --outDir dist/node",
+    "build:web": "vite build --config ./vite.config.js --outDir dist/web",
     "client": "node ./dist/client/index.js",
     "cli": "node ./dist/cli/cli.js",
     "test": "vitest run --config vitest.config.ts --passWithNoTests",
@@ -43,5 +46,10 @@
     "keypairs": "workspace:*",
     "nanoid": "^5.1.5",
     "zklib": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0",
+    "vite-plugin-mkcert": "^1.17.7",
+    "vite-plugin-dts": "^4.5.4"
   }
 }

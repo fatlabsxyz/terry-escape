@@ -10,10 +10,20 @@ import mkcert from 'vite-plugin-mkcert'
 export default defineConfig({
 	build: {
 		lib: {
-			entry: resolve(__dirname, 'src/zklib.js'),
-			name: 'zklib',
-			fileName: 'zklib',
+			// entry: resolve(__dirname, 'src/client/index.js'),
+			entry: {
+				index: resolve(__dirname, 'src/client/index.js'),
+				types: resolve(__dirname, 'src/types/index.js'),
+			},
+			name: 'client',
+			fileName: '[name]',
+			formats: ['es'],
 		},
+		// rollupOptions: {
+		// 	input: [
+		//
+		// 	]
+		// }
 	},
 	plugins: [ mkcert(), dts({ insertTypesEntry: true }) ],
 	server: {

@@ -12,6 +12,14 @@ export {
 } from "./../utils.js"
 
 export {
+  Interfacer,
+} from "./interfacer.js"
+
+export {
+  Board,
+} from "./game/board.js"
+
+export {
   MessageBox,
   MsgEvents,
 } from "./../messageBox.js"
