@@ -1,7 +1,7 @@
 import { connect, getNewToken } from 'client';
 import { IfEvents } from 'client/types';
-import { Interfacer } from '../../client/dist/client/interfacer.js';
-import { Board } from '../../client/dist/client/game/board.js'
+import { Board } from 'client'
+import { Interfacer } from 'client';
 
 interface Agent {
     id: number;
@@ -77,7 +77,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const maxAgents: number = 4;
     let selectedAgentCell: CellPosition | null = null;
     let actionMode: ActionMode = null;
-    let mustAct: boolean; let reason: number;
+    let mustAct: boolean;
+    let reason: number; let targeted: number
 
     function initializeGrid(): void {
         for (let i = 0; i < 16; i++) {
@@ -121,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const row = Math.floor(index / 4);
         const col = index % 4;
 
-        if (turn === 0) {
+        if (turn === 0 && cell.classList.contains('possible')) {
             if (agents.length < maxAgents) {
                 const agent = document.createElement("div");
                 agent.className = "agent";
@@ -137,7 +138,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     logMessage("DEPLOYMENT COMPLETE - TURN 1");
                     clearPossibleHighlights();
                     updateTutorial();
-		    interfacer.emit(IfEvents.Deploy, { agents: agents.map(e => e.row*4 + e.col)} );
+		    let deployment_data = board.allowedPlacementIndices.map((i: number) =>
+                        (grid.children[i] as HTMLElement).children.length );
+		    interfacer.emit(IfEvents.Deploy, deployment_data);
 		    board.addAgents({ agents: agents.map(e => [e.row, e.col]) });
                 }
             }
@@ -158,7 +161,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     deployTrap(row, col);
 		    board.setTrap([row,col]);
                 }
-	        interfacer.emit(IfEvents.Action, { reason, target: index, trap: actionMode === "trap" });
+		targeted = index;
+	        interfacer.emit(IfEvents.Action, { reason, target: targeted, trap: actionMode === "trap" });
+	        mustAct = false;
+        	updateTutorial();
             }
         } else if (turn > 0 && !actionMode) {
             showError("SELECT MOVE OR TRAP FIRST");
@@ -236,8 +242,6 @@ document.addEventListener("DOMContentLoaded", () => {
         actionMode = null;
         moveBtn.classList.remove("active");
         trapBtn.classList.remove("active");
-        turn++;
-        logMessage(`TURN ${turn}`);
         updateTutorial();
     }
 
@@ -291,9 +295,22 @@ document.addEventListener("DOMContentLoaded", () => {
     interfacer.on(IfEvents.Turn, event => {
         turn = event.round;
 	mustAct = event.active;
+        logMessage(`TURN ${turn}`);
 	updateTutorial();
     });
 
-    interfacer.on(IfEvents.Collision, event => console.log(event));  // TODO
-    interfacer.on(IfEvents.Impact, event => console.log(event)); // TODO
+    interfacer.on(IfEvents.Collision, event => {
+        if (event) {
+            let where = Number(event);
+            logMessage(`HEARD LOUD BANG FROM ROOM #${where}!!!`);
+            (grid.children[where] as HTMLElement).innerHTML = '';
+	}
+    });
+    interfacer.on(IfEvents.Impact, event => {
+	logMessage(`ACTION COMPLETED`);
+	if (event) {
+	    logMessage(`HIT REPORTED ON ROOM #${targeted}!!!!`);
+            (grid.children[targeted] as HTMLElement).innerHTML = '';
+	}
+    });
 });

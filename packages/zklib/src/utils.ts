@@ -1,4 +1,3 @@
-// import crypto from 'crypto';
 
 import {
   answers_updates_json,
@@ -23,24 +22,26 @@ import {
 const Grumpkin_field_order = "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001";
 
 export function random_Field() {
-  let bytes = Array.from(crypto.getRandomValues(new Uint8Array(32)));
+  // let bytes = Array.from(crypto.getRandomValues(new Uint8Array(32)));
+  let bytes = Array.from(Array(32), _ => Math.floor(Math.random()*256));
   bytes[0]! %= 0x40;
   const hex = "0x" + bytes.map(byte => byte.toString(16).padStart(2, "0")).join("");
   if (hex < Grumpkin_field_order) { return hex; } else { return random_Field(); }
 };
 
-export function random_bool() { return Math.random() < 0.5; };  // TODO: Is Math.random() secure?
+export function random_bool() { return Math.random() < 0.5; };
 
 /****************/
 
 // https://noir-lang.org/docs/tutorials/noirjs_app#some-more-js
 
-import initACVM from "@noir-lang/acvm_js";
-import initNoirC from "@noir-lang/noirc_abi";
+// import initACVM from "@noir-lang/acvm_js";
+// import initNoirC from "@noir-lang/noirc_abi";
+// UNCOMMENT NEXT TWO LINES FOR BROWSER (vite) BUILD
 // import acvm from "@noir-lang/acvm_js/web/acvm_js_bg.wasm?url";
 // import noirc from "@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm?url";
 // await Promise.all([initACVM(fetch(acvm)), initNoirC(fetch(noirc))]);
-
+//
 /****************/
 
 import { abiEncode, Abi } from '@noir-lang/noirc_abi';

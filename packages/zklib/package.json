@@ -1,14 +1,17 @@
 {
   "name": "zklib",
   "type": "module",
+  "types": "./dist/web/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/web/zklib.js",
+      "node": "./dist/node/index.d.ts",
+      "types": "./dist/web/index.d.ts"
     },
     "./types": {
-      "import": "./dist/types.js",
-      "types": "./dist/types.d.ts"
+        "import": "./dist/web/types.js",
+        "node": "./dist/node/types.d.ts",
+        "types": "./dist/web/types.d.ts"
     }
   },
   "directories": {
@@ -21,7 +24,8 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "tsc -p ./tsconfig.json --outDir dist",
+    "build": "tsc -p ./tsconfig.json --outDir dist/node",
+    "build:web": "vite build --config ./vite.config.js --outDir dist/web",
     "client": "node ./dist/index.js",
     "test": "vitest run --testTimeout 0 --config vitest.config.ts --passWithNoTests"
   },
@@ -35,6 +39,7 @@
   },
   "devDependencies": {
     "vite": "^6.2.0",
-    "vite-plugin-mkcert": "^1.17.7"
+    "vite-plugin-mkcert": "^1.17.7",
+    "vite-plugin-dts": "^4.5.4"
   }
 }
