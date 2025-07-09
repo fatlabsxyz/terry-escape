@@ -5,6 +5,12 @@
     "node": ">=22",
     "pnpm": ">=10"
   },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --parallel dev",
+    "start:gamemaster": "pnpm --filter gamemaster start",
+    "start:frontend": "pnpm --filter frontend start"
+  },
   "dependencies": {
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",

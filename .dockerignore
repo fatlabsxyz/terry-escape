@@ -1,0 +1,67 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+**/dist
+**/build
+**/.next
+**/.nuxt
+**/.cache
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs
+**/docs
+
+# Development files
+*.log
+*.local
+.env*
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Test files
+**/test
+**/tests
+**/__tests__
+**/coverage
+*.test.*
+*.spec.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Package manager files
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+npm-debug.log*
+
+# Other
+*.bak
+*.orig

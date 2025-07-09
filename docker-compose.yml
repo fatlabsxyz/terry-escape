@@ -1,0 +1,10 @@
+services:
+  terry-escape:
+    build: .
+    ports:
+      - "2448:2448"  # Gamemaster port
+      - "8000:8000"  # Frontend port
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - /tmp:/tmp  # For game logs

@@ -27,7 +27,7 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "tsc -p ./tsconfig.json --outDir dist/node",
+    "build": "tsc -p ./tsconfig.json --outDir dist/node && vite build --config ./vite.config.js --outDir dist/web",
     "build:web": "vite build --config ./vite.config.js --outDir dist/web",
     "client": "node ./dist/client/index.js",
     "cli": "node ./dist/cli/cli.js",
