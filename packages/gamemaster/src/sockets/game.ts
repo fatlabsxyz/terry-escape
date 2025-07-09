@@ -1,4 +1,4 @@
-import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg, ProofsEmitMessage, GameEndPayload, GameEndMsg, GameMessage, TurnEmitMessage, Turn } from 'client/types';
+import { Err, PlayerProps, GameAnswerMsg, GameMsg, GameNspClientToServerEvents, GameNspServerToClientEvents, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, JwtPayload, GameProofsPayload, PlayerSeat, PlayerId, SocketId, RetrieveMsg, ProofsEmitMessage, GameEndPayload, GameEndMsg, GameMessage, TurnEmitMessage, Turn } from 'client';
 import { MessageBox, MsgEvents, passTime } from 'client';
 import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, PlayerStatus } from '../game.js';
@@ -48,22 +48,22 @@ msgBox.on(MsgEvents.BROADCAST, async (v: GameProofsPayload) => {
 
     if (type !== GameMsg.REPORT) {
       console.log("\n\n\n MESSAGES PRE-SORT: ")
-      messages.forEach( (message) => logFormatted(message) );
-      messages.sort((a, b) => {
+      messages.forEach( (message: any) => logFormatted(message) );
+      messages.sort((a: any, b: any) => {
         const aSeat = players.get(a.sender)!;
         const bSeat = players.get(b.sender)!;
         return aSeat - bSeat;
       });
       console.log("\n\n\n MESSAGES SORTED: ")
-      messages.forEach( (message) => logFormatted(message) );
+      messages.forEach( (message: any) => logFormatted(message) );
     }
   
     switch (type) {
-      case GameMsg.DEPLOY: messages = messages.map(x => x as GameDeployMsg)
-      case GameMsg.QUERY : messages = messages.map(x => x as GameQueryMsg )
-      case GameMsg.ANSWER: messages = messages.map(x => x as GameAnswerMsg)
-      case GameMsg.UPDATE: messages = messages.map(x => x as GameUpdateMsg)
-      case GameMsg.REPORT: messages = messages.map(x => x as GameReportMsg) 
+      case GameMsg.DEPLOY: messages = messages.map((x: any) => x as GameDeployMsg)
+      case GameMsg.QUERY : messages = messages.map((x: any) => x as GameQueryMsg )
+      case GameMsg.ANSWER: messages = messages.map((x: any) => x as GameAnswerMsg)
+      case GameMsg.UPDATE: messages = messages.map((x: any) => x as GameUpdateMsg)
+      case GameMsg.REPORT: messages = messages.map((x: any) => x as GameReportMsg) 
     }     
     msgBox.emit(MsgEvents.PROOFS, {sid: playerSid, type, messages} as ProofsEmitMessage);
   })); 
@@ -79,14 +79,14 @@ msgBox.on(MsgEvents.CLEAN, () => {
   msgBox.clearOldMessages();
 });
 
-msgBox.on(MsgEvents.NEWTURN, (turnInfo) => {
+msgBox.on(MsgEvents.NEWTURN, (turnInfo: any) => {
   const allPlayers: SocketId[]= Array.from(playerStorage.getAllSocketIds().values())
   allPlayers.forEach((sid) => { 
     msgBox.emitTurn({sid, turnInfo});
   });
 });
 
-const TIMEOUT = 300_000;
+const TIMEOUT = 3_000_000; // 10x: was 300_000
 
 function registerGameHandlers(socket: GameSocket): boolean {
   

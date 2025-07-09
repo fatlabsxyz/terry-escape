@@ -1,0 +1,7 @@
+To add background music:
+
+1. Add an audio file named "balatro.mp3" or "balatro.ogg" to this directory
+2. The music will automatically play when joining the game
+3. Users can toggle music on/off with the music button in the bottom right
+
+The music volume is set to 30% by default to not overpower game sounds.

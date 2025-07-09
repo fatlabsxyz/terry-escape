@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Combined service (default) - both gamemaster and frontend
   terry-escape:

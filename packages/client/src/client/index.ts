@@ -29,3 +29,6 @@ export {
   type ClientSockets,
   type SetupSocketOptions
 } from "./setup.js"
+
+// Re-export types for gamemaster
+export * from "../types/index.js"

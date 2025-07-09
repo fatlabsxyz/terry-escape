@@ -8,33 +8,123 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class=container id="join-paywall"><button id="join-btn" class="action-btn">JOIN</button></div>
+    <div id="join-paywall">
+        <div class="join-container">
+            <h1 class="join-title">TERRY ESCAPE</h1>
+            <p class="join-subtitle">A ZERO-KNOWLEDGE BATTLE ROYALE</p>
+            <button id="join-btn" class="action-btn">JOIN GAME</button>
+        </div>
+    </div>
     <div class="container">
         <div class="grid-container">
             <h1 class="game-title">TERRY ESCAPE</h1>
-            <div class="game-info">
-                <div class="turn-display">
-                    <span class="turn-label">TURN</span>
-                    <span id="turn-number" class="turn-number">0</span>
+            <div id="status-panel" class="status-panel">
+                <div class="status-item">
+                    <span class="status-label">PLAYERS</span>
+                    <span id="player-count" class="status-value">0/4</span>
                 </div>
-                <div id="active-player" class="active-player"></div>
+                <div class="status-item">
+                    <span class="status-label">TURN</span>
+                    <span id="turn-number" class="status-value">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">PHASE</span>
+                    <span id="game-phase" class="status-value">WAITING</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">YOU ARE</span>
+                    <span id="player-identity" class="status-value">-</span>
+                </div>
             </div>
             <div class="action-buttons">
                 <button id="move-btn" class="action-btn">MOVE</button>
                 <button id="trap-btn" class="action-btn">TRAP</button>
+                <button id="tutorial-btn" class="action-btn tutorial-btn">TUTORIAL</button>
             </div>
             <div id="grid" class="grid"></div>
-            <div id="tutorial-container" class="tutorial-container">
-                <button id="tutorial-toggle" class="tutorial-toggle">?</button>
-                <div id="tutorial" class="tutorial"></div>
+            <div id="proof-progress" class="proof-progress" style="display: none;">
+                <div class="proof-label">GENERATING PROOF...</div>
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="proof-status" class="proof-status">Initializing...</div>
             </div>
             <div id="error-message" class="error-message"></div>
         </div>
-        <div class="log-container">
-            <h3>AGENT LOGS</h3>
-            <div id="log" class="log"></div>
+        <div class="side-panel">
+            <div id="player-board" class="player-board">
+                <h3>PLAYERS STATUS</h3>
+                <div id="player-list" class="player-list">
+                    <!-- Player status cards will be inserted here -->
+                </div>
+            </div>
+            <div class="log-container">
+                <h3>GAME LOG</h3>
+                <div id="log" class="log"></div>
+            </div>
         </div>
     </div>
+    
+    <!-- Tutorial Modal -->
+    <div id="tutorial-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>HOW TO PLAY TERRY ESCAPE</h2>
+            <div class="tutorial-content">
+                <h3>OBJECTIVE</h3>
+                <p>Be the last player with living agents on the board!</p>
+                
+                <h3>GAME RULES</h3>
+                <ul>
+                    <li><strong>SETUP:</strong> Each player deploys 4 agents in their corner zone</li>
+                    <li><strong>TURNS:</strong> Players take turns being "active" - only the active player can act</li>
+                    <li><strong>ACTIONS:</strong> On your turn, you MUST either:
+                        <ul>
+                            <li><strong>MOVE:</strong> Move one agent to an adjacent cell (up/down/left/right)</li>
+                            <li><strong>TRAP:</strong> Place a trap in an adjacent cell from one of your agents</li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <h3>DEATH MECHANICS</h3>
+                <ul>
+                    <li>🚶💥🚶 Moving into an occupied cell = BOTH agents die</li>
+                    <li>💣💥🚶 Moving into a trap = Your agent dies (trap consumed)</li>
+                    <li>🚶💣 Placing trap on an agent = Agent dies, then trap activates</li>
+                    <li>⚔️ In simultaneous deaths, the active player wins!</li>
+                </ul>
+                
+                <h3>ZERO-KNOWLEDGE PROOFS</h3>
+                <p>This game uses ZK proofs to ensure fair play without revealing positions to other players. When you see "Generating Proof", the game is cryptographically securing your move!</p>
+                
+                <h3>STRATEGY TIPS</h3>
+                <ul>
+                    <li>Spread your agents to avoid chain eliminations</li>
+                    <li>Use traps to control key positions</li>
+                    <li>Force opponents into bad positions</li>
+                    <li>Remember: The active player has advantage in collisions!</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Victory/Defeat Overlay -->
+    <div id="game-over-overlay" class="game-over-overlay" style="display: none;">
+        <div id="game-over-content" class="game-over-content">
+            <!-- Content will be dynamically inserted -->
+        </div>
+    </div>
+    
+    <!-- Background Music -->
+    <audio id="bg-music" loop>
+        <source src="balatro.mp3" type="audio/mpeg">
+    </audio>
+    
+    <!-- Music Control -->
+    <div id="music-control" class="music-control">
+        <button id="music-toggle" class="music-toggle" title="Toggle Music">🎵</button>
+    </div>
+    
     <script src="out.js" type="module"></script>
 </body>
 </html>

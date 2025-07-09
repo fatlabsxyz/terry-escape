@@ -1,4 +1,4 @@
-import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, LeaderBoard, Position, GameEndMsg, Turn } from 'client/types';
+import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, LeaderBoard, Position, GameEndMsg, Turn } from 'client';
 import { GameNsp } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
@@ -139,7 +139,7 @@ export class Game {
 
   constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
-    this.broadcastTimeout = 120_000; //originally 2_000
+    this.broadcastTimeout = 1_200_000; // 10x: was 120_000
     this.minPlayers = 4;
     this.playerStorage = PlayerStorage.getInstance();
     this.msgBox = MessageBox.getInstance();
@@ -336,33 +336,44 @@ export class Game {
       const report =  msgBox.reports.get(turn)!;
       
       // check for dead passive players
-      updates.forEach((u) => { 
+      updates.forEach((u: any) => { 
         if (u.payload.died) {
-        round.set(u.sender, true);                        // set as dead in round 
-        const pdata = players.get(u.sender)!;
-        pdata.eliminated = true;
-        players.set(u.sender, pdata);                     // set as dead in players
-        const p: Position = {
-          name: this.playerStore.getPlayerName(u.sender),
-          pid: u.sender,
-          turn
-        };
-        this.leaderboard.push(p)                          // add to leaderboard
-      }});
+          // Only add to leaderboard if not already there
+          const alreadyInLeaderboard = this.leaderboard.some((p: any) => p.pid === u.sender);
+          if (!alreadyInLeaderboard) {
+            round.set(u.sender, true);                        // set as dead in round 
+            const pdata = players.get(u.sender)!;
+            pdata.eliminated = true;
+            players.set(u.sender, pdata);                     // set as dead in players
+            const p: Position = {
+              name: this.playerStore.getPlayerName(u.sender),
+              pid: u.sender,
+              turn
+            };
+            this.leaderboard.push(p)                          // add to leaderboard
+            console.log(`Added ${u.sender} to leaderboard (passive death)`);
+          }
+        }
+      });
 
       // check if active player died
       if (report.payload.died) {
         const pid = report.sender;
-        round.set(pid, true);                             // set as dead in round 
-        const pdata = players.get(pid)!;
-        pdata.eliminated = true;
-        players.set(pid, pdata);                          // set as dead in players
-        const p: Position = {
-          name: this.playerStore.getPlayerName(pid),
-          pid,
-          turn
-        };
-        this.leaderboard.push(p)                          // add to leaderboard
+        // Only add to leaderboard if not already there
+        const alreadyInLeaderboard = this.leaderboard.some((p: any) => p.pid === pid);
+        if (!alreadyInLeaderboard) {
+          round.set(pid, true);                             // set as dead in round 
+          const pdata = players.get(pid)!;
+          pdata.eliminated = true;
+          players.set(pid, pdata);                          // set as dead in players
+          const p: Position = {
+            name: this.playerStore.getPlayerName(pid),
+            pid,
+            turn
+          };
+          this.leaderboard.push(p)                          // add to leaderboard
+          console.log(`Added ${pid} to leaderboard (active death)`);
+        }
       }
 
       const allPlayers = Array.from(round.keys());
@@ -391,25 +402,37 @@ export class Game {
 
   isGameFinished(allPlayers: PlayerId[], turn: Turn): PlayerId | undefined {
     console.log("\n\nCHECKING if game finished")
-    if (this.leaderboard.length > 3) {
-      const winner = this.leaderboard[3]!.pid;
-      this.winner = winner;
-    } else if (this.leaderboard.length === 3) {
-      const deadPlayers = this.leaderboard.map((p) => p.pid); 
-
-      const winnerPid = allPlayers.find((pid) => !deadPlayers.includes(pid)) as PlayerId;
-      
+    console.log("Total players:", allPlayers.length, "Dead players:", this.leaderboard.length);
+    
+    const alivePlayers = allPlayers.filter(pid => 
+      !this.leaderboard.some((dead: any) => dead.pid === pid)
+    );
+    
+    console.log("Alive players:", alivePlayers.length);
+    
+    // Game ends when only 1 player is alive OR all players are dead
+    if (alivePlayers.length === 1) {
+      // One player left - they win!
+      const winnerPid = alivePlayers[0];
       const winnerPosition: Position = {
         name: this.playerStore.getPlayerName(winnerPid),
         pid: winnerPid,
         turn,
-      }; 
-
+      };
       this.leaderboard.push(winnerPosition);
-      
       this.winner = winnerPid;
+      console.log("\n\nONE PLAYER LEFT - WINNER:", winnerPid);
+    } else if (alivePlayers.length === 0 && allPlayers.length > 0) {
+      // All players dead - last active player wins!
+      // The active player should be the last one added to leaderboard
+      if (this.leaderboard.length > 0) {
+        const lastDead = this.leaderboard[this.leaderboard.length - 1];
+        this.winner = lastDead.pid;
+        console.log("\n\nALL DEAD - LAST ACTIVE PLAYER WINS:", this.winner);
+      }
     }
-    console.log("\n\n\nTHERE IS A WINNER: ", this.winner !== undefined);
+    
+    console.log("\n\n\nGAME FINISHED: ", this.winner !== undefined);
     return this.winner;
   }
 
@@ -531,6 +554,8 @@ export class Game {
         const playerStatuses = Array.from(context.players.values());
         msgBox.emit(MsgEvents.PLAYERS, playerStatuses)
       }
+      const playersReady = Array.from(context.players.values()).map(p => ({ id: p.id, ready: p.ready }));
+      console.log("allPlayersReadyGuard - players:", context.players.size, "minPlayers:", context.minPlayers, "ready status:", playersReady);
       return context.players.size >= context.minPlayers &&
         Array.from(context.players.values()).every(x => x.ready)
     }
@@ -599,7 +624,7 @@ export class Game {
               },
             },
             after: {
-              1_000: [
+              10_000: [ // 10x: was 1_000
                 {
                   guard: Guards.allPlayersReady,
                   target: GameState.updateTurn,
@@ -650,7 +675,7 @@ export class Game {
               { guard: Guards.allPlayersWaiting, target: GameState.cleanup },
             ],
             after: {
-              [4_000]: [
+              [40_000]: [ // 10x: was 4_000
                 { target: GameState.turn, reenter: true }
               ]
             }
@@ -666,8 +691,14 @@ export class Game {
             entry: [{ type: Actions.log, params: GameState.end}],
             output: (context) => {
               console.log("GAME ENDED, WINNER: ", this.winner);
-              const turn = this.leaderboard[3]!.turn;
-              const leaderboard = this.leaderboard.reverse();
+              console.log("FINAL LEADERBOARD:", this.leaderboard);
+              
+              // Get the turn from the last entry (the winner) or from context
+              const turn = this.leaderboard[this.leaderboard.length - 1]?.turn || context.turn;
+              
+              // Reverse leaderboard so winner is first
+              const leaderboard = [...this.leaderboard].reverse();
+              
               const gameEndMsg: GameEndMsg = {
                 event: GameMsg.FINISHED,
                 sender: "gamemaster",

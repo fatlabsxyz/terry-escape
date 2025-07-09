@@ -22,7 +22,7 @@ import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime } from "../../utils.js";
 import { MessageBox } from "../../messageBox.js";
 
-const TIMEOUT = 300_000;
+const TIMEOUT = 3_000_000; // 10x: was 300_000
  
 export interface SocketManagerOptions {
   serverUrl: string;
@@ -49,14 +49,14 @@ export class SocketManager extends EventEmitter {
     this.msgBox = new MessageBox;
 
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
-      timeout: 30000,
+      timeout: 300000, // 10x: was 30000
       auth: {
         token: options.token
       }
     });
 
     this.lobby = io(options.serverUrl, {
-      timeout: 30000,
+      timeout: 300000, // 10x: was 30000
       auth: {
         token: options.token
       }
@@ -249,6 +249,7 @@ export class SocketManager extends EventEmitter {
     const deploys: Map<PlayerId, GameDeployPayload> = new Map();
     return new Promise(async (res, rej) => {
       setTimeout(rej, TIMEOUT);
+      console.log("waitForDeploys: starting to wait for deploys...")
       while (true) {
         await passTime(100);
          
@@ -258,10 +259,12 @@ export class SocketManager extends EventEmitter {
           await passTime(100); 
         } else {
           const valuesInTurn = this.msgBox.deploys!;
+          console.log("waitForDeploys: got deploys, count:", valuesInTurn.length)
           valuesInTurn.forEach(msg => deploys.set(msg.sender, msg.payload));
           break;
         }
       }
+      console.log("waitForDeploys: returning deploys map with size:", deploys.size)
       res(deploys)
     });
   }

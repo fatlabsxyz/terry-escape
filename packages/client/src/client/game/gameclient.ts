@@ -188,10 +188,13 @@ export class GameClient {
   async prepareSetup() {
     this.playerSeatValue = await this.sockets.waitForPlayerSeat();
 
-    await this.setupGame(); 
+    await this.setupGame();
+    // Start validating deploys asynchronously - don't block the ready notification
+    this.validateDeploysAsync();
   }
 
   async notifyPlayerReady() {
+    this.log("notifyPlayerReady: advertising player as ready...")
     await this.sockets.advertisePlayerAsReady(); 
     this.log("We are ready!");
   }
@@ -253,15 +256,18 @@ export class GameClient {
     // Send seat, await agent deployment (based on allowed deployment tiles)
     this.interfacer.emit(IfEvents.Connect, {seat} as Connection);
     
+    this.log("Waiting for deploy from frontend...")
     const deploys = await this.interfacer.waitForDeploy();
+    this.log("Got deploys:", deploys)
 
     const sk = secretKeySample(seat);
     const pks = [0,1,2,3].map(publicKeySample);
 
     this.zklib.setup(seat, sk, pks, {mockProof: true}); 
     await this.setupAgents(deploys);
- 
-    this.validateDeploys()
+    
+    // Don't wait for validateDeploys here - it will be done asynchronously
+    this.log("setupGame completed, validateDeploys will run asynchronously")
   }
 
   async processActivePlayer() {
@@ -353,9 +359,11 @@ export class GameClient {
   //////////////////////////////////////////////////////////////*/
 
   async setupAgents(agentsLocations: Locations) {
+    this.log("setupAgents: creating deploy proofs for locations:", agentsLocations)
     const myDeploys = await this.zklib.createDeploys(agentsLocations);
     
     // Broadcast your deployment proofs
+    this.log("setupAgents: broadcasting deploy proof")
     this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
   }
 
@@ -400,8 +408,9 @@ export class GameClient {
   //////////////////////////////////////////////////////////////*/
   
   async validateDeploys() {
-     
+    this.log("validateDeploys: waiting for all players' deploys...")
     const deploys = await this.sockets.waitForDeploys();
+    this.log("validateDeploys: got all deploys, count:", deploys.size)
 
     const deployList = Array.from(
       deploys.values().map( v => v.deploys )
@@ -409,6 +418,13 @@ export class GameClient {
     if (this.verify) {
       this.zklib.verifyDeploys(deployList);
     }
+  }
+
+  async validateDeploysAsync() {
+    // Run validateDeploys in the background without blocking
+    this.validateDeploys().catch(err => {
+      this.log("Error validating deploys:", err);
+    });
   }
 
   async validateForeign() {
@@ -551,7 +567,10 @@ export class GameClient {
       this.winner = p.payload.winner;
       this.leaderboard = p.payload.leaderboard;
       console.log(`END MESSAGE: winner: ${this.winner}, leaderboard: \n${JSON.stringify(this.leaderboard)}`);
-      this.interfacer.emit(IfEvents.Winner, this.leaderboard);
+      this.interfacer.emit(IfEvents.Winner, {
+        winner: this.winner,
+        leaderboard: this.leaderboard
+      });
     });
 
     /*///////////////////////////////////////////////////////////////

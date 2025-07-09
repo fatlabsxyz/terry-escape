@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { StoredPlayers, PlayerProps, Err, PlayerId, SocketId, Name } from 'client/types';
+import { StoredPlayers, PlayerProps, Err, PlayerId, SocketId, Name } from 'client';
 
 
 export class PlayerStorage extends EventEmitter {
@@ -52,7 +52,7 @@ export class PlayerStorage extends EventEmitter {
 
   getAllSocketIds(): Map<PlayerId, SocketId> {
     let allSocketIds = new Map();
-    this.players.forEach( (player, playerId) => {
+    this.players.forEach( (player: any, playerId: any) => {
       allSocketIds.set(playerId, player.sid);
     });
     return allSocketIds;
