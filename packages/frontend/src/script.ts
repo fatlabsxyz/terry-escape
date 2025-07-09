@@ -49,18 +49,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const moveBtn = document.getElementById("move-btn") as HTMLButtonElement;
     const trapBtn = document.getElementById("trap-btn") as HTMLButtonElement;
     const joinBtn = document.getElementById("join-btn") as HTMLButtonElement;
+    const joinPaywall = document.getElementById("join-paywall") as HTMLDivElement;
     const errorMessage = document.getElementById("error-message") as HTMLDivElement;
     const tutorial = document.getElementById("tutorial") as HTMLDivElement;
+    const tutorialToggle = document.getElementById("tutorial-toggle") as HTMLButtonElement;
+    const turnNumberDisplay = document.getElementById("turn-number") as HTMLSpanElement;
+    const activePlayerDisplay = document.getElementById("active-player") as HTMLDivElement;
 
     let agents: Agent[] = [];
     let turn: number = 0;
     const maxAgents: number = 4;
     let selectedAgentCell: CellPosition | null = null;
     let actionMode: ActionMode = null;
-    let mustAct: boolean;
+    let mustAct: boolean = false;
     let reason: number; let targeted: number
     let board: Board | null = null;
     let interfacer: Interfacer | null = null;
+    let mySeat: number = -1;
+    let tutorialVisible: boolean = true;
 
     function initializeGrid(): void {
         for (let i = 0; i < 16; i++) {
@@ -74,12 +80,22 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeGrid();
     updateTutorial();
     logMessage("GAME STARTED");
+    tutorial.classList.add("visible");
+
+    // Tutorial toggle functionality
+    tutorialToggle.addEventListener("click", () => {
+        tutorialVisible = !tutorialVisible;
+        tutorialToggle.classList.toggle("active");
+        tutorial.classList.toggle("visible");
+    });
 
     joinBtn.addEventListener("click", async () => {
        interfacer = Interfacer.getInstance();
+       joinPaywall.style.display = "none";
 
        interfacer.on(IfEvents.Connect, event => {
            board = new Board(event.seat);
+           mySeat = event.seat;
            board.allowedPlacementIndices.forEach(index => {
                (grid.children[index] as HTMLElement).classList.add("possible");
 	   });
@@ -88,22 +104,42 @@ document.addEventListener("DOMContentLoaded", () => {
        interfacer.on(IfEvents.Turn, event => {
            turn = event.round;
 	   mustAct = event.active;
-           logMessage(`TURN ${turn}`);
+           logMessage(`TURN ${turn}`, "turn");
+           updateTurnDisplay();
+           updateActivePlayer();
 	   updateTutorial();
+           updateButtonStates();
        });
 
        interfacer.on(IfEvents.Collision, event => {
            if (event) {
                let where = Number(event);
-               logMessage(`HEARD LOUD BANG FROM ROOM #${where}!!!`);
-               (grid.children[where] as HTMLElement).innerHTML = '';
+               logMessage(`HEARD LOUD BANG FROM ROOM #${where}!!!`, "elimination");
+               addVisualFeedback(where, "explosion");
+               // Add elimination animation to agents before clearing
+               const cell = grid.children[where] as HTMLElement;
+               const agentsInCell = cell.querySelectorAll('.agent');
+               agentsInCell.forEach(agent => {
+                   agent.classList.add('eliminating');
+               });
+               setTimeout(() => {
+                   cell.innerHTML = '';
+               }, 500);
 	   }
        });
        interfacer.on(IfEvents.Impact, event => {
-	   logMessage(`ACTION COMPLETED`);
+	   logMessage(`ACTION COMPLETED`, "action");
 	   if (event) {
-	       logMessage(`HIT REPORTED ON ROOM #${targeted}!!!!`);
-               (grid.children[targeted] as HTMLElement).innerHTML = '';
+	       logMessage(`HIT REPORTED ON ROOM #${targeted}!!!!`, "elimination");
+               addVisualFeedback(targeted, "explosion");
+               const cell = grid.children[targeted] as HTMLElement;
+               const agentsInCell = cell.querySelectorAll('.agent');
+               agentsInCell.forEach(agent => {
+                   agent.classList.add('eliminating');
+               });
+               setTimeout(() => {
+                   cell.innerHTML = '';
+               }, 500);
 	   }
        });
 
@@ -131,24 +167,40 @@ try {
     });
 
     moveBtn.addEventListener("click", () => {
-        if (turn > 0 && mustAct) {
-            actionMode = "move";
-            moveBtn.classList.add("active");
-            trapBtn.classList.remove("active");
-            logMessage("MOVE SELECTED");
-            updateTutorial();
+        if (turn > 0 && mustAct && !actionMode) {
+            selectMoveMode();
         }
     });
 
     trapBtn.addEventListener("click", () => {
-        if (turn > 0 && mustAct) {
-            actionMode = "trap";
-            trapBtn.classList.add("active");
-            moveBtn.classList.remove("active");
-            logMessage("TRAP SELECTED");
-            updateTutorial();
+        if (turn > 0 && mustAct && !actionMode) {
+            selectTrapMode();
         }
     });
+
+    function selectMoveMode(): void {
+        actionMode = "move";
+        moveBtn.classList.add("active");
+        trapBtn.classList.remove("active");
+        logMessage("MOVE MODE SELECTED", "action");
+        updateTutorial();
+        updateButtonStates();
+    }
+
+    function selectTrapMode(): void {
+        actionMode = "trap";
+        trapBtn.classList.add("active");
+        moveBtn.classList.remove("active");
+        logMessage("TRAP MODE SELECTED", "action");
+        updateTutorial();
+        updateButtonStates();
+    }
+
+    // Update button states based on game state
+    function updateButtonStates(): void {
+        moveBtn.disabled = !mustAct || actionMode !== null;
+        trapBtn.disabled = !mustAct || actionMode !== null;
+    }
 
     grid.addEventListener("click", (e: Event) => {
         const target = e.target as HTMLElement;
@@ -172,8 +224,9 @@ try {
 
                 if (agents.length === maxAgents) {
                     turn = 1;
-                    logMessage("DEPLOYMENT COMPLETE - TURN 1");
+                    logMessage("DEPLOYMENT COMPLETE - TURN 1", "turn");
                     clearPossibleHighlights();
+                    updateTurnDisplay();
                     updateTutorial();
 		    if (board && interfacer) {
 		        let deployment_data = board.allowedPlacementIndices.map((i: number) =>
@@ -203,7 +256,10 @@ try {
 		targeted = index;
 	        interfacer.emit(IfEvents.Action, { reason, target: targeted, trap: actionMode === "trap" });
 	        mustAct = false;
+                resetActionMode();
         	updateTutorial();
+                updateActivePlayer();
+                updateButtonStates();
             }
         } else if (turn > 0 && !actionMode) {
             showError("SELECT MOVE OR TRAP FIRST");
@@ -236,6 +292,17 @@ try {
         cells.forEach(cell => cell.classList.remove("possible"));
     }
 
+    function resetActionMode(): void {
+        actionMode = null;
+        selectedAgentCell = null;
+        moveBtn.classList.remove("active");
+        trapBtn.classList.remove("active");
+        clearPossibleHighlights();
+        document.querySelectorAll(".cell.selected").forEach(cell => {
+            cell.classList.remove("selected");
+        });
+    }
+
     function moveAgent(newRow: number, newCol: number): void {
         const { row: oldRow, col: oldCol } = selectedAgentCell!;
         const rowDiff = Math.abs(newRow - oldRow);
@@ -249,8 +316,8 @@ try {
                 newCell.appendChild(agentElement);
                 agentToMove.row = newRow;
                 agentToMove.col = newCol;
-                logMessage(`AGENT A${agentToMove.id} MOVED TO (${newRow + 1},${newCol + 1})`);
-                endTurn();
+                logMessage(`AGENT A${agentToMove.id} MOVED TO (${newRow + 1},${newCol + 1})`, "action");
+                addVisualFeedback(newRow * 4 + newCol, "highlight-move");
             }
         }
     }
@@ -265,8 +332,8 @@ try {
             trap.className = "trap";
             trap.textContent = "💣";
             newCell.appendChild(trap);
-            logMessage(`TRAP DEPLOYED TO (${newRow + 1},${newCol + 1})`);
-            endTurn();
+            logMessage(`TRAP DEPLOYED TO (${newRow + 1},${newCol + 1})`, "trap");
+            addVisualFeedback(newRow * 4 + newCol, "highlight-move");
         }
     }
 
@@ -284,9 +351,12 @@ try {
         updateTutorial();
     }
 
-    function logMessage(message: string): void {
+    function logMessage(message: string, type: string = ""): void {
         const p = document.createElement("p");
         p.textContent = `> ${message}`;
+        if (type) {
+            p.className = type;
+        }
         log.appendChild(p);
         log.scrollTop = log.scrollHeight;
     }
@@ -301,23 +371,48 @@ try {
         }, 2000);
     }
 
+    function updateTurnDisplay(): void {
+        turnNumberDisplay.textContent = turn.toString();
+    }
+
+    function updateActivePlayer(): void {
+        if (!mustAct) {
+            activePlayerDisplay.textContent = "WAITING...";
+            activePlayerDisplay.className = "active-player waiting";
+        } else {
+            activePlayerDisplay.textContent = "YOUR TURN!";
+            activePlayerDisplay.className = "active-player my-turn";
+        }
+    }
+
+    function addVisualFeedback(cellIndex: number, type: string): void {
+        const cell = grid.children[cellIndex] as HTMLElement;
+        cell.classList.add(type);
+        setTimeout(() => {
+            cell.classList.remove(type);
+        }, 500);
+    }
+
     function updateTutorial(): void {
+        if (!tutorialVisible) return;
+        
         if (turn === 0) {
             const remaining = maxAgents - agents.length;
-            tutorial.textContent = `DEPLOY ${remaining} AGENTS BY CLICKING ANY CELL`;
+            tutorial.innerHTML = `<strong>DEPLOYMENT PHASE</strong><br>Place ${remaining} more agent(s) on the blue highlighted cells.<br><em>Tip: Spread your agents for better control!</em>`;
         } else if (turn > 0) {
-            if (!actionMode && !selectedAgentCell) {
-                tutorial.textContent = "SELECT MOVE OR TRAP";
+            if (!mustAct) {
+                tutorial.innerHTML = `<strong>WAITING...</strong><br>Other players are making their moves.<br><em>Plan your next strategy!</em>`;
+            } else if (!actionMode && !selectedAgentCell) {
+                tutorial.innerHTML = `<strong>YOUR TURN!</strong><br>Choose an action: MOVE an agent or place a TRAP.<br><em>You must act this turn!</em>`;
             } else if (actionMode === "move" && !selectedAgentCell) {
-                tutorial.textContent = "CLICK AN AGENT CELL TO MOVE";
+                tutorial.innerHTML = `<strong>MOVE MODE</strong><br>Click on one of your agents (red squares) to select it.<br><em>Tip: Plan your moves carefully!</em>`;
             } else if (actionMode === "move" && selectedAgentCell) {
-                tutorial.textContent = "CLICK AN ADJACENT CELL TO MOVE";
+                tutorial.innerHTML = `<strong>MOVE MODE</strong><br>Select a highlighted destination cell to move your agent.<br><em>Tip: Avoid cells with multiple agents!</em>`;
             } else if (actionMode === "trap" && !selectedAgentCell) {
-                tutorial.textContent = "CLICK AN AGENT CELL TO DEPLOY TRAP";
+                tutorial.innerHTML = `<strong>TRAP MODE</strong><br>Click on one of your agents to select it.<br><em>From there you'll place a trap nearby!</em>`;
             } else if (actionMode === "trap" && selectedAgentCell) {
-                tutorial.textContent = "CLICK AN ADJACENT CELL TO DEPLOY TRAP";
+                tutorial.innerHTML = `<strong>TRAP MODE</strong><br>Click an adjacent cell to place your trap.<br><em>Tip: Predict enemy movement patterns!</em>`;
             }
-            if (!mustAct) { tutorial.textContent = "PLEASE STAND BY"; }
         }
     }
 

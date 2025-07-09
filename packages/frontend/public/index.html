@@ -12,12 +12,20 @@
     <div class="container">
         <div class="grid-container">
             <h1 class="game-title">TERRY ESCAPE</h1>
+            <div class="game-info">
+                <div class="turn-display">
+                    <span class="turn-label">TURN</span>
+                    <span id="turn-number" class="turn-number">0</span>
+                </div>
+                <div id="active-player" class="active-player"></div>
+            </div>
             <div class="action-buttons">
                 <button id="move-btn" class="action-btn">MOVE</button>
                 <button id="trap-btn" class="action-btn">TRAP</button>
             </div>
             <div id="grid" class="grid"></div>
             <div id="tutorial-container" class="tutorial-container">
+                <button id="tutorial-toggle" class="tutorial-toggle">?</button>
                 <div id="tutorial" class="tutorial"></div>
             </div>
             <div id="error-message" class="error-message"></div>

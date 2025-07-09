@@ -236,3 +236,289 @@ body::before {
 .log p:hover {
     background-color: rgba(0, 204, 0, 0.3);
 }
+
+/* Turn and Active Player Display */
+.game-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 576px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 4px solid #000;
+    box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+.turn-display {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.turn-label {
+    color: #ff3366;
+    font-size: 18px;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.turn-number {
+    color: #00cc00;
+    font-size: 28px;
+    text-shadow: 2px 2px 0 #000, 0 0 10px rgba(0, 255, 0, 0.5);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.active-player {
+    color: #ffcc00;
+    font-size: 14px;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0 #000;
+    padding: 8px 15px;
+    background-color: rgba(255, 204, 0, 0.2);
+    border: 2px solid #ffcc00;
+    border-radius: 0;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+}
+
+.active-player.waiting {
+    color: #666;
+    border-color: #666;
+    background-color: rgba(102, 102, 102, 0.2);
+    box-shadow: none;
+    animation: none;
+}
+
+.active-player.my-turn {
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Tutorial Toggle Button */
+.tutorial-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    background-color: #00cc00;
+    color: #000;
+    border: 3px solid #000;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 3px 3px 0 #000;
+    z-index: 10;
+}
+
+.tutorial-toggle:hover {
+    background-color: #00ff00;
+    transform: scale(1.1);
+    box-shadow: 4px 4px 0 #000, 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.tutorial-toggle.active {
+    background-color: #ff3366;
+    color: #fff;
+}
+
+.tutorial-container {
+    position: relative;
+}
+
+.tutorial {
+    display: none;
+}
+
+.tutorial.visible {
+    display: block;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Visual feedback animations */
+.cell.highlight-move {
+    animation: highlightPulse 0.5s ease-out;
+}
+
+@keyframes highlightPulse {
+    0% { box-shadow: 0 0 0 rgba(255, 255, 0, 0.8); }
+    100% { box-shadow: 0 0 20px rgba(255, 255, 0, 0); }
+}
+
+.cell.explosion {
+    animation: explode 0.5s ease-out;
+}
+
+@keyframes explode {
+    0% { 
+        transform: scale(1);
+        background-color: #ff0000;
+    }
+    50% { 
+        transform: scale(1.2);
+        background-color: #ff6600;
+        box-shadow: 0 0 30px rgba(255, 102, 0, 0.8);
+    }
+    100% { 
+        transform: scale(1);
+        background-color: #3b2f5e;
+    }
+}
+
+/* Agent elimination animation */
+.agent.eliminating {
+    animation: eliminate 0.5s ease-out forwards;
+}
+
+@keyframes eliminate {
+    0% { 
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    100% { 
+        transform: scale(0) rotate(180deg);
+        opacity: 0;
+    }
+}
+
+/* Trap trigger animation */
+.trap.triggered {
+    animation: trapTrigger 0.3s ease-out;
+}
+
+@keyframes trapTrigger {
+    0% { transform: scale(1); }
+    50% { 
+        transform: scale(1.5);
+        background-color: #ffff00;
+        box-shadow: 0 0 20px rgba(255, 255, 0, 0.8);
+    }
+    100% { transform: scale(1); }
+}
+
+/* Join button fullscreen overlay */
+#join-paywall {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(26, 0, 51, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+#join-paywall button {
+    padding: 30px 60px;
+    font-size: 32px;
+    animation: joinPulse 2s infinite;
+}
+
+@keyframes joinPulse {
+    0%, 100% { 
+        transform: scale(1);
+        box-shadow: 4px 4px 0 #000, 0 0 20px rgba(255, 51, 102, 0.5);
+    }
+    50% { 
+        transform: scale(1.05);
+        box-shadow: 6px 6px 0 #000, 0 0 30px rgba(255, 51, 102, 0.8);
+    }
+}
+
+/* Disabled button state */
+.action-btn:disabled {
+    background-color: #666;
+    color: #999;
+    cursor: not-allowed;
+    box-shadow: 2px 2px 0 #333;
+}
+
+.action-btn:disabled:hover {
+    background-color: #666;
+    box-shadow: 2px 2px 0 #333;
+}
+
+/* Victory/Defeat overlay */
+.game-over-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.game-over-text {
+    font-size: 48px;
+    margin-bottom: 30px;
+    text-shadow: 4px 4px 0 #000, 0 0 20px currentColor;
+    animation: zoomIn 0.5s ease-out;
+}
+
+.game-over-text.victory {
+    color: #00ff00;
+}
+
+.game-over-text.defeat {
+    color: #ff0000;
+}
+
+@keyframes zoomIn {
+    from { 
+        transform: scale(0);
+        opacity: 0;
+    }
+    to { 
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Log message types */
+.log p.action {
+    color: #ffcc00;
+    border-color: #664400;
+}
+
+.log p.elimination {
+    color: #ff3366;
+    border-color: #660022;
+    font-weight: bold;
+}
+
+.log p.trap {
+    color: #00ff00;
+    border-color: #006600;
+}
+
+.log p.turn {
+    color: #00ccff;
+    border-color: #004466;
+    font-size: 12px;
+    text-align: center;
+    margin: 10px 0;
+}
