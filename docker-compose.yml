@@ -1,10 +1,36 @@
+version: '3.8'
+
 services:
+  # Combined service (default) - both gamemaster and frontend
   terry-escape:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
     ports:
-      - "2448:2448"  # Gamemaster port
-      - "8000:8000"  # Frontend port
+      - "2448:2448"
+      - "8000:8000"
     environment:
       - NODE_ENV=production
-    volumes:
-      - /tmp:/tmp  # For game logs
+
+  # Individual services (uncomment to use separately)
+  # gamemaster:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: gamemaster
+  #   ports:
+  #     - "2448:2448"
+  #   environment:
+  #     - NODE_ENV=production
+
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: frontend
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - NODE_ENV=production
+  #     - GAMEMASTER_URL=http://gamemaster:2448
