@@ -139,7 +139,7 @@ export class Game {
 
   constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
-    this.broadcastTimeout = 1_200_000; // 10x: was 120_000
+    this.broadcastTimeout = 30_000; // 30 seconds is more reasonable
     this.minPlayers = 4;
     this.playerStorage = PlayerStorage.getInstance();
     this.msgBox = MessageBox.getInstance();
@@ -467,14 +467,25 @@ export class Game {
   }
 
   async queryWaiting(context: Context): Promise<Context> {
+    this.log("Querying which players are waiting...")
     const waitingResponse = await this.broadcastQueryWaiting()
+    const waitingPlayers: string[] = [];
+    const notWaitingPlayers: string[] = [];
+    
     waitingResponse.forEach(({ player: id, waiting }) => {
       const player = context.players.get(id as PlayerId)
       if (player) {
         player.waiting = waiting;
         context.players.set(id as PlayerId, player)
+        if (waiting) {
+          waitingPlayers.push(id);
+        } else {
+          notWaitingPlayers.push(id);
+        }
       }
     })
+    
+    this.log(`Players waiting: ${waitingPlayers.length}, not waiting: ${notWaitingPlayers.length}`)
     return { ...context, players: context.players }
   }
 
@@ -539,6 +550,7 @@ export class Game {
     }
 
     const cleanupAction = ({ context }: ActionInput) => {
+      this.log("Turn cleanup - resetting all players' waiting status")
       const players = context.players;
       players.forEach((status, id) => {
         status.waiting = false;
@@ -675,7 +687,7 @@ export class Game {
               { guard: Guards.allPlayersWaiting, target: GameState.cleanup },
             ],
             after: {
-              [40_000]: [ // 10x: was 4_000
+              [2_000]: [ // Check every 2 seconds instead of 40
                 { target: GameState.turn, reenter: true }
               ]
             }
