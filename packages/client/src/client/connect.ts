@@ -24,9 +24,9 @@ export async function connect(token: string, url: string, gameId: string): Promi
 
   await sockets.socketsReady();
 
-  // const zklib = new ZkLib();
-  const zklib = new ZkLibMock();
-  const interfacer = new Interfacer();
+  const zklib = new ZkLib();
+  // const zklib = new ZkLibMock();
+  const interfacer = Interfacer.getInstance();
   attachListeners(interfacer);
 
   const client = new GameClient(sockets, zklib);

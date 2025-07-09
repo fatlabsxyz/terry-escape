@@ -318,34 +318,4 @@ try {
     }
 
 
-    let board: Board; let interfacer = Interfacer.getInstance();
-
-    interfacer.on(IfEvents.Connect, event => {
-        board = new Board(event.seat);
-        board.allowedPlacementIndices.forEach(index => {
-            (grid.children[index] as HTMLElement).classList.add("possible");
-	});
-    });
-
-    interfacer.on(IfEvents.Turn, event => {
-        turn = event.round;
-	mustAct = event.active;
-        logMessage(`TURN ${turn}`);
-	updateTutorial();
-    });
-
-    interfacer.on(IfEvents.Collision, event => {
-        if (event) {
-            let where = Number(event);
-            logMessage(`HEARD LOUD BANG FROM ROOM #${where}!!!`);
-            (grid.children[where] as HTMLElement).innerHTML = '';
-	}
-    });
-    interfacer.on(IfEvents.Impact, event => {
-	logMessage(`ACTION COMPLETED`);
-	if (event) {
-	    logMessage(`HIT REPORTED ON ROOM #${targeted}!!!!`);
-            (grid.children[targeted] as HTMLElement).innerHTML = '';
-	}
-    });
 });
