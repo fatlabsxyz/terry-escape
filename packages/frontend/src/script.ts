@@ -59,6 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let actionMode: ActionMode = null;
     let mustAct: boolean;
     let reason: number; let targeted: number
+    let board: Board | null = null;
+    let interfacer: Interfacer | null = null;
 
     function initializeGrid(): void {
         for (let i = 0; i < 16; i++) {
@@ -74,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logMessage("GAME STARTED");
 
     joinBtn.addEventListener("click", async () => {
-       let board: Board; let interfacer = Interfacer.getInstance();
+       interfacer = Interfacer.getInstance();
 
        interfacer.on(IfEvents.Connect, event => {
            board = new Board(event.seat);
@@ -173,10 +175,12 @@ try {
                     logMessage("DEPLOYMENT COMPLETE - TURN 1");
                     clearPossibleHighlights();
                     updateTutorial();
-		    let deployment_data = board.allowedPlacementIndices.map((i: number) =>
-                        (grid.children[i] as HTMLElement).children.length );
-		    interfacer.emit(IfEvents.Deploy, deployment_data);
-		    board.addAgents({ agents: agents.map(e => [e.row, e.col]) });
+		    if (board && interfacer) {
+		        let deployment_data = board.allowedPlacementIndices.map((i: number) =>
+                            (grid.children[i] as HTMLElement).children.length );
+		        interfacer.emit(IfEvents.Deploy, deployment_data);
+		        board.addAgents({ agents: agents.map(e => [e.row, e.col]) });
+		    }
                 }
             }
         } else if (turn > 0 && actionMode) {
