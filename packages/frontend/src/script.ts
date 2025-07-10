@@ -58,7 +58,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const playerCountDisplay = document.getElementById("player-count") as HTMLSpanElement;
     const turnNumberDisplay = document.getElementById("turn-number") as HTMLSpanElement;
     const gamePhaseDisplay = document.getElementById("game-phase") as HTMLSpanElement;
-    const playerIdentityDisplay = document.getElementById("player-identity") as HTMLSpanElement;
     const tutorialBtn = document.getElementById("tutorial-btn") as HTMLButtonElement;
     const tutorialModal = document.getElementById("tutorial-modal") as HTMLDivElement;
     const tutorialClose = document.querySelector(".modal-close") as HTMLSpanElement;
@@ -167,9 +166,6 @@ document.addEventListener("DOMContentLoaded", () => {
                    (grid.children[index] as HTMLElement).classList.add("possible");
                }
 	   });
-           // Update player identity display
-           playerIdentityDisplay.textContent = `PLAYER ${event.seat + 1}`;
-           playerIdentityDisplay.className = `status-value player-${playerColors[event.seat]}`;
            
            // Mark myself as connected
            players.set(mySeat, {
@@ -510,21 +506,29 @@ try {
                 updateTutorial();
 		reason = index;
             } else if (selectedAgentCell) {
+                let actionSuccessful = false;
                 if (actionMode === "move") {
-                    moveAgent(row, col);
-		    board.moveAgent([row,col], undefined, [col,row]);
+                    actionSuccessful = moveAgent(row, col);
+                    if (actionSuccessful) {
+                        board.moveAgent([row,col], undefined, [col,row]);
+                    }
                 } else if (actionMode === "trap") {
-                    deployTrap(row, col);
-		    board.setTrap([row,col]);
+                    actionSuccessful = deployTrap(row, col);
+                    if (actionSuccessful) {
+                        board.setTrap([row,col]);
+                    }
                 }
-		targeted = index;
-	        showProofProgress();
-	        interfacer.emit(IfEvents.Action, { reason, target: targeted, trap: actionMode === "trap" });
-	        mustAct = false;
-	        stopTurnTimer(); // Stop the timer when action is taken
+                
+                if (actionSuccessful) {
+                    targeted = index;
+                    showProofProgress();
+                    interfacer.emit(IfEvents.Action, { reason, target: targeted, trap: actionMode === "trap" });
+                    mustAct = false;
+                    stopTurnTimer(); // Stop the timer when action is taken
+                    updateActivePlayer();
+                }
                 resetActionMode();
-        	updateTutorial();
-                updateActivePlayer();
+                updateTutorial();
                 updateButtonStates();
             }
         } else if (turn > 0 && !actionMode) {
@@ -569,8 +573,15 @@ try {
         });
     }
 
-    function moveAgent(newRow: number, newCol: number): void {
+    function moveAgent(newRow: number, newCol: number): boolean {
         const { row: oldRow, col: oldCol } = selectedAgentCell!;
+        
+        // Check if trying to move to the same cell
+        if (newRow === oldRow && newCol === oldCol) {
+            showError("CANNOT MOVE TO SAME CELL");
+            return false;
+        }
+        
         const rowDiff = Math.abs(newRow - oldRow);
         const colDiff = Math.abs(newCol - oldCol);
         if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
@@ -584,12 +595,21 @@ try {
                 agentToMove.col = newCol;
                 logMessage(`AGENT A${agentToMove.id} MOVED TO (${newRow + 1},${newCol + 1})`, "action");
                 addVisualFeedback(newRow * 4 + newCol, "highlight-move");
+                return true;
             }
         }
+        return false;
     }
 
-    function deployTrap(newRow: number, newCol: number): void {
+    function deployTrap(newRow: number, newCol: number): boolean {
         const { row: oldRow, col: oldCol } = selectedAgentCell!;
+        
+        // Check if trying to deploy trap on the same cell
+        if (newRow === oldRow && newCol === oldCol) {
+            showError("CANNOT DEPLOY TRAP ON YOUR POSITION");
+            return false;
+        }
+        
         const rowDiff = Math.abs(newRow - oldRow);
         const colDiff = Math.abs(newCol - oldCol);
         if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
@@ -600,7 +620,9 @@ try {
             newCell.appendChild(trap);
             logMessage(`TRAP DEPLOYED TO (${newRow + 1},${newCol + 1})`, "action");
             addVisualFeedback(newRow * 4 + newCol, "highlight-move");
+            return true;
         }
+        return false;
     }
 
     function endTurn(): void {

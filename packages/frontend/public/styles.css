@@ -653,10 +653,10 @@ body::before {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
-    max-width: 600px;
+    width: 600px;
+    height: 60px;
     margin-bottom: 20px;
-    padding: 15px 20px;
+    padding: 0 20px;
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 20, 0, 0.9) 100%);
     border: 2px solid #00cc00;
     border-radius: 8px;
@@ -882,13 +882,15 @@ body::before {
 /* Game Area Container */
 .game-area {
     position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 30px;
+    display: inline-block;
 }
 
 /* Turn Timer */
 .turn-timer {
+    position: fixed;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
     background: rgba(0, 0, 0, 0.95);
     border: 3px solid #ffcc00;
     padding: 20px;
@@ -896,6 +898,7 @@ body::before {
     box-shadow: 0 0 30px rgba(255, 204, 0, 0.7);
     width: 180px;
     text-align: center;
+    z-index: 1000;
 }
 
 .timer-label {

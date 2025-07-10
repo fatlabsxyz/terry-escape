@@ -16,6 +16,14 @@
             <button id="join-btn" class="action-btn">JOIN GAME</button>
         </div>
     </div>
+    
+    <!-- Turn Timer (Fixed Position) -->
+    <div id="turn-timer" class="turn-timer" style="display: none;">
+        <div class="timer-label">TIME REMAINING</div>
+        <div id="timer-display" class="timer-display">30</div>
+        <div class="timer-warning">Act fast or everyone dies!</div>
+    </div>
+    
     <div class="container">
         <div class="grid-container">
             <h1 class="game-title">TERRY ESCAPE</h1>
@@ -32,10 +40,6 @@
                     <span class="status-label">PHASE</span>
                     <span id="game-phase" class="status-value">WAITING</span>
                 </div>
-                <div class="status-item">
-                    <span class="status-label">YOU ARE</span>
-                    <span id="player-identity" class="status-value">-</span>
-                </div>
             </div>
             <div class="action-buttons">
                 <button id="move-btn" class="action-btn">MOVE</button>
@@ -43,12 +47,6 @@
                 <button id="tutorial-btn" class="action-btn tutorial-btn">TUTORIAL</button>
             </div>
             <div class="game-area">
-                <!-- Turn Timer -->
-                <div id="turn-timer" class="turn-timer" style="display: none;">
-                    <div class="timer-label">TIME REMAINING</div>
-                    <div id="timer-display" class="timer-display">30</div>
-                    <div class="timer-warning">Act fast or everyone dies!</div>
-                </div>
                 <div id="grid" class="grid"></div>
             </div>
             <div id="proof-progress" class="proof-progress" style="display: none;">
