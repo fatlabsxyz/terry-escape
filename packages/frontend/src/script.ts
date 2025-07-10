@@ -598,7 +598,7 @@ try {
             trap.className = "trap";
             trap.textContent = "💣";
             newCell.appendChild(trap);
-            logMessage(`TRAP DEPLOYED TO (${newRow + 1},${newCol + 1})`, "trap");
+            logMessage(`TRAP DEPLOYED TO (${newRow + 1},${newCol + 1})`, "action");
             addVisualFeedback(newRow * 4 + newCol, "highlight-move");
         }
     }
