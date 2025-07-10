@@ -83,6 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let playerCount: number = 0;
     let players: Map<number, {name: string, agents: number, status: string}> = new Map();
     let proofTimer: any = null;
+    let markedCells: Set<number> = new Set(); // Track cells with visual effects
     
     const playerColors = ["red", "blue", "green", "yellow"];
     const playerNames = ["Player 1", "Player 2", "Player 3", "Player 4"];
@@ -176,6 +177,9 @@ document.addEventListener("DOMContentLoaded", () => {
 	   updateTutorial();
            updateButtonStates();
            
+           // Clear marked cells from previous turn
+           clearMarkedCells();
+           
            // Update player statuses from round data
            if (event.round && typeof event.round === 'object') {
                Object.entries(event.round).forEach(([playerId, isEliminated]) => {
@@ -207,6 +211,9 @@ document.addEventListener("DOMContentLoaded", () => {
                logMessage(`HEARD LOUD BANG FROM ROOM #${where}!!!`, "elimination");
                addVisualFeedback(where, "explosion");
                
+               // Mark the cell with collision color
+               markCell(where, "collision-mark");
+               
                // When collision happens, ALL agents in that cell die
                const cell = grid.children[where] as HTMLElement;
                const agentsInCell = cell.querySelectorAll('.agent');
@@ -232,6 +239,10 @@ document.addEventListener("DOMContentLoaded", () => {
 	   if (event) {
 	       logMessage(`HIT REPORTED ON ROOM #${targeted}!!!!`, "elimination");
                addVisualFeedback(targeted, "explosion");
+               
+               // Mark the cell with impact color
+               markCell(targeted, "impact-mark");
+               
                const cell = grid.children[targeted] as HTMLElement;
                const agentsInCell = cell.querySelectorAll('.agent');
                agentsInCell.forEach(agent => {
@@ -584,6 +595,20 @@ try {
         setTimeout(() => {
             cell.classList.remove(type);
         }, 500);
+    }
+    
+    function markCell(cellIndex: number, markType: string): void {
+        const cell = grid.children[cellIndex] as HTMLElement;
+        cell.classList.add(markType);
+        markedCells.add(cellIndex);
+    }
+    
+    function clearMarkedCells(): void {
+        markedCells.forEach(cellIndex => {
+            const cell = grid.children[cellIndex] as HTMLElement;
+            cell.classList.remove("collision-mark", "impact-mark");
+        });
+        markedCells.clear();
     }
 
     function updateTutorial(): void {
