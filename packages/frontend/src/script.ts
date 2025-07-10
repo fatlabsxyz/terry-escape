@@ -69,6 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const gameOverContent = document.getElementById("game-over-content") as HTMLDivElement;
     const bgMusic = document.getElementById("bg-music") as HTMLAudioElement;
     const musicToggle = document.getElementById("music-toggle") as HTMLButtonElement;
+    const playerDeadOverlay = document.getElementById("player-dead-overlay") as HTMLDivElement;
 
     let agents: Agent[] = [];
     let turn: number = 0;
@@ -198,6 +199,11 @@ document.addEventListener("DOMContentLoaded", () => {
                    if (isEliminated) {
                        players.get(seat)!.status = 'eliminated';
                        players.get(seat)!.agents = 0;
+                       // Check if it's me who was eliminated
+                       if (seat === mySeat) {
+                           agents = []; // Clear my agents
+                           checkIfPlayerDead();
+                       }
                    }
                });
                updatePlayerCount(Object.keys(event.round).length);
@@ -232,6 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
                const row = Math.floor(where / 4);
                const col = where % 4;
                agents = agents.filter(a => !(a.row === row && a.col === col));
+               checkIfPlayerDead();
 	   }
        });
        interfacer.on(IfEvents.Impact, event => {
@@ -251,6 +258,12 @@ document.addEventListener("DOMContentLoaded", () => {
                setTimeout(() => {
                    cell.innerHTML = '';
                }, 500);
+               
+               // Update our agents array if it was one of ours
+               const row = Math.floor(targeted / 4);
+               const col = targeted % 4;
+               agents = agents.filter(a => !(a.row === row && a.col === col));
+               checkIfPlayerDead();
 	   }
        });
        
@@ -610,6 +623,14 @@ try {
         });
         markedCells.clear();
     }
+    
+    function checkIfPlayerDead(): void {
+        // Check if player has no agents left
+        if (agents.length === 0 && turn > 0) {
+            // Show the player dead overlay
+            playerDeadOverlay.style.display = 'flex';
+        }
+    }
 
     function updateTutorial(): void {
         // Tutorial is now handled by the modal system
@@ -657,6 +678,7 @@ try {
         // Find my player ID by looking in the leaderboard
         let myPlayerId: string | null = null;
         let myRank = -1;
+        let amWinner = false;
         
         // Search for my entry in the leaderboard
         leaderboard.forEach((player, index) => {
@@ -665,10 +687,15 @@ try {
                 (players.has(mySeat) && player.name === players.get(mySeat)!.name)) {
                 myPlayerId = player.pid;
                 myRank = index + 1;
+                // Check if I'm the winner (first in leaderboard)
+                if (index === 0) {
+                    amWinner = true;
+                }
             }
         });
         
-        const isWinner = winnerId === myPlayerId;
+        // Also check if winnerId matches myPlayerId
+        const isWinner = amWinner || (myPlayerId && winnerId === myPlayerId);
         
         let content = '<div class="game-over-text ' + (isWinner ? 'victory' : 'defeat') + '">';
         content += isWinner ? 'VICTORY!' : 'DEFEAT';
