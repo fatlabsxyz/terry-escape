@@ -14,6 +14,7 @@ export enum IfEvents {
   Winner    = "inter:winner",
   PlayerDied = "inter:playerDied",
   PlayersUpdate = "inter:playersUpdate",
+  MPCLog = "inter:mpcLog",
 }
 
 export type Turn = {

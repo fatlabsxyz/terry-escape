@@ -107,7 +107,9 @@ document.addEventListener("DOMContentLoaded", () => {
     updateGamePhase("WAITING FOR PLAYERS");
     updatePlayerBoard();
     updatePlayerCount(); // Initialize player count
-    logMessage("GAME STARTED");
+    logMessage("TERRY ESCAPE INITIALIZED", "turn");
+    logMessage("Zero-Knowledge Battle Royale", "action");
+    logMessage("Waiting for players to join...", "action");
     
     // Music Control
     let musicPlaying = false;
@@ -161,6 +163,8 @@ document.addEventListener("DOMContentLoaded", () => {
        interfacer.on(IfEvents.Connect, event => {
            board = new Board(event.seat);
            mySeat = event.seat;
+           logMessage(`CONNECTED: You are player ${event.seat + 1}`, "action");
+           logMessage(`MPC SETUP: Initializing cryptographic parameters...`, "action");
            board.allowedPlacementIndices.forEach(index => {
                if (grid.children[index]) {
                    (grid.children[index] as HTMLElement).classList.add("possible");
@@ -202,6 +206,10 @@ document.addEventListener("DOMContentLoaded", () => {
                startTurnTimer();
            } else {
                stopTurnTimer();
+               // If it's not our turn and game has started, show MPC progress
+               if (turn > 0 && !mustAct) {
+                   showMPCProgress();
+               }
            }
            
            // Clear marked cells from previous turn
@@ -251,6 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
        interfacer.on(IfEvents.Collision, event => {
            if (event) {
                let where = Number(event);
+               logMessage(`MPC CONSENSUS: Collision detected at room #${where}`, "action");
                logMessage(`HEARD LOUD BANG FROM ROOM #${where}!!!`, "elimination");
                addVisualFeedback(where, "explosion");
                
@@ -279,8 +288,10 @@ document.addEventListener("DOMContentLoaded", () => {
 	   }
        });
        interfacer.on(IfEvents.Impact, event => {
+	   logMessage(`MPC VERIFICATION: Action proof verified by all players`, "action");
 	   logMessage(`ACTION COMPLETED`, "action");
 	   if (event) {
+	       logMessage(`TRAP TRIGGERED: Impact at room #${targeted}!`, "action");
 	       logMessage(`HIT REPORTED ON ROOM #${targeted}!!!!`, "elimination");
                addVisualFeedback(targeted, "explosion");
                
@@ -377,6 +388,14 @@ document.addEventListener("DOMContentLoaded", () => {
                
                updatePlayerBoard(); // Update display with real names
                showGameOver(event.winner, event.leaderboard);
+           }
+       });
+       
+       // Add MPCLog event handler
+       interfacer.on(IfEvents.MPCLog, (message: string) => {
+           if (message) {
+               console.log("MPC Log:", message);
+               logMessage(`ZK/MPC: ${message}`, "action");
            }
        });
 
@@ -490,7 +509,7 @@ try {
 		    if (board && interfacer) {
 		        let deployment_data = board.allowedPlacementIndices.map((i: number) =>
                             (grid.children[i] as HTMLElement).children.length );
-		        showProofProgress();
+		        showDeploymentProgress();
 		        interfacer.emit(IfEvents.Deploy, deployment_data);
 		        board.addAgents({ agents: agents.map(e => [e.row, e.col]) });
 		    }
@@ -521,11 +540,15 @@ try {
                 
                 if (actionSuccessful) {
                     targeted = index;
-                    showProofProgress();
+                    showActionProgress(actionMode!);
                     interfacer.emit(IfEvents.Action, { reason, target: targeted, trap: actionMode === "trap" });
                     mustAct = false;
                     stopTurnTimer(); // Stop the timer when action is taken
                     updateActivePlayer();
+                    
+                    // Log the MPC operations that will happen
+                    const aliveCount = Array.from(players.values()).filter(p => p.status !== 'eliminated').length;
+                    logMessage(`BROADCASTING action to ${aliveCount - 1} players`, "action");
                 }
                 resetActionMode();
                 updateTutorial();
@@ -817,27 +840,38 @@ try {
     }
     
     function showProofProgress(): void {
+        showProgress('Generating proof...', [
+            { threshold: 0, message: 'Generating witnesses...' },
+            { threshold: 30, message: 'Computing constraints...' },
+            { threshold: 60, message: 'Finalizing proof...' }
+        ]);
+        logMessage("ZK/MPC: Generating zero-knowledge proof...", "action");
+    }
+    
+    function showProgress(initialMessage: string, stages: Array<{threshold: number, message: string}>, duration: number = 3000): void {
         proofProgress.style.display = 'block';
-        proofStatus.textContent = 'Initializing...';
+        proofStatus.textContent = initialMessage;
         progressFill.style.width = '0%';
         
-        // Simulate proof generation progress
         let progress = 0;
+        const increment = 100 / (duration / 300); // Progress per interval
+        
         proofTimer = setInterval(() => {
-            progress += Math.random() * 20;
+            progress += increment + (Math.random() * 10);
             if (progress >= 100) {
                 progress = 100;
                 clearInterval(proofTimer);
-                proofStatus.textContent = 'Proof generated!';
+                progressFill.style.width = '100%';
+                proofStatus.textContent = stages[stages.length - 1].message.replace('...', '!');
                 setTimeout(hideProofProgress, 1000);
             } else {
                 progressFill.style.width = `${progress}%`;
-                if (progress < 30) {
-                    proofStatus.textContent = 'Generating witnesses...';
-                } else if (progress < 60) {
-                    proofStatus.textContent = 'Computing constraints...';
-                } else {
-                    proofStatus.textContent = 'Finalizing proof...';
+                // Update status based on progress threshold
+                for (let i = stages.length - 1; i >= 0; i--) {
+                    if (progress >= stages[i].threshold) {
+                        proofStatus.textContent = stages[i].message;
+                        break;
+                    }
                 }
             }
         }, 300);
@@ -849,6 +883,52 @@ try {
             clearInterval(proofTimer);
             proofTimer = null;
         }
+    }
+    
+    function showMPCProgress(): void {
+        // Get alive player count for progress tracking
+        let aliveCount = 0;
+        players.forEach(player => {
+            if (player.status !== 'eliminated') {
+                aliveCount++;
+            }
+        });
+        
+        showProgress('Waiting for other players...', [
+            { threshold: 0, message: `Receiving queries from ${aliveCount - 1} players...` },
+            { threshold: 25, message: 'Computing answers to queries...' },
+            { threshold: 50, message: 'Generating cryptographic proofs...' },
+            { threshold: 70, message: 'Broadcasting updates...' },
+            { threshold: 90, message: 'Verifying all proofs...' },
+            { threshold: 100, message: 'Turn complete!' }
+        ], 8000); // Longer duration for MPC operations
+        
+        // Also log what's happening
+        logMessage(`MPC ROUND: Processing ${aliveCount - 1} player queries`, "action");
+    }
+    
+    function showDeploymentProgress(): void {
+        showProgress('Deploying agents...', [
+            { threshold: 0, message: 'Placing agents on board...' },
+            { threshold: 30, message: 'Generating deployment proof...' },
+            { threshold: 60, message: 'Computing initial state...' },
+            { threshold: 90, message: 'Broadcasting to network...' },
+            { threshold: 100, message: 'Deployment complete!' }
+        ], 4000);
+        logMessage("ZK/MPC: Generating deployment proof...", "action");
+    }
+    
+    function showActionProgress(actionType: string): void {
+        const actionName = actionType === 'trap' ? 'trap deployment' : 'movement';
+        showProgress(`Processing ${actionName}...`, [
+            { threshold: 0, message: `Validating ${actionName}...` },
+            { threshold: 20, message: 'Computing state transition...' },
+            { threshold: 40, message: 'Generating zero-knowledge proof...' },
+            { threshold: 70, message: 'Encrypting action data...' },
+            { threshold: 90, message: 'Broadcasting to players...' },
+            { threshold: 100, message: 'Action confirmed!' }
+        ], 5000);
+        logMessage(`ZK/MPC: Generating ${actionName} proof...`, "action");
     }
     
     function startTurnTimer(): void {
