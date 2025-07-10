@@ -350,6 +350,9 @@ body::before {
     background-color: rgba(0, 204, 0, 0.1);
     border: 1px solid #003300;
     transition: background-color 0.2s;
+    font-size: 10px;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .log p:hover {
@@ -480,6 +483,36 @@ body::before {
     opacity: 0.9;
 }
 
+.username-input {
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #00ff00;
+    color: #00ff00;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 16px;
+    padding: 15px 20px;
+    margin-bottom: 30px;
+    width: 300px;
+    text-align: center;
+    text-transform: uppercase;
+    outline: none;
+    box-shadow: 
+        0 0 10px rgba(0, 255, 0, 0.2),
+        inset 0 0 10px rgba(0, 255, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.username-input::placeholder {
+    color: rgba(0, 255, 0, 0.5);
+    font-size: 14px;
+}
+
+.username-input:focus {
+    border-color: #00ff00;
+    box-shadow: 
+        0 0 20px rgba(0, 255, 0, 0.5),
+        inset 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
 #join-btn {
     padding: 20px 40px;
     font-size: 24px;
@@ -591,23 +624,26 @@ body::before {
 .log p.action {
     color: #ffcc00;
     border-color: #664400;
+    font-size: 10px;
 }
 
 .log p.elimination {
     color: #ff3366;
     border-color: #660022;
     font-weight: bold;
+    font-size: 10px;
 }
 
 .log p.trap {
     color: #00ff00;
     border-color: #006600;
+    font-size: 10px;
 }
 
 .log p.turn {
     color: #00ccff;
     border-color: #004466;
-    font-size: 12px;
+    font-size: 10px;
     text-align: center;
     margin: 10px 0;
 }
@@ -811,6 +847,22 @@ body::before {
     gap: 5px;
 }
 
+/* Loading animation for unconnected players */
+.player-loading {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #333;
+    border-top-color: #00ff00;
+    border-radius: 50%;
+    animation: playerLoading 1s linear infinite;
+}
+
+@keyframes playerLoading {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 .agent-icon {
     width: 20px;
     height: 20px;
@@ -825,6 +877,56 @@ body::before {
 .agent-icon.dead {
     background-color: #333;
     color: #666;
+}
+
+/* Game Area Container */
+.game-area {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 30px;
+}
+
+/* Turn Timer */
+.turn-timer {
+    background: rgba(0, 0, 0, 0.95);
+    border: 3px solid #ffcc00;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(255, 204, 0, 0.7);
+    width: 180px;
+    text-align: center;
+}
+
+.timer-label {
+    color: #ffcc00;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.timer-display {
+    color: #ffcc00;
+    font-size: 48px;
+    font-weight: bold;
+    text-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+}
+
+.timer-display.warning {
+    color: #ff3366;
+    animation: pulse 0.5s infinite;
+}
+
+.timer-warning {
+    color: #ff3366;
+    font-size: 10px;
+    margin-top: 10px;
+    opacity: 0.8;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
 }
 
 /* Proof Progress */
@@ -923,6 +1025,75 @@ body::before {
 .tutorial-content {
     color: #fff;
     line-height: 1.8;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 20px;
+}
+
+.tutorial-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tutorial-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.tutorial-content::-webkit-scrollbar-thumb {
+    background: #00ff00;
+    border-radius: 4px;
+}
+
+.tutorial-section {
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(0, 255, 0, 0.3);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.tutorial-section h3 {
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.tutorial-section h4 {
+    color: #00ccff;
+    font-size: 14px;
+    margin: 10px 0 5px;
+}
+
+.phase-item, .action-item {
+    background: rgba(0, 255, 0, 0.05);
+    padding: 15px;
+    margin: 10px 0;
+    border-left: 4px solid #00ff00;
+}
+
+.death-rule {
+    background: rgba(255, 0, 0, 0.1);
+    padding: 12px;
+    margin: 8px 0;
+    border-left: 4px solid #ff3366;
+    font-size: 13px;
+}
+
+.death-rule.warning {
+    background: rgba(255, 204, 0, 0.2);
+    border-left-color: #ffcc00;
+    animation: warningPulse 2s infinite;
+}
+
+@keyframes warningPulse {
+    0%, 100% { background: rgba(255, 204, 0, 0.2); }
+    50% { background: rgba(255, 204, 0, 0.3); }
+}
+
+.tip {
+    background: rgba(0, 204, 255, 0.1);
+    padding: 10px;
+    margin: 5px 0;
+    border-left: 4px solid #00ccff;
+    font-size: 13px;
 }
 
 .tutorial-content ul {

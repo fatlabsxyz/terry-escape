@@ -91,7 +91,8 @@ export class SocketManager extends EventEmitter {
         round:        new Map<string, boolean>(roundEntries),
         activePlayer: p.activePlayer,
         nextPlayer:   p.nextPlayer,
-        gameOver:     p.gameOver! 
+        gameOver:     p.gameOver!,
+        playerNames:  p.playerNames 
       }
       self.emit(GameMsg.TURN_START, turnInfo)
       ack();
@@ -104,6 +105,10 @@ export class SocketManager extends EventEmitter {
       if (this.playerSeat != seat) {
         this.playerSeat = seat 
       }
+    });
+    
+    this.game.on(GameMsg.PLAYERS_UPDATE, (payload: any) => {
+      self.emit(GameMsg.PLAYERS_UPDATE, payload);
     });
 
     this.game.on(GameMsg.PROOFS, (msg: GameProofsPayload, ack: () => void) => {

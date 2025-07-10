@@ -109,6 +109,7 @@ export interface TurnInfo {
   activePlayer: PlayerId;
   nextPlayer:   PlayerId;
   gameOver?:    PlayerId;
+  playerNames?: { [key: string]: string }; // Map of PlayerId to player names
 };
 
 export interface TurnInfoPayload {
@@ -117,6 +118,7 @@ export interface TurnInfoPayload {
   activePlayer: PlayerId;
   nextPlayer:   PlayerId;
   gameOver?:    PlayerId;
+  playerNames?: { [key: string]: string }; // Map of PlayerId to player names
 };
 
 export interface TurnData {

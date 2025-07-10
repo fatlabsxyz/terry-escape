@@ -272,7 +272,8 @@ export class GameClient {
 
   async processActivePlayer() {
     
-    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: true} as Turn);
+    const playerNames = this.gameMachine.getSnapshot().context.turnInfo.playerNames;
+    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: true, playerNames} as Turn);
     
     // STEP 2
     // wait for queries | take action
@@ -312,7 +313,8 @@ export class GameClient {
 
   async processNonActivePlayer() {
 
-    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: false} as Turn);
+    const playerNames = this.gameMachine.getSnapshot().context.turnInfo.playerNames;
+    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: false, playerNames} as Turn);
     
     // STEP 1
     // if query ready, broadcast query
@@ -398,6 +400,12 @@ export class GameClient {
     const report = await this.sockets.waitForReport(this.turn);
     this.turnData.report = report as ReportData; 
     if (this.turnData.report.died) {
+      // Check if active player was already marked as dead
+      const wasAlreadyDead = this.gameMachine.getSnapshot().context.turnInfo.round.get(this.activePlayer);
+      if (!wasAlreadyDead) {
+        // Emit PlayerDied event for active player
+        this.interfacer.emit(IfEvents.PlayerDied, { playerId: this.activePlayer });
+      }
       this.gameMachine.getSnapshot().context.turnInfo.round.set(this.activePlayer, true)
     }
   }
@@ -484,6 +492,12 @@ export class GameClient {
     updates.forEach((value, key) => {
       this.turnData.updates.set(key, value)
       if (value.died) {
+        // Check if this player was already marked as dead
+        const wasAlreadyDead = this.gameMachine.getSnapshot().context.turnInfo.round.get(key);
+        if (!wasAlreadyDead) {
+          // Emit PlayerDied event for newly dead players
+          this.interfacer.emit(IfEvents.PlayerDied, { playerId: key });
+        }
         this.gameMachine.getSnapshot().context.turnInfo.round.set(key, true)
       }
     });
@@ -571,6 +585,11 @@ export class GameClient {
         winner: this.winner,
         leaderboard: this.leaderboard
       });
+    });
+    
+    this.sockets.on(GameMsg.PLAYERS_UPDATE, (payload: any) => {
+      console.log("PLAYERS_UPDATE received:", payload);
+      this.interfacer.emit(IfEvents.PlayersUpdate, payload);
     });
 
     /*///////////////////////////////////////////////////////////////

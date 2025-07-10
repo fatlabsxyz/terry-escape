@@ -12,6 +12,7 @@
         <div class="join-container">
             <h1 class="join-title">TERRY ESCAPE</h1>
             <p class="join-subtitle">A ZERO-KNOWLEDGE BATTLE ROYALE</p>
+            <input type="text" id="username-input" class="username-input" placeholder="ENTER YOUR NAME" maxlength="20">
             <button id="join-btn" class="action-btn">JOIN GAME</button>
         </div>
     </div>
@@ -20,8 +21,8 @@
             <h1 class="game-title">TERRY ESCAPE</h1>
             <div id="status-panel" class="status-panel">
                 <div class="status-item">
-                    <span class="status-label">PLAYERS</span>
-                    <span id="player-count" class="status-value">0/4</span>
+                    <span class="status-label">PLAYERS LEFT</span>
+                    <span id="player-count" class="status-value">0</span>
                 </div>
                 <div class="status-item">
                     <span class="status-label">TURN</span>
@@ -41,7 +42,15 @@
                 <button id="trap-btn" class="action-btn">TRAP</button>
                 <button id="tutorial-btn" class="action-btn tutorial-btn">TUTORIAL</button>
             </div>
-            <div id="grid" class="grid"></div>
+            <div class="game-area">
+                <!-- Turn Timer -->
+                <div id="turn-timer" class="turn-timer" style="display: none;">
+                    <div class="timer-label">TIME REMAINING</div>
+                    <div id="timer-display" class="timer-display">30</div>
+                    <div class="timer-warning">Act fast or everyone dies!</div>
+                </div>
+                <div id="grid" class="grid"></div>
+            </div>
             <div id="proof-progress" class="proof-progress" style="display: none;">
                 <div class="proof-label">GENERATING PROOF...</div>
                 <div class="progress-bar">
@@ -71,39 +80,65 @@
             <span class="modal-close">&times;</span>
             <h2>HOW TO PLAY TERRY ESCAPE</h2>
             <div class="tutorial-content">
-                <h3>OBJECTIVE</h3>
-                <p>Be the last player with living agents on the board!</p>
+                <div class="tutorial-section">
+                    <h3>🎯 OBJECTIVE</h3>
+                    <p>Be the last player standing! Eliminate all opponents by outsmarting them with strategic moves and traps.</p>
+                </div>
                 
-                <h3>GAME RULES</h3>
-                <ul>
-                    <li><strong>SETUP:</strong> Each player deploys 4 agents in their corner zone</li>
-                    <li><strong>TURNS:</strong> Players take turns being "active" - only the active player can act</li>
-                    <li><strong>ACTIONS:</strong> On your turn, you MUST either:
-                        <ul>
-                            <li><strong>MOVE:</strong> Move one agent to an adjacent cell (up/down/left/right)</li>
-                            <li><strong>TRAP:</strong> Place a trap in an adjacent cell from one of your agents</li>
-                        </ul>
-                    </li>
-                </ul>
+                <div class="tutorial-section">
+                    <h3>🎮 GAME PHASES</h3>
+                    <div class="phase-item">
+                        <h4>1. DEPLOYMENT PHASE</h4>
+                        <p>Place your 4 agents in your designated corner (highlighted cells)</p>
+                    </div>
+                    <div class="phase-item">
+                        <h4>2. BATTLE PHASE</h4>
+                        <p>Take turns making moves. When it's your turn, you MUST act within 30 seconds!</p>
+                    </div>
+                </div>
                 
-                <h3>DEATH MECHANICS</h3>
-                <ul>
-                    <li>🚶💥🚶 Moving into an occupied cell = BOTH agents die</li>
-                    <li>💣💥🚶 Moving into a trap = Your agent dies (trap consumed)</li>
-                    <li>🚶💣 Placing trap on an agent = Agent dies, then trap activates</li>
-                    <li>⚔️ In simultaneous deaths, the active player wins!</li>
-                </ul>
+                <div class="tutorial-section">
+                    <h3>⚡ ACTIONS (Choose One Per Turn)</h3>
+                    <div class="action-item">
+                        <h4>MOVE</h4>
+                        <p>• Click MOVE button → Select your agent → Click adjacent cell<br>
+                           • Agents can only move to directly adjacent cells (↑↓←→)</p>
+                    </div>
+                    <div class="action-item">
+                        <h4>TRAP</h4>
+                        <p>• Click TRAP button → Select your agent → Click adjacent cell<br>
+                           • Traps are invisible to enemies and trigger when stepped on</p>
+                    </div>
+                </div>
                 
-                <h3>ZERO-KNOWLEDGE PROOFS</h3>
-                <p>This game uses ZK proofs to ensure fair play without revealing positions to other players. When you see "Generating Proof", the game is cryptographically securing your move!</p>
+                <div class="tutorial-section">
+                    <h3>💀 HOW AGENTS DIE</h3>
+                    <div class="death-rule">
+                        <strong>COLLISION:</strong> Two agents enter same cell = BOTH DIE! 💥
+                    </div>
+                    <div class="death-rule">
+                        <strong>TRAP:</strong> Agent steps on trap = Agent dies, trap consumed 💣
+                    </div>
+                    <div class="death-rule">
+                        <strong>TRAP PLACEMENT:</strong> Placing trap on enemy = Enemy dies instantly
+                    </div>
+                    <div class="death-rule warning">
+                        <strong>⏱️ TIMEOUT:</strong> Don't act in 30 seconds = ALL YOUR AGENTS DIE!
+                    </div>
+                </div>
                 
-                <h3>STRATEGY TIPS</h3>
-                <ul>
-                    <li>Spread your agents to avoid chain eliminations</li>
-                    <li>Use traps to control key positions</li>
-                    <li>Force opponents into bad positions</li>
-                    <li>Remember: The active player has advantage in collisions!</li>
-                </ul>
+                <div class="tutorial-section">
+                    <h3>🛡️ ZERO-KNOWLEDGE SECURITY</h3>
+                    <p>Your moves are hidden from opponents using cryptographic proofs. The "Generating Proof" message means your action is being securely processed without revealing your strategy!</p>
+                </div>
+                
+                <div class="tutorial-section">
+                    <h3>💡 PRO TIPS</h3>
+                    <div class="tip">• Control the center for maximum mobility</div>
+                    <div class="tip">• Set trap chains to create safe zones</div>
+                    <div class="tip">• As the active player, YOU survive collisions!</div>
+                    <div class="tip">• Watch for patterns in enemy movement</div>
+                </div>
             </div>
         </div>
     </div>

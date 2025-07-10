@@ -25,6 +25,7 @@ export enum GameMsg {
   PLAYER_SEAT = "game:player_seat",
   FETCH_PROOFS = "game:fetch_proofs",
   PROOFS = "game:proofs",
+  PLAYERS_UPDATE = "game:players_update",
 }
 
 export interface GamePayload {
@@ -65,6 +66,15 @@ export interface GameReportPayload extends GamePayload {
 export interface GameEndPayload extends GamePayload {
   winner: PlayerId;
   leaderboard: LeaderBoard;
+}
+
+export interface GamePlayersUpdatePayload extends GamePayload {
+  players: Array<{
+    id: PlayerId;
+    name: string;
+    seat: PlayerSeat;
+    connected: boolean;
+  }>;
 }
 
 export interface IGameMessage extends Message {

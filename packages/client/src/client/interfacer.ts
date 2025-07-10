@@ -12,11 +12,14 @@ export enum IfEvents {
   Collision = "inter:collision",
   Died      = "inter:died",
   Winner    = "inter:winner",
+  PlayerDied = "inter:playerDied",
+  PlayersUpdate = "inter:playersUpdate",
 }
 
 export type Turn = {
   round:  number;
   active: undefined | boolean;
+  playerNames?: { [key: string]: string }; // Map of PlayerId to player names
 };
 
 export type Impact = boolean;

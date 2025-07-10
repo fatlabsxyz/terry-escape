@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const joinBtn = document.getElementById("join-btn") as HTMLButtonElement;
     const joinPaywall = document.getElementById("join-paywall") as HTMLDivElement;
     const errorMessage = document.getElementById("error-message") as HTMLDivElement;
+    const usernameInput = document.getElementById("username-input") as HTMLInputElement;
     
     // New UI elements
     const playerCountDisplay = document.getElementById("player-count") as HTMLSpanElement;
@@ -70,6 +71,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const bgMusic = document.getElementById("bg-music") as HTMLAudioElement;
     const musicToggle = document.getElementById("music-toggle") as HTMLButtonElement;
     const playerDeadOverlay = document.getElementById("player-dead-overlay") as HTMLDivElement;
+    const turnTimer = document.getElementById("turn-timer") as HTMLDivElement;
+    const timerDisplay = document.getElementById("timer-display") as HTMLDivElement;
 
     let agents: Agent[] = [];
     let turn: number = 0;
@@ -85,6 +88,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let players: Map<number, {name: string, agents: number, status: string}> = new Map();
     let proofTimer: any = null;
     let markedCells: Set<number> = new Set(); // Track cells with visual effects
+    let myUsername: string = "Player";
+    let turnTimerInterval: any = null;
+    let turnTimeRemaining: number = 30;
     
     const playerColors = ["red", "blue", "green", "yellow"];
     const playerNames = ["Player 1", "Player 2", "Player 3", "Player 4"];
@@ -101,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeGrid();
     updateGamePhase("WAITING FOR PLAYERS");
     updatePlayerBoard();
+    updatePlayerCount(); // Initialize player count
     logMessage("GAME STARTED");
     
     // Music Control
@@ -137,6 +144,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     joinBtn.addEventListener("click", async () => {
+       const username = usernameInput.value.trim() || "Player";
+       myUsername = username;
        interfacer = Interfacer.getInstance();
        joinPaywall.style.display = "none";
        
@@ -154,7 +163,9 @@ document.addEventListener("DOMContentLoaded", () => {
            board = new Board(event.seat);
            mySeat = event.seat;
            board.allowedPlacementIndices.forEach(index => {
-               (grid.children[index] as HTMLElement).classList.add("possible");
+               if (grid.children[index]) {
+                   (grid.children[index] as HTMLElement).classList.add("possible");
+               }
 	   });
            // Update player identity display
            playerIdentityDisplay.textContent = `PLAYER ${event.seat + 1}`;
@@ -162,10 +173,11 @@ document.addEventListener("DOMContentLoaded", () => {
            
            // Mark myself as connected
            players.set(mySeat, {
-               name: `Player ${mySeat + 1}`,
+               name: myUsername,
                agents: 4,
                status: 'connected'
            });
+           updatePlayerCount();
            updatePlayerBoard();
        });
 
@@ -178,27 +190,56 @@ document.addEventListener("DOMContentLoaded", () => {
 	   updateTutorial();
            updateButtonStates();
            
+           // Update player names if provided
+           if (event.playerNames) {
+               Object.entries(event.playerNames).forEach(([playerId, name]) => {
+                   const seat = parseInt(playerId);
+                   if (players.has(seat) && seat !== mySeat) {
+                       players.get(seat)!.name = name;
+                   }
+               });
+               updatePlayerBoard();
+           }
+           
+           // Start or stop timer based on whether it's my turn
+           if (mustAct && turn > 0) {
+               startTurnTimer();
+           } else {
+               stopTurnTimer();
+           }
+           
            // Clear marked cells from previous turn
            clearMarkedCells();
            
            // Update player statuses from round data
            if (event.round && typeof event.round === 'object') {
-               Object.entries(event.round).forEach(([playerId, isEliminated]) => {
+               // First, ensure all players in the game are tracked
+               Object.keys(event.round).forEach(playerId => {
                    const seat = parseInt(playerId);
                    if (!players.has(seat)) {
+                       // Note: We can only show our own username. Other players' usernames aren't 
+                       // broadcast by the server, so we show generic "Player X" labels
+                       const playerName = seat === mySeat ? myUsername : `Player ${seat + 1}`;
                        players.set(seat, {
-                           name: `Player ${seat + 1}`,
+                           name: playerName,
                            agents: 4,
                            status: 'connected'
                        });
                    }
-                   // Update status based on turn > 0
+               });
+               
+               // Then update statuses based on elimination
+               Object.entries(event.round).forEach(([playerId, isEliminated]) => {
+                   const seat = parseInt(playerId);
+                   const player = players.get(seat)!;
+                   
+                   // Update status based on turn and elimination
                    if (turn > 0 && !isEliminated) {
-                       players.get(seat)!.status = 'playing';
+                       player.status = 'playing';
                    }
                    if (isEliminated) {
-                       players.get(seat)!.status = 'eliminated';
-                       players.get(seat)!.agents = 0;
+                       player.status = 'eliminated';
+                       player.agents = 0;
                        // Check if it's me who was eliminated
                        if (seat === mySeat) {
                            agents = []; // Clear my agents
@@ -206,7 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
                        }
                    }
                });
-               updatePlayerCount(Object.keys(event.round).length);
+               updatePlayerCount(); // Let it calculate alive players
                updatePlayerBoard();
            }
        });
@@ -267,10 +308,78 @@ document.addEventListener("DOMContentLoaded", () => {
 	   }
        });
        
+       // Add PlayerDied event handler
+       interfacer.on(IfEvents.PlayerDied, event => {
+           if (event && event.playerId !== undefined) {
+               console.log("Player Died:", event);
+               
+               // Update player status
+               const deadPlayerSeat = parseInt(event.playerId);
+               if (players.has(deadPlayerSeat)) {
+                   const deadPlayer = players.get(deadPlayerSeat)!;
+                   deadPlayer.status = 'eliminated';
+                   deadPlayer.agents = 0;
+                   logMessage(`${deadPlayer.name.toUpperCase()} HAS BEEN ELIMINATED!`, "elimination");
+               } else {
+                   logMessage(`PLAYER ${deadPlayerSeat + 1} HAS BEEN ELIMINATED!`, "elimination");
+               }
+               
+               updatePlayerCount(); // This will recalculate alive count
+               updatePlayerBoard();
+           }
+       });
+       
+       // Add PLAYERS_UPDATE event handler
+       interfacer.on(IfEvents.PlayersUpdate, event => {
+           if (event && event.players) {
+               console.log("Players Update:", event.players);
+               
+               // Update our player map with the server data
+               event.players.forEach((playerData: any) => {
+                   const seat = playerData.seat;
+                   
+                   if (playerData.connected) {
+                       // Player is connected
+                       if (!players.has(seat)) {
+                           players.set(seat, {
+                               name: playerData.name,
+                               agents: 4,
+                               status: 'connected'
+                           });
+                       } else {
+                           // Update existing player name
+                           const existingPlayer = players.get(seat)!;
+                           existingPlayer.name = playerData.name;
+                       }
+                   }
+                   // Note: We don't remove unconnected players, we'll show loading for them
+               });
+               
+               updatePlayerCount();
+               updatePlayerBoard();
+           }
+       });
+       
        // Add Winner event handler
        interfacer.on(IfEvents.Winner, event => {
            if (event && event.winner !== undefined && event.leaderboard) {
                console.log("Game Over Event:", event);
+               
+               // Update player names from leaderboard
+               event.leaderboard.forEach((player: any, index: number) => {
+                   // Try to match players by their position in the leaderboard
+                   // This isn't perfect but can help show real names at game end
+                   if (player.name && player.name !== "gordo-web") {
+                       // Look for a player slot that might match
+                       players.forEach((playerData, seat) => {
+                           if (playerData.status === 'eliminated' || (index === 0 && playerData.agents > 0)) {
+                               playerData.name = player.name;
+                           }
+                       });
+                   }
+               });
+               
+               updatePlayerBoard(); // Update display with real names
                showGameOver(event.winner, event.leaderboard);
            }
        });
@@ -284,7 +393,7 @@ try {
     if (token != null) {
         connect(token, url, "0");
     } else {
-        const newToken = await getNewToken("gordo-web", url);
+        const newToken = await getNewToken(username, url);
         if (newToken) {
             setCookie("auth", newToken);
             await connect(newToken, url, "0");
@@ -299,14 +408,26 @@ try {
     });
 
     moveBtn.addEventListener("click", () => {
-        if (turn > 0 && mustAct && !actionMode) {
-            selectMoveMode();
+        if (turn > 0 && mustAct) {
+            if (actionMode === "move") {
+                // If already in move mode, deselect
+                resetActionMode();
+            } else {
+                // Switch to move mode
+                selectMoveMode();
+            }
         }
     });
 
     trapBtn.addEventListener("click", () => {
-        if (turn > 0 && mustAct && !actionMode) {
-            selectTrapMode();
+        if (turn > 0 && mustAct) {
+            if (actionMode === "trap") {
+                // If already in trap mode, deselect
+                resetActionMode();
+            } else {
+                // Switch to trap mode
+                selectTrapMode();
+            }
         }
     });
 
@@ -330,8 +451,8 @@ try {
 
     // Update button states based on game state
     function updateButtonStates(): void {
-        moveBtn.disabled = !mustAct || actionMode !== null;
-        trapBtn.disabled = !mustAct || actionMode !== null;
+        moveBtn.disabled = !mustAct;
+        trapBtn.disabled = !mustAct;
     }
 
     grid.addEventListener("click", (e: Event) => {
@@ -366,6 +487,7 @@ try {
                     // Update my status to playing
                     if (players.has(mySeat)) {
                         players.get(mySeat)!.status = 'playing';
+                        updatePlayerCount();
                         updatePlayerBoard();
                     }
                     
@@ -399,6 +521,7 @@ try {
 	        showProofProgress();
 	        interfacer.emit(IfEvents.Action, { reason, target: targeted, trap: actionMode === "trap" });
 	        mustAct = false;
+	        stopTurnTimer(); // Stop the timer when action is taken
                 resetActionMode();
         	updateTutorial();
                 updateActivePlayer();
@@ -533,9 +656,23 @@ try {
         gamePhaseDisplay.textContent = phase;
     }
     
-    function updatePlayerCount(count: number): void {
-        playerCount = count;
-        playerCountDisplay.textContent = `${count}/4`;
+    function updatePlayerCount(): void {
+        // Count alive players
+        let aliveCount = 0;
+        
+        // If no players tracked yet but game is starting, assume 4 players
+        if (players.size === 0 && turn === 0) {
+            aliveCount = 0; // Show 0 until players actually join
+        } else {
+            players.forEach(player => {
+                if (player.status !== 'eliminated') {
+                    aliveCount++;
+                }
+            });
+        }
+        
+        playerCount = aliveCount;
+        playerCountDisplay.textContent = aliveCount.toString();
     }
     
     function updatePlayerBoard(): void {
@@ -549,7 +686,9 @@ try {
                 playerCard.classList.add('you');
             }
             
-            if (players.has(i)) {
+            const isConnected = players.has(i);
+            
+            if (isConnected) {
                 const playerData = players.get(i)!;
                 if (playerData.status === 'eliminated') {
                     playerCard.classList.add('eliminated');
@@ -564,16 +703,26 @@ try {
             
             const playerName = document.createElement('div');
             playerName.className = `player-name player-${playerColors[i]}`;
-            playerName.textContent = `PLAYER ${i + 1}`;
+            
+            if (isConnected) {
+                const playerData = players.get(i)!;
+                playerName.textContent = playerData.name.toUpperCase();
+            } else {
+                // Show loading for unconnected players
+                playerName.innerHTML = `PLAYER ${i + 1} <span class="player-loading"></span>`;
+            }
             
             const playerStatus = document.createElement('div');
             playerStatus.className = 'player-status';
-            let statusText = 'NOT CONNECTED';
-            if (players.has(i)) {
+            let statusText = 'WAITING...';
+            
+            if (isConnected) {
                 const status = players.get(i)!.status;
-                if (status === 'connected') statusText = 'CONNECTED';
+                if (status === 'connected') statusText = 'READY';
                 else if (status === 'playing') statusText = 'PLAYING';
                 else if (status === 'eliminated') statusText = 'ELIMINATED';
+            } else {
+                statusText = 'CONNECTING...';
             }
             playerStatus.textContent = statusText;
             
@@ -583,7 +732,7 @@ try {
             const agentCount = document.createElement('div');
             agentCount.className = 'agent-count';
             
-            if (players.has(i)) {
+            if (isConnected) {
                 const agentData = players.get(i)!.agents;
                 for (let j = 0; j < 4; j++) {
                     const agentIcon = document.createElement('div');
@@ -592,6 +741,14 @@ try {
                         agentIcon.classList.add('dead');
                     }
                     agentIcon.textContent = 'A';
+                    agentCount.appendChild(agentIcon);
+                }
+            } else {
+                // Show empty agent slots for unconnected players
+                for (let j = 0; j < 4; j++) {
+                    const agentIcon = document.createElement('div');
+                    agentIcon.className = 'agent-icon dead';
+                    agentIcon.textContent = '?';
                     agentCount.appendChild(agentIcon);
                 }
             }
@@ -672,30 +829,89 @@ try {
         }
     }
     
+    function startTurnTimer(): void {
+        turnTimeRemaining = 30; // Reset timer to 30 seconds
+        turnTimer.style.display = 'block';
+        timerDisplay.textContent = turnTimeRemaining.toString();
+        timerDisplay.classList.remove('warning');
+        
+        if (turnTimerInterval) {
+            clearInterval(turnTimerInterval);
+        }
+        
+        turnTimerInterval = setInterval(() => {
+            turnTimeRemaining--;
+            timerDisplay.textContent = turnTimeRemaining.toString();
+            
+            if (turnTimeRemaining <= 10) {
+                timerDisplay.classList.add('warning');
+            }
+            
+            if (turnTimeRemaining <= 0) {
+                clearInterval(turnTimerInterval);
+                turnTimerInterval = null;
+                logMessage("TIME'S UP! EVERYONE DIES!", "elimination");
+            }
+        }, 1000);
+    }
+    
+    function stopTurnTimer(): void {
+        turnTimer.style.display = 'none';
+        if (turnTimerInterval) {
+            clearInterval(turnTimerInterval);
+            turnTimerInterval = null;
+        }
+    }
+    
     function showGameOver(winnerId: string, leaderboard: any[]): void {
         gameOverOverlay.style.display = 'flex';
         
-        // Find my player ID by looking in the leaderboard
-        let myPlayerId: string | null = null;
-        let myRank = -1;
-        let amWinner = false;
+        // Debug logging
+        console.log("Game Over - Winner ID:", winnerId);
+        console.log("Game Over - My Seat:", mySeat);
+        console.log("Game Over - Leaderboard:", leaderboard);
         
-        // Search for my entry in the leaderboard
+        // The winner is the first player in the leaderboard
+        const winnerEntry = leaderboard[0];
+        let isWinner = false;
+        let myRank = -1;
+        
+        // Find my position in the leaderboard
         leaderboard.forEach((player, index) => {
-            // Check if this player's name matches my seat
-            if (player.name && player.name.includes(`Player ${mySeat + 1}`) || 
-                (players.has(mySeat) && player.name === players.get(mySeat)!.name)) {
-                myPlayerId = player.pid;
-                myRank = index + 1;
-                // Check if I'm the winner (first in leaderboard)
-                if (index === 0) {
-                    amWinner = true;
+            // Since all players have the same name "gordo-web", we need a different way to identify ourselves
+            // We'll check if this is the winner and if the winnerId matches
+            if (index === 0 && winnerId === player.pid) {
+                // This is the winner entry
+                // Now check if I'm the winner by comparing with my connection
+                // We need to match based on the game context
+                if (mySeat !== -1) {
+                    // Try to determine if this winner is me
+                    // Since we can't reliably match by name, we'll check the winner event
+                    isWinner = true; // We'll rely on the server to tell us who won
                 }
             }
+            // For now, we'll assume the first alive player in our local tracking is us
+            // This is a temporary fix until we have proper player ID tracking
         });
         
-        // Also check if winnerId matches myPlayerId
-        const isWinner = amWinner || (myPlayerId && winnerId === myPlayerId);
+        // More reliable approach: check if I have any agents left
+        // If I have agents and the game ended, I'm likely the winner
+        if (agents.length > 0 && turn > 0) {
+            isWinner = true;
+            myRank = 1;
+        } else {
+            // Find my rank based on when I was eliminated
+            isWinner = false;
+            // If I'm dead, find my position in the leaderboard
+            leaderboard.forEach((player, index) => {
+                if (player.name === myUsername) {
+                    // Found my entry in the leaderboard
+                    if (agents.length === 0) {
+                        myRank = index + 1;
+                    }
+                }
+            });
+        }
         
         let content = '<div class="game-over-text ' + (isWinner ? 'victory' : 'defeat') + '">';
         content += isWinner ? 'VICTORY!' : 'DEFEAT';
@@ -710,7 +926,8 @@ try {
         
         leaderboard.forEach((player, index) => {
             const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
-            const isMe = player.pid === myPlayerId;
+            // Check if this is me based on username match
+            const isMe = player.name === myUsername;
             content += '<div class="leaderboard-entry ' + rankClass + (isMe ? ' you' : '') + '">';
             content += '<div class="leaderboard-rank">#' + (index + 1) + '</div>';
             content += '<div class="leaderboard-player">' + (player.name || 'Unknown Player') + '</div>';

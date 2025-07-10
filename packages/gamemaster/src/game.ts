@@ -1,4 +1,4 @@
-import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, LeaderBoard, Position, GameEndMsg, Turn } from 'client';
+import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, LeaderBoard, Position, GameEndMsg, Turn, GamePlayersUpdatePayload } from 'client';
 import { GameNsp } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
@@ -445,12 +445,20 @@ export class Game {
   }
 
   private broadcastTurn(turnInfo: TurnInfo) {
+    // Build player names map
+    const playerNames: { [key: string]: string } = {};
+    turnInfo.round.forEach((isDead: boolean, playerId: string) => {
+      const playerName = this.playerStore.getPlayerName(playerId);
+      playerNames[playerId] = playerName;
+    });
+    
     const newTurnInfo = {
         turn:         turnInfo.turn,
         round:        Object.fromEntries(turnInfo.round),
         activePlayer: turnInfo.activePlayer,
         nextPlayer:   turnInfo.nextPlayer,
-        gameOver:     turnInfo.gameOver   
+        gameOver:     turnInfo.gameOver,
+        playerNames:  playerNames
     }
     this.msgBox.emitNewTurn(newTurnInfo);
     this.msgBox.emitClean();
@@ -458,7 +466,47 @@ export class Game {
 
   async broadcastQueryWaiting(): Promise<{ player: string, waiting: boolean }[]> {
     return await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.WAITING);
-  } 
+  }
+  
+  private broadcastPlayersUpdate() {
+    // Build array of all player information
+    const playersData: Array<{
+      id: PlayerId;
+      name: string;
+      seat: PlayerSeat;
+      connected: boolean;
+    }> = [];
+    
+    // Get all players from the game machine context
+    const players = this.gameMachine.getSnapshot().context.players;
+    
+    players.forEach((playerStatus, playerId) => {
+      const playerName = this.playerStore.getPlayerName(playerId);
+      playersData.push({
+        id: playerId,
+        name: playerName,
+        seat: playerStatus.seat,
+        connected: true // All players in the game are considered connected
+      });
+    });
+    
+    // Fill in empty slots for players that haven't joined yet
+    for (let i = playersData.length; i < 4; i++) {
+      playersData.push({
+        id: `player_${i}` as PlayerId,
+        name: `Player ${i + 1}`,
+        seat: i as PlayerSeat,
+        connected: false
+      });
+    }
+    
+    const payload: GamePlayersUpdatePayload = {
+      players: playersData
+    };
+    
+    // Broadcast to all connected clients
+    this.nsp.emit(GameMsg.PLAYERS_UPDATE, payload);
+  }
 
   async newTurn(context: Context): Promise<Context> {
     const newContext = this.nextContext(context);
@@ -516,6 +564,9 @@ export class Game {
           sid: this.playerStorage.getSocketId(player.id), 
           seat: player.seat
         } as PlayerData;
+        
+        // Broadcast updated player list to all clients
+        setTimeout(() => this.broadcastPlayersUpdate(), 100);
  
         return { players: context.players }
       } else return context
