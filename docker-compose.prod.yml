@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  terry-escape:
+    build:
+      context: .
+      dockerfile: Dockerfile.clean
+    ports:
+      - "80:8000"    # Frontend on port 80
+      - "2448:2448"  # Gamemaster API
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - API_URL=${API_URL:-http://localhost:2448}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://localhost:8000}
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    
+  # Caddy reverse proxy - handles HTTPS automatically with Let's Encrypt
+  caddy:
+    image: caddy:alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - terry-escape
+    restart: unless-stopped
+    profiles: ["with-ssl"]
+
+volumes:
+  caddy_data:
+  caddy_config:

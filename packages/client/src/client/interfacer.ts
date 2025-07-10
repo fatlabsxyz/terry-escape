@@ -15,6 +15,8 @@ export enum IfEvents {
   PlayerDied = "inter:playerDied",
   PlayersUpdate = "inter:playersUpdate",
   MPCLog = "inter:mpcLog",
+  DeploymentTimer = "inter:deploymentTimer",
+  DeploymentStatus = "inter:deploymentStatus",
 }
 
 export type Turn = {

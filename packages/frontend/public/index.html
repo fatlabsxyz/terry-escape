@@ -12,8 +12,34 @@
         <div class="join-container">
             <h1 class="join-title">TERRY ESCAPE</h1>
             <p class="join-subtitle">A ZERO-KNOWLEDGE BATTLE ROYALE</p>
-            <input type="text" id="username-input" class="username-input" placeholder="ENTER YOUR NAME" maxlength="20">
-            <button id="join-btn" class="action-btn">JOIN GAME</button>
+            
+            <!-- Username Section -->
+            <div class="username-section">
+                <input type="text" id="username-input" class="username-input" placeholder="ENTER YOUR NAME" maxlength="20">
+            </div>
+            
+            <!-- Lobby Section -->
+            <div id="lobby-section" class="lobby-section" style="display: none;">
+                <div class="lobby-header">
+                    <h2 class="lobby-title">GAME ROOMS</h2>
+                    <div class="lobby-actions">
+                        <button id="create-room-btn" class="action-btn create-btn">CREATE ROOM</button>
+                        <button id="refresh-btn" class="action-btn refresh-btn">REFRESH</button>
+                    </div>
+                </div>
+                
+                <div id="game-list" class="game-list">
+                    <!-- Game rooms will be populated here -->
+                </div>
+                
+                <div id="no-games" class="no-games" style="display: none;">
+                    <p>NO ACTIVE GAMES</p>
+                    <p>CREATE A NEW ROOM TO START</p>
+                </div>
+            </div>
+            
+            <!-- Initial Join Button -->
+            <button id="enter-lobby-btn" class="action-btn">ENTER LOBBY</button>
         </div>
     </div>
     
@@ -40,6 +66,10 @@
                     <span class="status-label">PHASE</span>
                     <span id="game-phase" class="status-value">WAITING</span>
                 </div>
+            </div>
+            <div id="game-name-display" class="game-name-display" style="display: none;">
+                <span class="game-name-label">GAME:</span>
+                <span id="game-name-value" class="game-name-value"></span>
             </div>
             <div class="action-buttons">
                 <button id="move-btn" class="action-btn">MOVE</button>

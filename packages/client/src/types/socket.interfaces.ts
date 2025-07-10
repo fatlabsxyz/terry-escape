@@ -1,6 +1,6 @@
 import { Socket } from "socket.io-client";
 import { TurnInfo, TurnInfoPayload } from "./game.js";
-import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, GamePlayerSeatMsg, GameMessage, RetrieveMsg, GameProofsPayload, GameEndPayload, GameEndMsg, GamePlayersUpdatePayload } from "./gameMessages.js";
+import { GameAnswerMsg, GameMsg, GameQueryMsg, GameReportMsg, GameUpdateMsg, GameDeployMsg, GamePlayerSeatMsg, GameMessage, RetrieveMsg, GameProofsPayload, GameEndPayload, GameEndMsg, GamePlayersUpdatePayload, GameDeploymentTimerPayload, GameDeploymentStatusPayload } from "./gameMessages.js";
 
 
 type Ack = () => void;
@@ -81,6 +81,10 @@ export interface GameNspServerToClientEvents {
   [GameMsg.PROOFS]: (p: GameProofsPayload , cb: Ack) => void;
   
   [GameMsg.PLAYERS_UPDATE]: (p: GamePlayersUpdatePayload) => void;
+  
+  [GameMsg.DEPLOYMENT_TIMER]: (p: GameDeploymentTimerPayload) => void;
+  
+  [GameMsg.DEPLOYMENT_STATUS]: (p: GameDeploymentStatusPayload) => void;
 }
 
 export type GameSocket = Socket<GameNspServerToClientEvents, GameNspClientToServerEvents>;

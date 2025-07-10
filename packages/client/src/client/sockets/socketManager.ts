@@ -17,6 +17,8 @@ import {
   GameProofsPayload,
   GamePlayerSeatMsg,
   RetrieveMsg,
+  GameDeploymentTimerPayload,
+  GameDeploymentStatusPayload,
 } from "../../types/gameMessages.js";
 import { GameSocket } from "../../types/socket.interfaces.js";
 import { passTime } from "../../utils.js";
@@ -48,6 +50,7 @@ export class SocketManager extends EventEmitter {
 
     this.msgBox = new MessageBox;
 
+    console.log(`[SocketManager] Creating game socket for ${options.serverUrl}/game/${options.gameId}`);
     this.game = io(`${options.serverUrl}/game/${options.gameId}`, {
       timeout: 300000, // 10x: was 30000
       auth: {
@@ -55,6 +58,7 @@ export class SocketManager extends EventEmitter {
       }
     });
 
+    console.log(`[SocketManager] Creating lobby socket for ${options.serverUrl}`);
     this.lobby = io(options.serverUrl, {
       timeout: 300000, // 10x: was 30000
       auth: {
@@ -70,6 +74,23 @@ export class SocketManager extends EventEmitter {
     const data = decoded as JwtPayload; 
     this.playerId = data.id;
     this.playerName = data.name;
+    
+    // Add connection event listeners
+    this.game.on('connect', () => {
+      console.log(`[SocketManager] Game socket connected! ID: ${this.game.id}`);
+    });
+    
+    this.game.on('connect_error', (error) => {
+      console.error(`[SocketManager] Game socket connection error:`, error.message);
+    });
+    
+    this.lobby.on('connect', () => {
+      console.log(`[SocketManager] Lobby socket connected! ID: ${this.lobby.id}`);
+    });
+    
+    this.lobby.on('connect_error', (error) => {
+      console.error(`[SocketManager] Lobby socket connection error:`, error.message);
+    });
     
     const self = this;
 
@@ -109,6 +130,16 @@ export class SocketManager extends EventEmitter {
     
     this.game.on(GameMsg.PLAYERS_UPDATE, (payload: any) => {
       self.emit(GameMsg.PLAYERS_UPDATE, payload);
+    });
+    
+    this.game.on(GameMsg.DEPLOYMENT_TIMER, (payload: GameDeploymentTimerPayload) => {
+      console.log('[SocketManager] Received deployment timer:', payload);
+      self.emit(GameMsg.DEPLOYMENT_TIMER, payload);
+    });
+    
+    this.game.on(GameMsg.DEPLOYMENT_STATUS, (payload: GameDeploymentStatusPayload) => {
+      console.log('[SocketManager] Received deployment status:', payload);
+      self.emit(GameMsg.DEPLOYMENT_STATUS, payload);
     });
 
     this.game.on(GameMsg.PROOFS, (msg: GameProofsPayload, ack: () => void) => {
@@ -164,11 +195,30 @@ export class SocketManager extends EventEmitter {
   }
 
   async socketsReady() {
-    while (!this._ready) {
+    console.log(`[SocketManager] Waiting for sockets to be ready...`);
+    let waitTime = 0;
+    const maxWaitTime = 10000; // 10 seconds max wait
+    
+    while (!this._ready && waitTime < maxWaitTime) {
       await passTime(100);
-      if (this._lobbyReady() && this._gameReady()) {
+      waitTime += 100;
+      const lobbyReady = this._lobbyReady();
+      const gameReady = this._gameReady();
+      
+      if (waitTime % 1000 === 0) { // Log every second
+        console.log(`[SocketManager] Waiting ${waitTime}ms - Lobby: ${lobbyReady ? 'READY' : 'NOT READY'}, Game: ${gameReady ? 'READY' : 'NOT READY'}`);
+      }
+      
+      if (lobbyReady && gameReady) {
+        console.log(`[SocketManager] Both sockets are ready!`);
         this._ready = true;
       }
+    }
+    
+    if (!this._ready) {
+      const lobbyReady = this._lobbyReady();
+      const gameReady = this._gameReady();
+      throw new Error(`Socket connection timeout after ${maxWaitTime}ms. Lobby: ${lobbyReady ? 'READY' : 'NOT READY'}, Game: ${gameReady ? 'READY' : 'NOT READY'}`);
     }
   }
     

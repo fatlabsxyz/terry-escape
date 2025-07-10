@@ -26,6 +26,8 @@ export enum GameMsg {
   FETCH_PROOFS = "game:fetch_proofs",
   PROOFS = "game:proofs",
   PLAYERS_UPDATE = "game:players_update",
+  DEPLOYMENT_TIMER = "game:deployment_timer",
+  DEPLOYMENT_STATUS = "game:deployment_status",
 }
 
 export interface GamePayload {
@@ -75,6 +77,18 @@ export interface GamePlayersUpdatePayload extends GamePayload {
     seat: PlayerSeat;
     connected: boolean;
   }>;
+}
+
+export interface GameDeploymentTimerPayload extends GamePayload {
+  timeLimit: number; // in seconds
+  startTime?: number; // timestamp when timer started
+}
+
+export interface GameDeploymentStatusPayload extends GamePayload {
+  playerId: PlayerId;
+  deployed: boolean;
+  readyCount: number;
+  totalPlayers: number;
 }
 
 export interface IGameMessage extends Message {

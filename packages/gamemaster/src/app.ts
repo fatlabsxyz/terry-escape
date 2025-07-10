@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import { nanoid } from "nanoid";
 import { AuthRequestData } from "./types.js";
 // import { relayerRouter } from "./routes/index.js";
+import { listGames, createGame, joinGame, getGameStatus } from "./api/games.js";
 
 export const FRONTEND_URLS = ["http://localhost:8000"];
 
@@ -59,6 +60,12 @@ app.post('/auth', validateAuthMiddleware, (req: Request, res: Response, next: Ne
 
   next();
 });
+
+// Game management routes
+app.get('/games', listGames);
+app.post('/games/create', createGame);
+app.post('/games/:gameId/join', joinGame);
+app.get('/games/:gameId/status', getGameStatus);
 
 // Error and 404 handling
 app.use([errorHandlerMiddleware, notFoundMiddleware]);

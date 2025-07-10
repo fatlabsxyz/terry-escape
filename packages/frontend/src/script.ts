@@ -19,6 +19,16 @@ interface CellPosition {
 
 // Connection logic
 
+// Simple username storage only
+function getStoredUsername(): string | null {
+    return localStorage.getItem('terryUsername');
+}
+
+function storeUsername(username: string): void {
+    localStorage.setItem('terryUsername', username);
+}
+
+// Legacy cookie functions for backwards compatibility
 function getCookie(name: string): string | null {
   console.log(`getting ${name} cookie`)
 
@@ -44,7 +54,8 @@ function setCookie(name: string, value: string): void {
 }
 
 // Main game logic
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    console.log("=== TERRY ESCAPE: Page loaded, checking authentication ===");
     const grid = document.getElementById("grid") as HTMLDivElement;
     const log = document.getElementById("log") as HTMLDivElement;
     const moveBtn = document.getElementById("move-btn") as HTMLButtonElement;
@@ -53,6 +64,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const joinPaywall = document.getElementById("join-paywall") as HTMLDivElement;
     const errorMessage = document.getElementById("error-message") as HTMLDivElement;
     const usernameInput = document.getElementById("username-input") as HTMLInputElement;
+    
+    // Lobby elements
+    const enterLobbyBtn = document.getElementById("enter-lobby-btn") as HTMLButtonElement;
+    const lobbySection = document.getElementById("lobby-section") as HTMLDivElement;
+    const createRoomBtn = document.getElementById("create-room-btn") as HTMLButtonElement;
+    const refreshBtn = document.getElementById("refresh-btn") as HTMLButtonElement;
+    const gameList = document.getElementById("game-list") as HTMLDivElement;
+    const noGamesDiv = document.getElementById("no-games") as HTMLDivElement;
     
     // New UI elements
     const playerCountDisplay = document.getElementById("player-count") as HTMLSpanElement;
@@ -72,6 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const playerDeadOverlay = document.getElementById("player-dead-overlay") as HTMLDivElement;
     const turnTimer = document.getElementById("turn-timer") as HTMLDivElement;
     const timerDisplay = document.getElementById("timer-display") as HTMLDivElement;
+    const gameNameDisplay = document.getElementById("game-name-display") as HTMLDivElement;
+    const gameNameValue = document.getElementById("game-name-value") as HTMLSpanElement;
 
     let agents: Agent[] = [];
     let turn: number = 0;
@@ -90,6 +111,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let myUsername: string = "Player";
     let turnTimerInterval: any = null;
     let turnTimeRemaining: number = 30;
+    let currentGameId: string | null = null;
+    let currentGameName: string | null = null;
+    let authToken: string | null = null;
+    let deploymentTimerInterval: any = null;
+    let deploymentTimeRemaining: number = 60;
     
     const playerColors = ["red", "blue", "green", "yellow"];
     const playerNames = ["Player 1", "Player 2", "Player 3", "Player 4"];
@@ -143,28 +169,36 @@ document.addEventListener("DOMContentLoaded", () => {
             tutorialModal.style.display = "none";
         }
     });
+    
+    // Check for stored username
+    const storedUsername = getStoredUsername();
+    if (storedUsername) {
+        usernameInput.value = storedUsername;
+        myUsername = storedUsername;
+    }
+    
 
-    joinBtn.addEventListener("click", async () => {
-       const username = usernameInput.value.trim() || "Player";
-       myUsername = username;
+    // Setup interfacer and all event listeners
+    function setupInterfacer() {
        interfacer = Interfacer.getInstance();
-       joinPaywall.style.display = "none";
        
-       // Try to start music on join
-       if (!musicPlaying) {
-           bgMusic.play().then(() => {
-               musicPlaying = true;
-               musicToggle.classList.remove("muted");
-           }).catch(err => {
-               console.log("Auto-play failed:", err);
-           });
-       }
-
        interfacer.on(IfEvents.Connect, event => {
+           console.log("=== CONNECT EVENT RECEIVED ===", event);
            board = new Board(event.seat);
            mySeat = event.seat;
            logMessage(`CONNECTED: You are player ${event.seat + 1}`, "action");
+           
+           // Display game name
+           if (currentGameName) {
+               logMessage(`GAME: ${currentGameName.toUpperCase()} (ID: ${currentGameId})`, "action");
+               gameNameDisplay.style.display = "block";
+               gameNameValue.textContent = currentGameName.toUpperCase();
+           }
+           
            logMessage(`MPC SETUP: Initializing cryptographic parameters...`, "action");
+           
+           // Show deployment cells
+           console.log("Deployment indices:", board.allowedPlacementIndices);
            board.allowedPlacementIndices.forEach(index => {
                if (grid.children[index]) {
                    (grid.children[index] as HTMLElement).classList.add("possible");
@@ -179,12 +213,19 @@ document.addEventListener("DOMContentLoaded", () => {
            });
            updatePlayerCount();
            updatePlayerBoard();
+           updateTutorial(); // Update tutorial to show deployment phase
        });
 
        interfacer.on(IfEvents.Turn, event => {
            turn = event.round;
 	   mustAct = event.active;
            logMessage(`TURN ${turn}`, "turn");
+           
+           // Stop deployment timer when game starts (turn 1)
+           if (turn === 1) {
+               stopDeploymentTimer();
+           }
+           
            updateTurnDisplay();
            updateActivePlayer();
 	   updateTutorial();
@@ -204,8 +245,12 @@ document.addEventListener("DOMContentLoaded", () => {
            // Start or stop timer based on whether it's my turn
            if (mustAct && turn > 0) {
                startTurnTimer();
+               // Add visual feedback for active turn
+               document.body.classList.add('active-turn');
            } else {
                stopTurnTimer();
+               // Remove visual feedback when not active
+               document.body.classList.remove('active-turn');
                // If it's not our turn and game has started, show MPC progress
                if (turn > 0 && !mustAct) {
                    showMPCProgress();
@@ -367,6 +412,29 @@ document.addEventListener("DOMContentLoaded", () => {
            }
        });
        
+       // Add Deployment Timer event handler
+       interfacer.on(IfEvents.DeploymentTimer, event => {
+           if (event && event.timeLimit) {
+               console.log("Deployment Timer Started:", event);
+               logMessage(`DEPLOYMENT PHASE: ${event.timeLimit} seconds to deploy your agents!`, "turn");
+               startDeploymentTimer(event.timeLimit);
+           }
+       });
+       
+       // Add Deployment Status event handler
+       interfacer.on(IfEvents.DeploymentStatus, event => {
+           if (event) {
+               console.log("Deployment Status:", event);
+               logMessage(`PLAYER DEPLOYED: ${event.readyCount}/${event.totalPlayers} players ready`, "action");
+               
+               // Update the phase display
+               if (event.readyCount === event.totalPlayers) {
+                   updateGamePhase("STARTING...");
+                   logMessage("ALL PLAYERS READY - GAME STARTING!", "turn");
+               }
+           }
+       });
+       
        // Add Winner event handler
        interfacer.on(IfEvents.Winner, event => {
            if (event && event.winner !== undefined && event.leaderboard) {
@@ -398,29 +466,270 @@ document.addEventListener("DOMContentLoaded", () => {
                logMessage(`ZK/MPC: ${message}`, "action");
            }
        });
-
-       document.getElementById("join-paywall")!.remove();
-
-try {
-    const token = getCookie("auth");
-    const url = "http://0.0.0.0:2448";
-
-    if (token != null) {
-        connect(token, url, "0");
-    } else {
-        const newToken = await getNewToken(username, url);
-        if (newToken) {
-            setCookie("auth", newToken);
-            await connect(newToken, url, "0");
-        } else {
-            console.error("Could not get new auth token")
+    }
+    
+    // Lobby functions
+    async function refreshGameList() {
+        try {
+            const response = await fetch('http://localhost:2448/games');
+            const data = await response.json();
+            
+            gameList.innerHTML = '';
+            
+            if (data.games && data.games.length > 0) {
+                noGamesDiv.style.display = 'none';
+                
+                data.games.forEach((game: any) => {
+                    const gameRoom = createGameRoomElement(game);
+                    gameList.appendChild(gameRoom);
+                });
+            } else {
+                noGamesDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Failed to fetch games:', error);
+            gameList.innerHTML = '<p style="color: #ff0000;">Failed to load games</p>';
         }
     }
-
-} catch (e) {
-    console.error("Client failed to initialize");
-}
+    
+    function createGameRoomElement(game: any): HTMLDivElement {
+        const gameRoom = document.createElement('div');
+        gameRoom.className = 'game-room';
+        
+        // Check if this was our previous game
+        if (game.id === currentGameId) {
+            gameRoom.classList.add('previous-game');
+        }
+        
+        // Create player icons
+        const playerIcons = '👥'.repeat(game.playerCount) + '⬜'.repeat(game.maxPlayers - game.playerCount);
+        
+        const canJoin = game.status === 'waiting' && game.playerCount < game.maxPlayers;
+        
+        gameRoom.innerHTML = `
+            <div class="game-info">
+                <div class="game-name">${game.name}</div>
+                <div class="game-details">
+                    <div class="player-count">
+                        <span>Players: ${game.playerCount}/${game.maxPlayers}</span>
+                        <span class="player-icons">${playerIcons}</span>
+                    </div>
+                    <div class="game-id">ID: ${game.id}</div>
+                    <div class="game-status">Status: ${game.status}</div>
+                </div>
+            </div>
+            <button class="action-btn join-game-btn" ${!canJoin ? 'disabled' : ''} data-game-id="${game.id}">
+                ${game.status === 'in_progress' ? 'IN PROGRESS' : game.playerCount >= game.maxPlayers ? 'FULL' : 'JOIN'}
+            </button>
+        `;
+        
+        // Add join handler
+        const joinGameBtn = gameRoom.querySelector('.join-game-btn') as HTMLButtonElement;
+        if (canJoin) {
+            joinGameBtn.addEventListener('click', async () => {
+                // Disable button while joining
+                joinGameBtn.disabled = true;
+                joinGameBtn.textContent = 'JOINING...';
+                
+                try {
+                    await joinGame(game.id);
+                } catch (error) {
+                    // Re-enable button if join fails
+                    joinGameBtn.disabled = false;
+                    joinGameBtn.textContent = 'JOIN';
+                    console.error('Failed to join game:', error);
+                    alert(error.message || 'Failed to join game');
+                }
+            });
+        }
+        
+        return gameRoom;
+    }
+    
+    async function createRoom() {
+        try {
+            if (!authToken) {
+                console.error('No auth token available');
+                return;
+            }
+            
+            const response = await fetch('http://localhost:2448/games/create', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to create game');
+            }
+            
+            const data = await response.json();
+            console.log('Created game:', data);
+            
+            // Store the game name when creating
+            currentGameName = data.gameName;
+            
+            // Join the newly created game
+            await joinGame(data.gameId);
+        } catch (error) {
+            console.error('Failed to create room:', error);
+            alert('Failed to create game room');
+        }
+    }
+    
+    async function joinGame(gameId: string) {
+        try {
+            if (!authToken) {
+                console.error('No auth token available');
+                return;
+            }
+            
+            // First, check the current game status to ensure it's not full
+            const statusResponse = await fetch(`http://localhost:2448/games/${gameId}/status`);
+            if (statusResponse.ok) {
+                const gameStatus = await statusResponse.json();
+                console.log(`Current game status before join:`, gameStatus);
+                if (gameStatus.playerCount >= gameStatus.maxPlayers) {
+                    throw new Error('Game is already full');
+                }
+            }
+            
+            const response = await fetch(`http://localhost:2448/games/${gameId}/join`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                // If game is full, refresh the game list
+                if (error.error === 'Game is full') {
+                    await refreshGameList();
+                }
+                throw new Error(error.error || 'Failed to join game');
+            }
+            
+            const data = await response.json();
+            console.log('Joined game:', data);
+            
+            // Store current game ID and name
+            currentGameId = gameId;
+            currentGameName = data.gameName;
+            
+            // Setup the game interface first
+            setupInterfacer();
+            
+            // Connect to the game via socket
+            console.log(`Attempting to connect to game ${gameId} via socket...`);
+            try {
+                await connectWithAuth(authToken, myUsername, gameId);
+                console.log(`Successfully connected to game ${gameId}`);
+                
+                // Only hide the lobby after successful connection
+                joinPaywall.style.display = "none";
+                joinPaywall.style.setProperty("display", "none", "important");
+            } catch (error) {
+                console.error(`Failed to establish socket connection to game ${gameId}:`, error);
+                throw error;
+            }
+            
+            // Start music
+            if (!musicPlaying) {
+                bgMusic.play().then(() => {
+                    musicPlaying = true;
+                    musicToggle.classList.remove("muted");
+                }).catch(err => {
+                    console.log("Auto-play failed:", err);
+                });
+            }
+        } catch (error) {
+            console.error('Failed to join game:', error);
+            alert(error.message || 'Failed to join game');
+        }
+    }
+    
+    // Enter lobby button handler
+    enterLobbyBtn.addEventListener("click", async () => {
+        const username = usernameInput.value.trim() || "Player";
+        myUsername = username;
+        
+        try {
+            // Get auth token
+            const newToken = await getNewToken(username, "http://localhost:2448");
+            if (newToken) {
+                authToken = newToken;
+                
+                // Store username for next time
+                storeUsername(username);
+                
+                // Show lobby
+                enterLobbyBtn.style.display = "none";
+                lobbySection.style.display = "block";
+                
+                // Load games
+                await refreshGameList();
+            } else {
+                throw new Error("Could not get auth token");
+            }
+        } catch (error) {
+            console.error("Failed to enter lobby:", error);
+            alert("Failed to connect to server");
+        }
     });
+    
+    // Create room button handler
+    createRoomBtn.addEventListener("click", createRoom);
+    
+    // Refresh button handler
+    refreshBtn.addEventListener("click", refreshGameList);
+    
+    // Auto-refresh games every 2 seconds when in lobby
+    let refreshInterval = setInterval(() => {
+        if (lobbySection.style.display !== 'none' && joinPaywall.style.display !== 'none') {
+            refreshGameList();
+        }
+    }, 2000);
+    
+    // Old join button is no longer used - we use the lobby system now
+    
+    // Helper function to handle connection logic
+    async function connectWithAuth(existingToken: string | null, username: string, gameId?: string) {
+        const url = "http://localhost:2448";
+        const gameIdToUse = gameId || currentGameId || "0";
+        
+        try {
+            if (existingToken) {
+                // Try to use existing token
+                console.log('Connecting with existing token to:', url);
+                console.log('Game ID:', gameIdToUse);
+                console.log('Token preview:', existingToken.substring(0, 20) + '...');
+                await connect(existingToken, url, gameIdToUse);
+                console.log('Successfully connected with existing token');
+            } else {
+                // Get new token
+                console.log('Getting new auth token for:', username);
+                const newToken = await getNewToken(username, url);
+                if (newToken) {
+                    // Parse the JWT to get player ID
+                    const tokenParts = newToken.split('.');
+                    const payload = JSON.parse(atob(tokenParts[1]));
+                    storeAuth(newToken, payload.id, username);
+                    setCookie("auth", newToken); // Keep cookie for backwards compatibility
+                    await connect(newToken, url, gameIdToUse);
+                    console.log('Successfully connected with new token');
+                } else {
+                    throw new Error("Could not get auth token");
+                }
+            }
+        } catch (error) {
+            console.error("Connection failed:", error);
+            throw error;
+        }
+    }
 
     moveBtn.addEventListener("click", () => {
         if (turn > 0 && mustAct) {
@@ -499,6 +808,10 @@ try {
                     updateTurnDisplay();
                     updateTutorial();
                     
+                    // Stop deployment timer for this player
+                    stopDeploymentTimer();
+                    logMessage("YOUR DEPLOYMENT COMPLETE - WAITING FOR OTHERS", "action");
+                    
                     // Update my status to playing
                     if (players.has(mySeat)) {
                         players.get(mySeat)!.status = 'playing';
@@ -544,6 +857,7 @@ try {
                     interfacer.emit(IfEvents.Action, { reason, target: targeted, trap: actionMode === "trap" });
                     mustAct = false;
                     stopTurnTimer(); // Stop the timer when action is taken
+                    document.body.classList.remove('active-turn'); // Remove active turn visual
                     updateActivePlayer();
                     
                     // Log the MPC operations that will happen
@@ -965,8 +1279,55 @@ try {
         }
     }
     
+    function startDeploymentTimer(timeLimit: number): void {
+        deploymentTimeRemaining = timeLimit;
+        turnTimer.style.display = 'block';
+        timerDisplay.textContent = deploymentTimeRemaining.toString();
+        timerDisplay.classList.remove('warning');
+        
+        // Update the timer label for deployment phase
+        const timerLabel = document.querySelector('.timer-label') as HTMLDivElement;
+        if (timerLabel) {
+            timerLabel.textContent = 'DEPLOYMENT TIME';
+        }
+        
+        if (deploymentTimerInterval) {
+            clearInterval(deploymentTimerInterval);
+        }
+        
+        deploymentTimerInterval = setInterval(() => {
+            deploymentTimeRemaining--;
+            timerDisplay.textContent = deploymentTimeRemaining.toString();
+            
+            if (deploymentTimeRemaining <= 10) {
+                timerDisplay.classList.add('warning');
+            }
+            
+            if (deploymentTimeRemaining <= 0) {
+                clearInterval(deploymentTimerInterval);
+                deploymentTimerInterval = null;
+                stopDeploymentTimer();
+                logMessage("DEPLOYMENT TIME UP!", "elimination");
+            }
+        }, 1000);
+    }
+    
+    function stopDeploymentTimer(): void {
+        turnTimer.style.display = 'none';
+        if (deploymentTimerInterval) {
+            clearInterval(deploymentTimerInterval);
+            deploymentTimerInterval = null;
+        }
+        // Reset the timer label
+        const timerLabel = document.querySelector('.timer-label') as HTMLDivElement;
+        if (timerLabel) {
+            timerLabel.textContent = 'TIME REMAINING';
+        }
+    }
+    
     function showGameOver(winnerId: string, leaderboard: any[]): void {
         gameOverOverlay.style.display = 'flex';
+        currentGameId = null;
         
         // Debug logging
         console.log("Game Over - Winner ID:", winnerId);

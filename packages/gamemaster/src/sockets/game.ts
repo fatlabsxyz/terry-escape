@@ -4,6 +4,7 @@ import { Namespace, Server, Socket } from 'socket.io';
 import { getGameOrNewOne, PlayerStatus } from '../game.js';
 import jwt from 'jsonwebtoken';
 import { PlayerStorage } from '../playerStorage.js';
+import GameManager from '../gameManager.js';
 
 type Ack = () => void;
 
@@ -208,21 +209,54 @@ export function addGameNamespace(server: Server): Server {
   });
 
   gameNsp.on('connection', async (socket) => {
+    // Extract game ID from namespace
+    const namespacePath = socket.nsp.name;
+    const gameId = namespacePath.split('/').pop();
     
-    const game = getGameOrNewOne(socket.nsp);
-    registerGameHandlers(socket);
+    if (!gameId) {
+      socket.disconnect();
+      return;
+    }
 
-    console.log(`GAME-NSP: [${socket.id}] User connection`);
+    // Check if game exists in game manager
+    const gameManager = GameManager.getInstance();
+    const gameRoom = gameManager.getGame(gameId);
+    
+    if (!gameRoom) {
+      console.log(`GAME-NSP: Game ${gameId} not found`);
+      socket.disconnect();
+      return;
+    }
+
+    console.log(`GAME-NSP: [${socket.id}] User connection to game ${gameId}`);
     
     const playerId = socket.data.id;
-        
+    const username = socket.data.name;
+    
+    // Add player to game room (or update their socket ID if already in game)
+    const added = gameManager.addPlayerToGame(gameId, playerId, username, socket.id);
+    
+    if (!added) {
+      console.log(`GAME-NSP: Failed to add player ${playerId} to game ${gameId}`);
+      socket.disconnect();
+      return;
+    }
+    
+    // Re-fetch the game room to ensure we have the latest state
+    const updatedGameRoom = gameManager.getGame(gameId);
+    if (!updatedGameRoom) {
+      console.log(`GAME-NSP: Game ${gameId} disappeared!`);
+      socket.disconnect();
+      return;
+    }
 
+    // Handle player storage
     let player: string | PlayerProps = playerStorage.getPlayer(playerId);
     if (player === Err.NOT_FOUND){
       player = {
         id: playerId,
         sid: socket.id,
-        name: socket.data.name,
+        name: username,
       } as PlayerProps
       console.log("player connected for the first time: ", player);
       playerStorage.addPlayer(player);
@@ -231,13 +265,59 @@ export function addGameNamespace(server: Server): Server {
       playerStorage.updatePlayerSid(playerId, socket.id);
     }
 
-    const p = player as PlayerProps;
+    // Register handlers for this socket
+    registerGameHandlers(socket);
+    
+    // Get or create the game instance
+    const game = getGameOrNewOne(socket.nsp);
+    
+    // Add this player to the game instance immediately
+    // This will trigger broadcastPlayersUpdate
+    game.addPlayer(playerId as PlayerId);
+    
+    // Check if all 4 players are connected via socket
+    // Use a small delay to ensure socket data is fully updated
+    setTimeout(() => {
+      const currentGameRoom = gameManager.getGame(gameId);
+      if (!currentGameRoom) return;
+      
+      if (currentGameRoom.players.size === 4 && currentGameRoom.status === 'waiting') {
+        // Count how many players have socket connections
+        let connectedCount = 0;
+        const socketDetails = [];
+        
+        for (const [pid, playerData] of currentGameRoom.players) {
+          if (playerData.socketId) {
+            connectedCount++;
+            socketDetails.push(`${playerData.username} (${pid}): ${playerData.socketId}`);
+          } else {
+            socketDetails.push(`${playerData.username} (${pid}): NO SOCKET`);
+          }
+        }
+        
+        console.log(`GAME-NSP: Game ${gameId} socket status:`);
+        socketDetails.forEach(detail => console.log(`  - ${detail}`));
+        console.log(`GAME-NSP: Total connected: ${connectedCount}/4`);
+        
+        // Only start when all 4 are connected
+        if (connectedCount === 4) {
+          gameManager.updateGameStatus(gameId, 'in_progress');
+          console.log(`GAME-NSP: All 4 players connected, game ${gameId} started!`);
+          
+          // Send AllPlayersConnected event to trigger deployment timer
+          game.gameMachine.send({ type: 'AllPlayersConnected' });
+        } else {
+          console.log(`GAME-NSP: Waiting for more connections (${connectedCount}/4)`);
+        }
+      }
+    }, 100); // 100ms delay to ensure socket data is propagated
 
-    game.addPlayer(p.id as PlayerId);
-    console.log(`welcome ${p.name} with id ${p.id} :\) \n and socketId ${p.sid}`);
+    console.log(`welcome ${username} with id ${playerId} to game ${gameId}`);
     
     socket.on("disconnect", async (reason) => {
-      console.log(`SOCKET ${socket.id}, ${socket.data.name}, DISCONNECT: ${reason}`);
+      console.log(`SOCKET ${socket.id}, ${socket.data.name}, DISCONNECT from game ${gameId}: ${reason}`);
+      // Note: We don't remove the player from the game on disconnect
+      // They can reconnect
     });
   });
  

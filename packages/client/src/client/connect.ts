@@ -16,13 +16,17 @@ export async function getNewToken(name: string, url: string) {
 }
 
 export async function connect(token: string, url: string, gameId: string): Promise<Interfacer> {
+  console.log(`[connect] Starting connection to ${url} for game ${gameId}`);
+  
   const sockets = new SocketManager({
     serverUrl: url,
     token: token,
     gameId: gameId, 
   });
 
+  console.log(`[connect] SocketManager created, waiting for sockets to be ready...`);
   await sockets.socketsReady();
+  console.log(`[connect] Sockets are ready!`);
 
   const zklib = new ZkLib();
   // const zklib = new ZkLibMock();
@@ -31,7 +35,9 @@ export async function connect(token: string, url: string, gameId: string): Promi
 
   const client = new GameClient(sockets, zklib);
 
+  console.log(`[connect] Starting game client...`);
   await client.play();
+  console.log(`[connect] Game client started successfully`);
 
   
   return interfacer

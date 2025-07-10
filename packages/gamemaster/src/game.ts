@@ -1,4 +1,4 @@
-import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, LeaderBoard, Position, GameEndMsg, Turn, GamePlayersUpdatePayload } from 'client';
+import { PlayerId, GameMsg, TurnInfo, PlayerSeat, SocketId, LeaderBoard, Position, GameEndMsg, Turn, GamePlayersUpdatePayload, GameDeploymentTimerPayload, GameDeploymentStatusPayload } from 'client';
 import { GameNsp } from './sockets/game.js';
 import { Actor, setup, createActor, assign, AnyEventObject, fromPromise, DoneActorEvent, emit } from 'xstate';
 import { PlayerStorage } from './playerStorage.js';
@@ -25,7 +25,8 @@ enum Events {
   PlayerReady = "PlayerReady",
   AllPlayersReadyToStart = "AllPlayerReadyToStart",
   AllPlayersDead = "AllPlayersDied",
-  GameEnded = "GameEnded"
+  GameEnded = "GameEnded",
+  AllPlayersConnected = "AllPlayersConnected"
 }
 
 enum Guards {
@@ -44,7 +45,9 @@ enum Actions {
   cleanup = "cleanup",
   emitSeat = "emitSeat",
   emitTurn = "emitTurn",
-  endGame = "endGame"
+  endGame = "endGame",
+  startDeploymentTimer = "startDeploymentTimer",
+  broadcastDeploymentTimer = "broadcastDeploymentTimer"
 }
 
 type PlayerData = { 
@@ -92,7 +95,9 @@ interface Context {
   round: Map<PlayerId, boolean>;
   activePlayer: PlayerId;
   nextPlayer: PlayerId;
-  turnInfo: TurnInfo
+  turnInfo: TurnInfo;
+  deploymentStartTime?: number;
+  deploymentTimeLimit: number; // in seconds
 }
 
 interface ActionInput {
@@ -167,6 +172,7 @@ export class Game {
       turn: 0,
       activePlayer: "",
       nextPlayer: "",
+      deploymentTimeLimit: 60, // 60 seconds for deployment phase
     }
     return {
       ...context,
@@ -294,7 +300,7 @@ export class Game {
   }
 
   turnInfoFromContext(context: Omit<Context, 'turnInfo'>): TurnInfo {
-    const { turn, round, activePlayer, nextPlayer,  } = context;
+    const { turn, round, activePlayer, nextPlayer } = context;
     return {
       turn,
       round,
@@ -394,7 +400,9 @@ export class Game {
 
     const newContext = {
       ...justContext,
-      turnInfo: this.turnInfoFromContext(justContext)
+      turnInfo: this.turnInfoFromContext(justContext),
+      deploymentTimeLimit: context.deploymentTimeLimit,
+      deploymentStartTime: context.deploymentStartTime
     };
 
     return newContext;
@@ -466,6 +474,15 @@ export class Game {
 
   async broadcastQueryWaiting(): Promise<{ player: string, waiting: boolean }[]> {
     return await this.nsp.timeout(this.broadcastTimeout).emitWithAck(GameMsg.WAITING);
+  }
+  
+  broadcastDeploymentTimerStart(timeLimit: number) {
+    const payload: GameDeploymentTimerPayload = {
+      timeLimit,
+      startTime: Date.now()
+    };
+    console.log(`Broadcasting deployment timer start: ${timeLimit} seconds`);
+    this.nsp.emit(GameMsg.DEPLOYMENT_TIMER, payload);
   }
   
   private broadcastPlayersUpdate() {
@@ -582,6 +599,19 @@ export class Game {
         let playerStatus = players.get(playerId);
         playerStatus!.ready = true;
         players.set(playerId, playerStatus!);
+        
+        // Broadcast deployment status to all players
+        const readyCount = Array.from(players.values()).filter(p => p.ready).length;
+        const deploymentStatus: GameDeploymentStatusPayload = {
+          playerId,
+          deployed: true,
+          readyCount,
+          totalPlayers: players.size
+        };
+        
+        this.log(`Player ${playerId} deployed - ${readyCount}/${players.size} ready`);
+        this.nsp.emit(GameMsg.DEPLOYMENT_STATUS, deploymentStatus);
+        
         return { players }
       } else return {}
     }
@@ -618,7 +648,14 @@ export class Game {
         msgBox.emit(MsgEvents.PLAYERS, playerStatuses)
       }
       const playersReady = Array.from(context.players.values()).map(p => ({ id: p.id, ready: p.ready }));
-      console.log("allPlayersReadyGuard - players:", context.players.size, "minPlayers:", context.minPlayers, "ready status:", playersReady);
+      const readyCount = playersReady.filter(p => p.ready).length;
+      console.log(`allPlayersReadyGuard - players: ${context.players.size}/${context.minPlayers}, ready: ${readyCount}/${context.players.size}`, playersReady);
+      
+      // If all players are ready, log that the game is starting
+      if (context.players.size >= context.minPlayers && Array.from(context.players.values()).every(x => x.ready)) {
+        console.log("ALL PLAYERS READY - STARTING GAME!");
+      }
+      
       return context.players.size >= context.minPlayers &&
         Array.from(context.players.values()).every(x => x.ready)
     }
@@ -642,6 +679,13 @@ export class Game {
         [Actions.emitTurn]:             assign(emitTurnAction),
         [Actions.updatePlayers]:        assign(updatePlayersAction),
         [Actions.cleanup]:              assign(cleanupAction),
+        [Actions.startDeploymentTimer]: assign(({ context }) => {
+          console.log("Starting deployment timer - 60 seconds!");
+          const deploymentStartTime = Date.now();
+          // Broadcast deployment timer start to all players
+          this.broadcastDeploymentTimerStart(context.deploymentTimeLimit);
+          return { deploymentStartTime };
+        }),
       },
       guards: {
         [Guards.gameEnded]: ({context}) => {
@@ -685,9 +729,12 @@ export class Game {
                 target: GameState.setup,
                 reenter: true,
               },
+              [Events.AllPlayersConnected]: {
+                actions: [{ type: Actions.startDeploymentTimer }],
+              },
             },
             after: {
-              10_000: [ // 10x: was 1_000
+              1_000: [ // Check every second if all players are ready
                 {
                   guard: Guards.allPlayersReady,
                   target: GameState.updateTurn,
@@ -752,12 +799,12 @@ export class Game {
           [GameState.end]: {
             type: 'final',
             entry: [{ type: Actions.log, params: GameState.end}],
-            output: (context) => {
+            output: ({ context }) => {
               console.log("GAME ENDED, WINNER: ", this.winner);
               console.log("FINAL LEADERBOARD:", this.leaderboard);
               
               // Get the turn from the last entry (the winner) or from context
-              const turn = this.leaderboard[this.leaderboard.length - 1]?.turn || context.turn;
+              const turn = this.leaderboard[this.leaderboard.length - 1]?.turn || context.turnInfo.turn;
               
               // Reverse leaderboard so winner is first
               const leaderboard = [...this.leaderboard].reverse();
@@ -784,7 +831,10 @@ export class Game {
 export const Games: Map<string, Game> = new Map();
 
 export function getGameOrNewOne(nsp: GameNsp): Game {
-  const gameId = nsp.name;
+  // Extract just the game ID from the namespace path (e.g., /game/ABC123 -> ABC123)
+  const namespacePath = nsp.name;
+  const gameId = namespacePath.split('/').pop() || namespacePath;
+  
   let game = Games.get(gameId);
   if (game === undefined) {
     game = new Game(gameId, nsp);

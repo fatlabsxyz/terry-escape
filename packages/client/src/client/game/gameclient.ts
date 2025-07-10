@@ -621,6 +621,16 @@ export class GameClient {
       console.log("PLAYERS_UPDATE received:", payload);
       this.interfacer.emit(IfEvents.PlayersUpdate, payload);
     });
+    
+    this.sockets.on(GameMsg.DEPLOYMENT_TIMER, (payload: any) => {
+      console.log("DEPLOYMENT_TIMER received:", payload);
+      this.interfacer.emit(IfEvents.DeploymentTimer, payload);
+    });
+    
+    this.sockets.on(GameMsg.DEPLOYMENT_STATUS, (payload: any) => {
+      console.log("DEPLOYMENT_STATUS received:", payload);
+      this.interfacer.emit(IfEvents.DeploymentStatus, payload);
+    });
 
     /*///////////////////////////////////////////////////////////////
                             MACHINE ACTIONS
