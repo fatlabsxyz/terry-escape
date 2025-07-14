@@ -144,7 +144,7 @@ export class Game {
 
   constructor(readonly playerId: string, nsp: GameNsp, options?: {}) {
     this.nsp = nsp;
-    this.broadcastTimeout = 30_000; // 30 seconds is more reasonable
+    this.broadcastTimeout = 300_000; // 5 minutes // 30 seconds is more reasonable
     this.minPlayers = 4;
     this.playerStorage = PlayerStorage.getInstance();
     this.msgBox = MessageBox.getInstance();

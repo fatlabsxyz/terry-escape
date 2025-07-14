@@ -190,7 +190,7 @@ export function addGameNamespace(server: Server): Server {
   // nsp ~ /game/V1StGXR8_Z5jdHi6B2myT
   const gameNsp: GameNsp = server.of(/^\/game\/[a-zA-Z0-9_\-]+$/);
  
-  const SECRET_KEY = 'test-key';
+  const SECRET_KEY = process.env.JWT_SECRET || 'test-key';
   gameNsp.use((socket, next) => {
     if (!socket.handshake.auth.token) {
       return next(new Error ('No player token provided'));

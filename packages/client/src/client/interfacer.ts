@@ -35,7 +35,7 @@ export type Connection = {
   seat: PlayerSeat;
 };
 
-const TIMEOUT = 28_000;
+const TIMEOUT = 300_000; // 5 minutes
 
 export class Interfacer extends EventEmitter {
  
@@ -75,7 +75,7 @@ export class Interfacer extends EventEmitter {
 
   waitForSeat(): Promise<PlayerSeat> {
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout waiting for seat assignment')), TIMEOUT);
       while (true) { 
         console.log("\n\nWAITING FOR SEAT ON FRONTEND", this.seat)
         const recieved = (this.seat !== undefined);
@@ -87,7 +87,7 @@ export class Interfacer extends EventEmitter {
 
   waitForDeploy(): Promise<Locations> {
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout waiting for deployment')), TIMEOUT);
       while (true) { 
         const recieved = (this.deploys !== undefined);
         if (recieved) { break; } else { await passTime(300); }
@@ -98,7 +98,7 @@ export class Interfacer extends EventEmitter {
 
   waitForAction(): Promise<TurnAction> {
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout waiting for action')), TIMEOUT);
       while (true) { 
         const recieved = (this.action !== undefined);
         if (recieved) { break; } else { await passTime(300); }
@@ -110,7 +110,7 @@ export class Interfacer extends EventEmitter {
 
   waitForImpact(): Promise<Impact> {
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout waiting for impact')), TIMEOUT);
       while (true) { 
         const recieved = (this.impact !== undefined);
         if (recieved) { break; } else { await passTime(300); }
@@ -122,7 +122,7 @@ export class Interfacer extends EventEmitter {
 
   waitForCollision(): Promise<Collision> {
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout waiting for collision')), TIMEOUT);
       while (true) { 
         const recieved = (this.collision !== undefined);
         if (recieved) { break; } else { await passTime(300); }

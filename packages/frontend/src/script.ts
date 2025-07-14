@@ -53,6 +53,19 @@ function setCookie(name: string, value: string): void {
   document.cookie = `${name}=${encodeURIComponent(value)}${expires}; path=/; SameSite=Strict`;
 }
 
+// Determine the API server URL dynamically
+const getServerUrl = () => {
+    // If we're on localhost, use localhost
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:2448';
+    }
+    // Otherwise, use the same host but on port 2448
+    return `http://${window.location.hostname}:2448`;
+};
+
+const SERVER_URL = getServerUrl();
+console.log("=== TERRY ESCAPE: Using server URL:", SERVER_URL, "===");
+
 // Main game logic
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("=== TERRY ESCAPE: Page loaded, checking authentication ===");
@@ -110,12 +123,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     let markedCells: Set<number> = new Set(); // Track cells with visual effects
     let myUsername: string = "Player";
     let turnTimerInterval: any = null;
-    let turnTimeRemaining: number = 30;
+    let turnTimeRemaining: number = 300; // 5 minutes
     let currentGameId: string | null = null;
     let currentGameName: string | null = null;
     let authToken: string | null = null;
     let deploymentTimerInterval: any = null;
     let deploymentTimeRemaining: number = 60;
+    let deploymentAllowed: boolean = false; // Only allow deployment after all 4 players join
     
     const playerColors = ["red", "blue", "green", "yellow"];
     const playerNames = ["Player 1", "Player 2", "Player 3", "Player 4"];
@@ -197,13 +211,17 @@ document.addEventListener("DOMContentLoaded", async () => {
            
            logMessage(`MPC SETUP: Initializing cryptographic parameters...`, "action");
            
-           // Show deployment cells
+           // Show deployment cells but add waiting class
            console.log("Deployment indices:", board.allowedPlacementIndices);
            board.allowedPlacementIndices.forEach(index => {
                if (grid.children[index]) {
-                   (grid.children[index] as HTMLElement).classList.add("possible");
+                   const cell = grid.children[index] as HTMLElement;
+                   cell.classList.add("possible");
+                   cell.classList.add("deployment-waiting"); // Visual indicator that deployment is locked
                }
 	   });
+           
+           updateGamePhase("WAITING FOR ALL PLAYERS (1/4)");
            
            // Mark myself as connected
            players.set(mySeat, {
@@ -409,6 +427,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                
                updatePlayerCount();
                updatePlayerBoard();
+               
+               // Update game phase to show player count
+               const connectedCount = event.players.filter((p: any) => p.connected).length;
+               if (connectedCount < 4) {
+                   updateGamePhase(`WAITING FOR ALL PLAYERS (${connectedCount}/4)`);
+               } else if (!deploymentAllowed) {
+                   updateGamePhase("ALL PLAYERS CONNECTED - STARTING...");
+               }
            }
        });
        
@@ -417,7 +443,16 @@ document.addEventListener("DOMContentLoaded", async () => {
            if (event && event.timeLimit) {
                console.log("Deployment Timer Started:", event);
                logMessage(`DEPLOYMENT PHASE: ${event.timeLimit} seconds to deploy your agents!`, "turn");
+               deploymentAllowed = true; // Enable deployment now that all players joined
+               
+               // Remove the waiting class from deployment cells
+               document.querySelectorAll('.deployment-waiting').forEach(cell => {
+                   cell.classList.remove('deployment-waiting');
+               });
+               
                startDeploymentTimer(event.timeLimit);
+               updateGamePhase("DEPLOYMENT PHASE");
+               updateTutorial(); // Update tutorial to reflect deployment is now allowed
            }
        });
        
@@ -471,7 +506,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Lobby functions
     async function refreshGameList() {
         try {
-            const response = await fetch('http://localhost:2448/games');
+            const response = await fetch(`${SERVER_URL}/games`);
             const data = await response.json();
             
             gameList.innerHTML = '';
@@ -553,7 +588,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
             
-            const response = await fetch('http://localhost:2448/games/create', {
+            const response = await fetch(`${SERVER_URL}/games/create`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${authToken}`,
@@ -587,7 +622,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             
             // First, check the current game status to ensure it's not full
-            const statusResponse = await fetch(`http://localhost:2448/games/${gameId}/status`);
+            const statusResponse = await fetch(`${SERVER_URL}/games/${gameId}/status`);
             if (statusResponse.ok) {
                 const gameStatus = await statusResponse.json();
                 console.log(`Current game status before join:`, gameStatus);
@@ -596,7 +631,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
             
-            const response = await fetch(`http://localhost:2448/games/${gameId}/join`, {
+            const response = await fetch(`${SERVER_URL}/games/${gameId}/join`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${authToken}`,
@@ -659,7 +694,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         try {
             // Get auth token
-            const newToken = await getNewToken(username, "http://localhost:2448");
+            const newToken = await getNewToken(username, SERVER_URL);
             if (newToken) {
                 authToken = newToken;
                 
@@ -698,7 +733,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     // Helper function to handle connection logic
     async function connectWithAuth(existingToken: string | null, username: string, gameId?: string) {
-        const url = "http://localhost:2448";
+        const url = SERVER_URL;
         const gameIdToUse = gameId || currentGameId || "0";
         
         try {
@@ -789,6 +824,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const col = index % 4;
 
         if (turn === 0 && cell.classList.contains('possible')) {
+            if (!deploymentAllowed) {
+                showError("WAITING FOR ALL PLAYERS TO JOIN (4/4)");
+                return;
+            }
             if (agents.length < maxAgents) {
                 const agent = document.createElement("div");
                 agent.className = "agent";
@@ -1246,7 +1285,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     
     function startTurnTimer(): void {
-        turnTimeRemaining = 30; // Reset timer to 30 seconds
+        turnTimeRemaining = 300; // Reset timer to 5 minutes
         turnTimer.style.display = 'block';
         timerDisplay.textContent = turnTimeRemaining.toString();
         timerDisplay.classList.remove('warning');
@@ -1259,7 +1298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             turnTimeRemaining--;
             timerDisplay.textContent = turnTimeRemaining.toString();
             
-            if (turnTimeRemaining <= 10) {
+            if (turnTimeRemaining <= 30) { // Warning at 30 seconds
                 timerDisplay.classList.add('warning');
             }
             
@@ -1299,7 +1338,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             deploymentTimeRemaining--;
             timerDisplay.textContent = deploymentTimeRemaining.toString();
             
-            if (deploymentTimeRemaining <= 10) {
+            if (deploymentTimeRemaining <= 30) { // Warning at 30 seconds
                 timerDisplay.classList.add('warning');
             }
             

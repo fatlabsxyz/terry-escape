@@ -87,41 +87,21 @@ WORKDIR /app
 # Copy built application
 COPY --from=builder /app ./
 
-# Create supervisor config
-RUN echo "[supervisord]" > /etc/supervisord.conf && \
-    echo "nodaemon=true" >> /etc/supervisord.conf && \
-    echo "logfile=/dev/null" >> /etc/supervisord.conf && \
-    echo "logfile_maxbytes=0" >> /etc/supervisord.conf && \
-    echo "" >> /etc/supervisord.conf && \
-    echo "[program:gamemaster]" >> /etc/supervisord.conf && \
-    echo "command=tsx src/index.ts" >> /etc/supervisord.conf && \
-    echo "directory=/app/packages/gamemaster" >> /etc/supervisord.conf && \
-    echo "autostart=true" >> /etc/supervisord.conf && \
-    echo "autorestart=true" >> /etc/supervisord.conf && \
-    echo "stdout_logfile=/dev/stdout" >> /etc/supervisord.conf && \
-    echo "stdout_logfile_maxbytes=0" >> /etc/supervisord.conf && \
-    echo "stderr_logfile=/dev/stderr" >> /etc/supervisord.conf && \
-    echo "stderr_logfile_maxbytes=0" >> /etc/supervisord.conf && \
-    echo "" >> /etc/supervisord.conf && \
-    echo "[program:frontend]" >> /etc/supervisord.conf && \
-    echo "command=pnpm start" >> /etc/supervisord.conf && \
-    echo "directory=/app/packages/frontend" >> /etc/supervisord.conf && \
-    echo "autostart=true" >> /etc/supervisord.conf && \
-    echo "autorestart=true" >> /etc/supervisord.conf && \
-    echo "stdout_logfile=/dev/stdout" >> /etc/supervisord.conf && \
-    echo "stdout_logfile_maxbytes=0" >> /etc/supervisord.conf && \
-    echo "stderr_logfile=/dev/stderr" >> /etc/supervisord.conf && \
-    echo "stderr_logfile_maxbytes=0" >> /etc/supervisord.conf && \
-    echo "" >> /etc/supervisord.conf && \
-    echo "[supervisorctl]" >> /etc/supervisord.conf && \
-    echo "serverurl=unix:///var/run/supervisor.sock" >> /etc/supervisord.conf && \
-    echo "" >> /etc/supervisord.conf && \
-    echo "[unix_http_server]" >> /etc/supervisord.conf && \
-    echo "file=/var/run/supervisor.sock" >> /etc/supervisord.conf && \
-    echo "" >> /etc/supervisord.conf && \
-    echo "[rpcinterface:supervisor]" >> /etc/supervisord.conf && \
-    echo "supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface" >> /etc/supervisord.conf
+# Add environment variable support
+ENV NODE_ENV=production
+ENV JWT_SECRET=change-me-in-production
+ENV FRONTEND_URL=http://localhost:8000
+ENV API_URL=http://localhost:2448
+ENV GAMEMASTER_PORT=2448
+ENV FRONTEND_PORT=8000
+
+# Copy supervisor configuration
+COPY supervisord.conf /etc/supervisord.conf
 
 EXPOSE 2448 8000
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+# Copy and use entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]

@@ -1,20 +1,28 @@
 import * as esbuild from 'esbuild';
+import { spawn } from 'child_process';
 
 const shouldServe = process.argv.includes('--start');
 
 if (shouldServe) {
-  const ctx = await esbuild.context({
+  // First build the file
+  await esbuild.build({
     entryPoints: ['src/script.ts'],
     bundle: true,
     minify: false,
     sourcemap: true,
     format: 'esm',
     platform: 'browser',
-    outfile: 'public/out.js', 
+    outfile: 'public/out.js',
   });
-  await ctx.serve({
-    servedir: 'public',
-    port: 8000,
+  
+  // Use http-server which is simpler and works well for LAN
+  const server = spawn('npx', ['http-server', 'public', '-p', '8000', '-a', '0.0.0.0', '--cors'], {
+    stdio: 'inherit'
+  });
+  
+  server.on('error', (err) => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
   });
 } else {
   await esbuild.build({

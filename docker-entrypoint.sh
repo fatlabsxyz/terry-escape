@@ -4,9 +4,14 @@ set -e
 # Update frontend to use environment variables
 if [ ! -z "$API_URL" ]; then
     echo "Updating frontend API URL to: $API_URL"
-    # Update the script.ts file with the API URL
-    sed -i "s|http://localhost:2448|$API_URL|g" /app/packages/frontend/dist/bundle.js || true
-    sed -i "s|http://localhost:2448|$API_URL|g" /app/packages/frontend/public/out.js || true
+    # Update ALL references to localhost:2448 in the frontend files
+    find /app/packages/frontend/public -name "*.js" -exec sed -i "s|http://localhost:2448|$API_URL|g" {} \;
+    find /app/packages/frontend/dist -name "*.js" -exec sed -i "s|http://localhost:2448|$API_URL|g" {} \;
+    # Also update any hardcoded localhost references
+    find /app/packages/frontend/public -name "*.js" -exec sed -i "s|'http://localhost:2448'|'$API_URL'|g" {} \;
+    find /app/packages/frontend/dist -name "*.js" -exec sed -i "s|'http://localhost:2448'|'$API_URL'|g" {} \;
+    find /app/packages/frontend/public -name "*.js" -exec sed -i "s|\"http://localhost:2448\"|\"$API_URL\"|g" {} \;
+    find /app/packages/frontend/dist -name "*.js" -exec sed -i "s|\"http://localhost:2448\"|\"$API_URL\"|g" {} \;
 fi
 
 # Create a temporary file for CORS configuration

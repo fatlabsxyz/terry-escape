@@ -186,11 +186,16 @@ export class GameClient {
   }
   
   async prepareSetup() {
-    this.playerSeatValue = await this.sockets.waitForPlayerSeat();
+    try {
+      this.playerSeatValue = await this.sockets.waitForPlayerSeat();
 
-    await this.setupGame();
-    // Start validating deploys asynchronously - don't block the ready notification
-    this.validateDeploysAsync();
+      await this.setupGame();
+      // Start validating deploys asynchronously - don't block the ready notification
+      this.validateDeploysAsync();
+    } catch (error) {
+      console.error("Error in prepareSetup:", error);
+      throw error;
+    }
   }
 
   async notifyPlayerReady() {
@@ -441,9 +446,7 @@ export class GameClient {
     const deploys = await this.sockets.waitForDeploys();
     this.log("validateDeploys: got all deploys, count:", deploys.size)
 
-    const deployList = Array.from(
-      deploys.values().map( v => v.deploys )
-    );
+    const deployList = Array.from(deploys.values()).map( v => v.deploys );
     if (this.verify) {
       this.zklib.verifyDeploys(deployList);
     }

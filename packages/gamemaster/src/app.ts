@@ -15,7 +15,7 @@ import { listGames, createGame, joinGame, getGameStatus } from "./api/games.js";
 
 export const FRONTEND_URLS = ["http://localhost:8000"];
 
-const SECRET_KEY = 'test-key';
+const SECRET_KEY = process.env.JWT_SECRET || 'test-key';
 
 // Initialize the express app
 const app: express.Express = express();

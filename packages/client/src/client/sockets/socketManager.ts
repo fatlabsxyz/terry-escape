@@ -290,7 +290,7 @@ export class SocketManager extends EventEmitter {
 
   async waitForPlayerSeat(): Promise<PlayerSeat> {
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout waiting for player seat from server')), TIMEOUT);
       while (true) {
        
         const recieved = (this.playerSeat !== undefined);
@@ -303,7 +303,7 @@ export class SocketManager extends EventEmitter {
   async waitForDeploys(): Promise<Map<string, GameDeployPayload>> {
     const deploys: Map<PlayerId, GameDeployPayload> = new Map();
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout waiting for all player deployments')), TIMEOUT);
       console.log("waitForDeploys: starting to wait for deploys...")
       while (true) {
         await passTime(100);
@@ -327,7 +327,7 @@ export class SocketManager extends EventEmitter {
   async waitForQueries(turn: number): Promise<Map<string, GameQueryPayload>> {
     const queries: Map<PlayerId, GameQueryPayload> = new Map();
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout in socket operation')), TIMEOUT);
       while (true) {
         await passTime(100);
         
@@ -348,7 +348,7 @@ export class SocketManager extends EventEmitter {
   async waitForAnswers(turn: number): Promise<Map<string, GameAnswerPayload>> {
     const answers: Map<PlayerId, GameAnswerPayload> = new Map();
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout in socket operation')), TIMEOUT);
       while (true) {
         await passTime(100);
         
@@ -369,7 +369,7 @@ export class SocketManager extends EventEmitter {
   async waitForUpdates(turn: number): Promise<Map<string, GameUpdatePayload>> {
     const updates: Map<PlayerId, GameUpdatePayload> = new Map();
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout in socket operation')), TIMEOUT);
       while (true) {
         await passTime(100);
         
@@ -390,7 +390,7 @@ export class SocketManager extends EventEmitter {
   async waitForReport(turn: number): Promise<GameReportPayload> {
     let report: GameReportPayload ;
     return new Promise(async (res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout in socket operation')), TIMEOUT);
       while (true) {
         await passTime(100);
         
@@ -410,14 +410,14 @@ export class SocketManager extends EventEmitter {
 
   async waitForGameStartEvent(): Promise<void> {
     return new Promise((res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout in socket operation')), TIMEOUT);
       this.game.once(GameMsg.STARTED, (ack) => { ack(); res() })
     });
   }
 
   async waitForTurnStartEvent(): Promise<TurnInfoPayload> {
     return new Promise((res, rej) => {
-      setTimeout(rej, TIMEOUT);
+      setTimeout(() => rej(new Error('Timeout in socket operation')), TIMEOUT);
       this.game.once(GameMsg.TURN_START, (data: TurnInfoPayload, ack) => { 
         ack(); 
         
