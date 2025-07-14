@@ -2,6 +2,70 @@
 
 ![](terry-escape.jpg)
 
+## 🎮 Quick Start - Local Setup
+
+### Prerequisites
+- Docker and Docker Compose
+- Node.js 20+ (for development)
+- Git
+
+### Option 1: LAN Party Mode (Recommended for Playing)
+```bash
+# Clone and setup
+git clone <repository-url>
+cd terry-demo
+./setup.sh
+
+# Start LAN party mode
+./lan-party.sh
+
+# Share the displayed IP with friends on same WiFi!
+```
+
+### Option 2: Development Mode
+```bash
+# Install dependencies
+pnpm install
+
+# Start frontend (terminal 1)
+cd packages/frontend
+pnpm dev
+
+# Start backend (terminal 2)
+cd packages/gamemaster
+pnpm dev
+
+# Open http://localhost:8000 in browser
+```
+
+## 🎯 How to Play
+
+### Game Flow
+1. **Lobby Phase**: Create or join a game room
+2. **Waiting Phase**: Need exactly 4 players to start
+3. **Deployment Phase**: 60 seconds to place your 4 agents on your colored cells
+4. **Battle Phase**: Take turns moving agents or placing traps
+
+### Rules
+- **Movement**: Agents can move to adjacent cells (horizontal/vertical only)
+- **Traps**: Place invisible traps on adjacent cells
+- **Combat**: When an agent meets an enemy agent or trap, both are eliminated
+- **Victory**: Last player with surviving agents wins
+
+### Game Logic Explained
+The game uses **Multi-Party Computation (MPC)** with zero-knowledge proofs to ensure:
+- Players can't see enemy positions
+- Moves are validated without revealing locations
+- No cheating is possible (can't move to invalid cells, can't move twice, etc.)
+
+Each turn follows this cryptographic protocol:
+1. **Query Phase**: All players request position information
+2. **Answer Phase**: Active player responds with encrypted data
+3. **Update Phase**: All players update their local state
+4. **Report Phase**: Active player proves their move was valid
+
+This ensures the game remains fair while keeping all positions secret!
+
 ## Game mechanics
 
 Multiple untrusting factions compete to take control over a strategically placed building complex.
