@@ -4,18 +4,6 @@
 
 echo "Setting up Terry Escape with Game Lobby..."
 
-# Stop any existing containers
-echo "Stopping existing containers..."
-docker compose down 2>/dev/null || docker-compose down 2>/dev/null
-
-# Clear Docker build cache
-echo "Clearing Docker build cache..."
-docker builder prune -f 2>/dev/null || true
-docker system prune -f 2>/dev/null || true
-
-# Remove the specific image to force rebuild
-docker rmi terry-demo-terry-escape 2>/dev/null || true
-
 # Build and run with docker compose (no-cache for fresh build)
 echo "Building fresh containers..."
 # Use localhost binding for local development
