@@ -170,26 +170,6 @@ docker compose logs -f
 docker compose build --no-cache
 ```
 
-## Game Strategy Tips
-
-- **Control the center** - More movement options
-- **Set trap chains** - Create defensive zones
-- **Watch the log** - Learn from enemy movements
-- **Active player advantage** - You survive collisions when it's your turn!
-- **Corner camping** - Risky but sometimes effective
-
-## Technical Details
-
-### Architecture
-- **Frontend**: TypeScript + vanilla JS (no framework)
-- **Backend**: Node.js + Socket.io game server
-- **Security**: Zero-knowledge proofs ensure fair play without revealing positions
-- **MPC**: All players participate in secure multi-party computation
-
-### Ports Used
-- **8000**: Frontend web server
-- **2448**: Game server (WebSocket)
-
 ### How It Works
 The game uses cryptographic proofs to hide player positions while ensuring fair play. Each turn involves:
 1. Non-active players query for information (encrypted)
