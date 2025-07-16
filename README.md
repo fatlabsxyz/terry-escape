@@ -2,7 +2,7 @@
 
 ![](terry-escape.jpg)
 
-## 🎮 Quick Start - Local Setup
+## Quick Start - Local Setup
 
 ### Prerequisites
 - Docker and Docker Compose
@@ -38,7 +38,7 @@ pnpm dev
 # Open http://localhost:8000 in browser
 ```
 
-## 🎯 How to Play
+## How to Play
 
 ### Game Flow
 1. **Lobby Phase**: Create or join a game room
