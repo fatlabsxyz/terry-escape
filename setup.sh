@@ -45,7 +45,6 @@ if docker compose ps | grep -q "terry-escape.*running" || docker-compose ps | gr
     echo "Commands:"
     echo "  Stop: docker compose down"
     echo "  Logs: docker compose logs -f terry-escape"
-    echo "  Test: ./test-lobby.sh"
 else
     echo "Failed to start Terry Escape"
     echo "Check logs with: docker compose logs terry-escape"
