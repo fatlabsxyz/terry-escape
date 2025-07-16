@@ -76,9 +76,9 @@ RUN pnpm install --prod || pnpm install
 EXPOSE 8000
 CMD ["pnpm", "start"]
 
-# Combined runtime stage using supervisor (default)
+# Combined runtime stage (default)
 FROM node:22-alpine AS runtime
-RUN apk add --no-cache bash supervisor
+RUN apk add --no-cache bash
 RUN corepack enable && corepack prepare pnpm@10.4.1 --activate
 RUN npm install -g tsx
 
@@ -95,8 +95,8 @@ ENV API_URL=http://localhost:2448
 ENV GAMEMASTER_PORT=2448
 ENV FRONTEND_PORT=8000
 
-# Copy supervisor configuration
-COPY supervisord.conf /etc/supervisord.conf
+# Prepare startup script
+RUN mkdir -p /app/scripts
 
 EXPOSE 2448 8000
 
