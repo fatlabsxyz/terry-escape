@@ -13,7 +13,12 @@ import { AuthRequestData } from "./types.js";
 // import { relayerRouter } from "./routes/index.js";
 import { listGames, createGame, joinGame, getGameStatus } from "./api/games.js";
 
-export const FRONTEND_URLS = ["http://localhost:8000"];
+// Get CORS origins from environment or use defaults
+const CORS_ORIGINS = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+  : ["http://localhost:8000", "http://localhost"];
+
+export const FRONTEND_URLS = CORS_ORIGINS;
 
 const SECRET_KEY = process.env.JWT_SECRET || 'test-key';
 

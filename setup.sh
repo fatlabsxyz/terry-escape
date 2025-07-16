@@ -18,6 +18,10 @@ docker rmi terry-demo-terry-escape 2>/dev/null || true
 
 # Build and run with docker compose (no-cache for fresh build)
 echo "Building fresh containers..."
+# Use localhost binding for local development
+export BIND_ADDRESS=127.0.0.1
+export FRONTEND_PORT=8000
+
 docker compose build --no-cache || docker-compose build --no-cache
 
 echo "Starting containers..."

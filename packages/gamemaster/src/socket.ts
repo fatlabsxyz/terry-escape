@@ -12,7 +12,7 @@ export function addIoSockets(server: HttpServer): Server {
     pingTimeout: 300000, // 5 minutes
     pingInterval: 150000, // 2.5 minutes
     cors: {
-      origin: FRONTEND_URLS[0],
+      origin: FRONTEND_URLS,
       methods: ["GET", "POST"]
     }
   })
