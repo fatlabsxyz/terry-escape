@@ -188,6 +188,10 @@ If any agent shares time and space with a trap or some agent of another team, bo
 Given respect and etiquette, agencies engage in multiparty-computation to track respective agents.
 After losing all of its agents, factions informs so. The dispute is settled when only one remains.
 
+## Game Flow Diagram
+
+![Game Flow](flow_diagram.svg)
+
 ## Circuit architecture
 
 Each agency commits to its deployed agents and traps by publishing its hash, along with some salt.
