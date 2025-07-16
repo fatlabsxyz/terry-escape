@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+.git
+.gitignore
+*.log
+.DS_Store
+**/*.tsbuildinfo
+.env
+.env.*
+docker-compose.yml
+Dockerfile
+.dockerignore
+README.md
+*.md

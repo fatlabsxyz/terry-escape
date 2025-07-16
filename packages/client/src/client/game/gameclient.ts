@@ -186,12 +186,20 @@ export class GameClient {
   }
   
   async prepareSetup() {
-    this.playerSeatValue = await this.sockets.waitForPlayerSeat();
+    try {
+      this.playerSeatValue = await this.sockets.waitForPlayerSeat();
 
-    await this.setupGame(); 
+      await this.setupGame();
+      // Start validating deploys asynchronously - don't block the ready notification
+      this.validateDeploysAsync();
+    } catch (error) {
+      console.error("Error in prepareSetup:", error);
+      throw error;
+    }
   }
 
   async notifyPlayerReady() {
+    this.log("notifyPlayerReady: advertising player as ready...")
     await this.sockets.advertisePlayerAsReady(); 
     this.log("We are ready!");
   }
@@ -253,24 +261,29 @@ export class GameClient {
     // Send seat, await agent deployment (based on allowed deployment tiles)
     this.interfacer.emit(IfEvents.Connect, {seat} as Connection);
     
+    this.log("Waiting for deploy from frontend...")
     const deploys = await this.interfacer.waitForDeploy();
+    this.log("Got deploys:", deploys)
 
     const sk = secretKeySample(seat);
     const pks = [0,1,2,3].map(publicKeySample);
 
     this.zklib.setup(seat, sk, pks, {mockProof: true}); 
     await this.setupAgents(deploys);
- 
-    this.validateDeploys()
+    
+    // Don't wait for validateDeploys here - it will be done asynchronously
+    this.log("setupGame completed, validateDeploys will run asynchronously")
   }
 
   async processActivePlayer() {
     
-    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: true} as Turn);
+    const playerNames = this.gameMachine.getSnapshot().context.turnInfo.playerNames;
+    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: true, playerNames} as Turn);
     
     // STEP 2
     // wait for queries | take action
     this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR QUERIES\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Waiting for queries from other players...");
     await Promise.all([
       this.waitForQuery(),
       this.takeAction()
@@ -279,10 +292,12 @@ export class GameClient {
     // STEP 3
     // create answer
     this.gameLog("\n\nACTIVE-PLAYER - CREATE ANSWERS\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Creating cryptographic answers to queries...");
     const answers = await this.createAnswers();
 
     await Promise.all(answers.map(async (answer) => {
       this.gameLog("\nACTIVE-PLAYER - BROADCASTING ANSWER\n");
+      this.interfacer.emit(IfEvents.MPCLog, `Broadcasting answer to player ${answer.to}...`);
       await this.sockets.broadcastAnswer(this.turn, answer.to, answer);
     }))
     this.gameLog("\nACTIVE-PLAYER - NO MORE ANSWERS TO BROADCAST\n");
@@ -290,15 +305,18 @@ export class GameClient {
     // STEP 6
     // wait for updates
     this.gameLog("\n\nACTIVE-PLAYER - WAIT FOR UPDATES\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Waiting for state updates from all players...");
     await this.waitForUpdates();
 
     // STEP 7
     // broadcast reports
     const report = await this.createReport();
     this.gameLog("\n\nACTIVE-PLAYER - BROADCASTING REPORT\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Broadcasting turn report with proof...");
     await this.sockets.broadcastReport(this.turn, report);
 
     this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Validating all received proofs...");
     this.validateForeign()
 
     this.gameLog("\n\nACTIVE-PLAYER - FINISHING TURN\n\n");
@@ -306,14 +324,17 @@ export class GameClient {
 
   async processNonActivePlayer() {
 
-    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: false} as Turn);
+    const playerNames = this.gameMachine.getSnapshot().context.turnInfo.playerNames;
+    this.interfacer.emit(IfEvents.Turn, {round: this.turn, active: false, playerNames} as Turn);
     
     // STEP 1
     // if query ready, broadcast query
     this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE QUERY\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Creating encrypted query for active player...");
     const query = await this.getQuery();
 
     this.gameLog("\n\nNON-ACTIVE-PLAYER - BROADCAST QUERY AND WAIT FOR QUERIES\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Broadcasting query and collecting from others...");
     await Promise.all([
       this.sockets.broadcastQuery(this.turn, this.activePlayer, query),
       this.waitForQuery(),  // we have our query, but we need the other NA-players'
@@ -323,13 +344,16 @@ export class GameClient {
     // STEP 4
     // wait for answer
     this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR ANSWERS\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Waiting for answer from active player...");
     await this.waitForAnswers();
 
     // STEP 5
     // process update
     this.gameLog("\n\nNON-ACTIVE-PLAYER - CREATE UPDATE\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Computing state update with proof...");
     const update = await this.createUpdate();
     // broadcast update
+    this.interfacer.emit(IfEvents.MPCLog, "Broadcasting update and waiting for others...");
     await Promise.all([
       await this.sockets.broadcastUpdate(this.turn, this.activePlayer, update),
       await this.waitForUpdates(),
@@ -339,13 +363,16 @@ export class GameClient {
     // STEP 8
     // wait for report
     this.gameLog("\n\nNON-ACTIVE-PLAYER - WAIT FOR REPORT\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Waiting for turn report from active player...");
     await this.waitForReport();
     
     
-    this.gameLog("\n\nACTIVE-PLAYER - VALIDATING FOREIGN PROOFS\n\n");
+    this.gameLog("\n\nNON-ACTIVE-PLAYER - VALIDATING FOREIGN PROOFS\n\n");
+    this.interfacer.emit(IfEvents.MPCLog, "Verifying all cryptographic proofs...");
     this.validateForeign()
     
     this.gameLog("NON-ACTIVE-PLAYER - No more duties.")
+    this.interfacer.emit(IfEvents.MPCLog, "Turn processing complete!")
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -353,9 +380,12 @@ export class GameClient {
   //////////////////////////////////////////////////////////////*/
 
   async setupAgents(agentsLocations: Locations) {
+    this.log("setupAgents: creating deploy proofs for locations:", agentsLocations)
+    this.interfacer.emit(IfEvents.MPCLog, "Generating deployment proofs for agents...");
     const myDeploys = await this.zklib.createDeploys(agentsLocations);
     
     // Broadcast your deployment proofs
+    this.log("setupAgents: broadcasting deploy proof")
     this.sockets.broadcastDeploy({deploys: myDeploys.proof}); 
   }
 
@@ -363,13 +393,16 @@ export class GameClient {
                           NON-ACTIVE PLAYER METHODS
   //////////////////////////////////////////////////////////////*/
   async getQuery(): Promise<GameQueryPayload> {
+    this.interfacer.emit(IfEvents.MPCLog, `Generating zero-knowledge query for player ${this.activePlayerIndex}...`);
     const query = await this.zklib.createQueries(Number(this.activePlayerIndex)); 
     return {queries: query.proof}
   }
 
   async waitForAnswers() {
     // there is an answer for each non-active player (N_players - 1). Eliminated players still have to answer.
+    this.interfacer.emit(IfEvents.MPCLog, "Waiting for encrypted answer from active player...");
     const answers = await this.sockets.waitForAnswers(this.turn);
+    this.interfacer.emit(IfEvents.MPCLog, `Received ${answers.size} answer(s)`);
  
     answers.forEach( (payload) => {
       this.turnData.answers.set(payload.to, {proof: payload.proof});
@@ -379,6 +412,7 @@ export class GameClient {
   async createUpdate(): Promise<GameUpdatePayload> { 
     const answer = this.turnData.answers.get(this.playerId) as AnswerData;
 
+    this.interfacer.emit(IfEvents.MPCLog, "Processing answer and updating local state...");
     const data: UpdatesData = await this.zklib.createUpdates(answer.proof, this.activePlayerIndex); 
     this.turnData.updates.set(this.playerId, data);  
     this.interfacer.emit(IfEvents.Collision, data.collision as Collision);
@@ -387,9 +421,17 @@ export class GameClient {
   }
 
   async waitForReport() {
+    this.interfacer.emit(IfEvents.MPCLog, "Waiting for turn report from active player...");
     const report = await this.sockets.waitForReport(this.turn);
+    this.interfacer.emit(IfEvents.MPCLog, "Turn report received");
     this.turnData.report = report as ReportData; 
     if (this.turnData.report.died) {
+      // Check if active player was already marked as dead
+      const wasAlreadyDead = this.gameMachine.getSnapshot().context.turnInfo.round.get(this.activePlayer);
+      if (!wasAlreadyDead) {
+        // Emit PlayerDied event for active player
+        this.interfacer.emit(IfEvents.PlayerDied, { playerId: this.activePlayer });
+      }
       this.gameMachine.getSnapshot().context.turnInfo.round.set(this.activePlayer, true)
     }
   }
@@ -400,15 +442,21 @@ export class GameClient {
   //////////////////////////////////////////////////////////////*/
   
   async validateDeploys() {
-     
+    this.log("validateDeploys: waiting for all players' deploys...")
     const deploys = await this.sockets.waitForDeploys();
+    this.log("validateDeploys: got all deploys, count:", deploys.size)
 
-    const deployList = Array.from(
-      deploys.values().map( v => v.deploys )
-    );
+    const deployList = Array.from(deploys.values()).map( v => v.deploys );
     if (this.verify) {
       this.zklib.verifyDeploys(deployList);
     }
+  }
+
+  async validateDeploysAsync() {
+    // Run validateDeploys in the background without blocking
+    this.validateDeploys().catch(err => {
+      this.log("Error validating deploys:", err);
+    });
   }
 
   async validateForeign() {
@@ -425,9 +473,10 @@ export class GameClient {
   }
 
   async takeAction() {
-
+    this.interfacer.emit(IfEvents.MPCLog, "Waiting for your action...");
     const action = await this.interfacer.waitForAction();
     console.log(action);
+    this.interfacer.emit(IfEvents.MPCLog, `Action received: ${action.trap ? 'Deploy trap' : 'Move agent'}`);
 
     this.turnData.action = action;
   }
@@ -435,7 +484,9 @@ export class GameClient {
   async waitForQuery() {
     let queries: Map<PlayerId, GameQueryPayload>;
 
+    this.interfacer.emit(IfEvents.MPCLog, `Collecting encrypted queries from ${this.activePlayer === this.playerId ? 'all non-active players' : 'other players'}...`);
     queries = await this.sockets.waitForQueries(this.turn);
+    this.interfacer.emit(IfEvents.MPCLog, `Received ${queries.size} queries`);
 
     queries.forEach((payload, player) => {
       this.turnData.queries.set(player, {queries: payload.queries});
@@ -448,7 +499,9 @@ export class GameClient {
     const queryValues = Array.from(this.turnData.queries.values());
     const queryData = queryValues.map((x) => x.queries);
 
+    this.interfacer.emit(IfEvents.MPCLog, `Processing ${queryData.length} queries with your action...`);
     const answers = await this.zklib.createAnswers(queryData, this.turnData.action);
+    this.interfacer.emit(IfEvents.MPCLog, "Answers generated successfully");
     
     let i = 0;
     this.turnData.queries.forEach((_, pid) => {
@@ -463,11 +516,19 @@ export class GameClient {
 
   
   async waitForUpdates() {
+    this.interfacer.emit(IfEvents.MPCLog, `Waiting for state updates from ${this.activePlayer === this.playerId ? 'all' : 'other'} players...`);
     const updates = await this.sockets.waitForUpdates(this.turn);
+    this.interfacer.emit(IfEvents.MPCLog, `Received ${updates.size} updates`);
 
     updates.forEach((value, key) => {
       this.turnData.updates.set(key, value)
       if (value.died) {
+        // Check if this player was already marked as dead
+        const wasAlreadyDead = this.gameMachine.getSnapshot().context.turnInfo.round.get(key);
+        if (!wasAlreadyDead) {
+          // Emit PlayerDied event for newly dead players
+          this.interfacer.emit(IfEvents.PlayerDied, { playerId: key });
+        }
         this.gameMachine.getSnapshot().context.turnInfo.round.set(key, true)
       }
     });
@@ -480,7 +541,9 @@ export class GameClient {
       // .filter(([pid]) => pid !== this.activePlayer)
       .map(([_, { proof }]) => proof);
 
+    this.interfacer.emit(IfEvents.MPCLog, "Creating turn report with proof...");
     const report = await this.zklib.createReports(updates);
+    this.interfacer.emit(IfEvents.MPCLog, "Turn report generated");
      
     console.log("\n\nIMPACTED: ", report.impacted);
     this.interfacer.emit(IfEvents.Impact, report.impacted as Impact)   
@@ -551,7 +614,25 @@ export class GameClient {
       this.winner = p.payload.winner;
       this.leaderboard = p.payload.leaderboard;
       console.log(`END MESSAGE: winner: ${this.winner}, leaderboard: \n${JSON.stringify(this.leaderboard)}`);
-      this.interfacer.emit(IfEvents.Winner, this.leaderboard);
+      this.interfacer.emit(IfEvents.Winner, {
+        winner: this.winner,
+        leaderboard: this.leaderboard
+      });
+    });
+    
+    this.sockets.on(GameMsg.PLAYERS_UPDATE, (payload: any) => {
+      console.log("PLAYERS_UPDATE received:", payload);
+      this.interfacer.emit(IfEvents.PlayersUpdate, payload);
+    });
+    
+    this.sockets.on(GameMsg.DEPLOYMENT_TIMER, (payload: any) => {
+      console.log("DEPLOYMENT_TIMER received:", payload);
+      this.interfacer.emit(IfEvents.DeploymentTimer, payload);
+    });
+    
+    this.sockets.on(GameMsg.DEPLOYMENT_STATUS, (payload: any) => {
+      console.log("DEPLOYMENT_STATUS received:", payload);
+      this.interfacer.emit(IfEvents.DeploymentStatus, payload);
     });
 
     /*///////////////////////////////////////////////////////////////

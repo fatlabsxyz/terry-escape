@@ -5,7 +5,7 @@
 # echo "$REPO_PATH"
 
 #            ###------- SET PATH HERE -------###
-REPO_PATH="${HOME}/repos/fatsolutions/terry-escape"
+REPO_PATH="/home/john/fatsolutions/aztec/terry-demo"
 #            ^^^------- SET PATH HERE -------^^^
 
 PP="${REPO_PATH}/packages/"

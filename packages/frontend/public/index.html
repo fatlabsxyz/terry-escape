@@ -8,25 +8,204 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class=container id="join-paywall"><button id="join-btn" class="action-btn">JOIN</button></div>
+    <div id="join-paywall">
+        <div class="join-container">
+            <h1 class="join-title">TERRY ESCAPE</h1>
+            <p class="join-subtitle">A ZERO-KNOWLEDGE BATTLE ROYALE</p>
+            
+            <!-- Username Section -->
+            <div class="username-section">
+                <input type="text" id="username-input" class="username-input" placeholder="ENTER YOUR NAME" maxlength="20">
+            </div>
+            
+            <!-- Lobby Section -->
+            <div id="lobby-section" class="lobby-section" style="display: none;">
+                <div class="lobby-header">
+                    <h2 class="lobby-title">GAME ROOMS</h2>
+                    <div class="lobby-actions">
+                        <button id="create-room-btn" class="action-btn create-btn">CREATE ROOM</button>
+                        <button id="refresh-btn" class="action-btn refresh-btn">REFRESH</button>
+                    </div>
+                </div>
+                
+                <div id="game-list" class="game-list">
+                    <!-- Game rooms will be populated here -->
+                </div>
+                
+                <div id="no-games" class="no-games" style="display: none;">
+                    <p>NO ACTIVE GAMES</p>
+                    <p>CREATE A NEW ROOM TO START</p>
+                </div>
+            </div>
+            
+            <!-- Initial Join Button -->
+            <button id="enter-lobby-btn" class="action-btn">ENTER LOBBY</button>
+        </div>
+    </div>
+    
+    <!-- Turn Timer (Fixed Position) -->
+    <div id="turn-timer" class="turn-timer" style="display: none;">
+        <div class="timer-label">TIME REMAINING</div>
+        <div id="timer-display" class="timer-display">30</div>
+        <div class="timer-warning">Act fast or everyone dies!</div>
+    </div>
+    
     <div class="container">
         <div class="grid-container">
             <h1 class="game-title">TERRY ESCAPE</h1>
+            <div id="status-panel" class="status-panel">
+                <div class="status-item">
+                    <span class="status-label">PLAYERS LEFT</span>
+                    <span id="player-count" class="status-value">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">TURN</span>
+                    <span id="turn-number" class="status-value">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">PHASE</span>
+                    <span id="game-phase" class="status-value">WAITING</span>
+                </div>
+            </div>
+            <div id="game-name-display" class="game-name-display" style="display: none;">
+                <span class="game-name-label">GAME:</span>
+                <span id="game-name-value" class="game-name-value"></span>
+            </div>
             <div class="action-buttons">
                 <button id="move-btn" class="action-btn">MOVE</button>
                 <button id="trap-btn" class="action-btn">TRAP</button>
+                <button id="tutorial-btn" class="action-btn tutorial-btn">TUTORIAL</button>
             </div>
-            <div id="grid" class="grid"></div>
-            <div id="tutorial-container" class="tutorial-container">
-                <div id="tutorial" class="tutorial"></div>
+            <div class="game-area">
+                <div id="grid" class="grid"></div>
+            </div>
+            <div id="proof-progress" class="proof-progress" style="display: none;">
+                <div class="proof-label">GENERATING PROOF...</div>
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="proof-status" class="proof-status">Initializing...</div>
             </div>
             <div id="error-message" class="error-message"></div>
         </div>
-        <div class="log-container">
-            <h3>AGENT LOGS</h3>
-            <div id="log" class="log"></div>
+        <div class="side-panel">
+            <div id="player-board" class="player-board">
+                <h3>PLAYERS STATUS</h3>
+                <div id="player-list" class="player-list">
+                    <!-- Player status cards will be inserted here -->
+                </div>
+            </div>
+            <div class="log-container">
+                <h3>GAME LOG</h3>
+                <div id="log" class="log"></div>
+            </div>
         </div>
     </div>
+    
+    <!-- Tutorial Modal -->
+    <div id="tutorial-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>HOW TO PLAY TERRY ESCAPE</h2>
+            <div class="tutorial-content">
+                <div class="tutorial-section">
+                    <h3>🎯 OBJECTIVE</h3>
+                    <p>Be the last player standing! Eliminate all opponents by outsmarting them with strategic moves and traps.</p>
+                </div>
+                
+                <div class="tutorial-section">
+                    <h3>🎮 GAME PHASES</h3>
+                    <div class="phase-item">
+                        <h4>1. DEPLOYMENT PHASE</h4>
+                        <p>Place your 4 agents in your designated corner (highlighted cells)</p>
+                    </div>
+                    <div class="phase-item">
+                        <h4>2. BATTLE PHASE</h4>
+                        <p>Take turns making moves. When it's your turn, you MUST act within 30 seconds!</p>
+                    </div>
+                </div>
+                
+                <div class="tutorial-section">
+                    <h3>⚡ ACTIONS (Choose One Per Turn)</h3>
+                    <div class="action-item">
+                        <h4>MOVE</h4>
+                        <p>• Click MOVE button → Select your agent → Click adjacent cell<br>
+                           • Agents can only move to directly adjacent cells (↑↓←→)</p>
+                    </div>
+                    <div class="action-item">
+                        <h4>TRAP</h4>
+                        <p>• Click TRAP button → Select your agent → Click adjacent cell<br>
+                           • Traps are invisible to enemies and trigger when stepped on</p>
+                    </div>
+                </div>
+                
+                <div class="tutorial-section">
+                    <h3>💀 HOW AGENTS DIE</h3>
+                    <div class="death-rule">
+                        <strong>COLLISION:</strong> Two agents enter same cell = BOTH DIE! 💥
+                    </div>
+                    <div class="death-rule">
+                        <strong>TRAP:</strong> Agent steps on trap = Agent dies, trap consumed 💣
+                    </div>
+                    <div class="death-rule">
+                        <strong>TRAP PLACEMENT:</strong> Placing trap on enemy = Enemy dies instantly
+                    </div>
+                    <div class="death-rule warning">
+                        <strong>⏱️ TIMEOUT:</strong> Don't act in 30 seconds = ALL YOUR AGENTS DIE!
+                    </div>
+                </div>
+                
+                <div class="tutorial-section">
+                    <h3>🛡️ ZERO-KNOWLEDGE SECURITY</h3>
+                    <p>Your moves are hidden from opponents using cryptographic proofs. The "Generating Proof" message means your action is being securely processed without revealing your strategy!</p>
+                </div>
+                
+                <div class="tutorial-section">
+                    <h3>💡 PRO TIPS</h3>
+                    <div class="tip">• Control the center for maximum mobility</div>
+                    <div class="tip">• Set trap chains to create safe zones</div>
+                    <div class="tip">• As the active player, YOU survive collisions!</div>
+                    <div class="tip">• Watch for patterns in enemy movement</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Victory/Defeat Overlay -->
+    <div id="game-over-overlay" class="game-over-overlay" style="display: none;">
+        <div id="game-over-content" class="game-over-content">
+            <!-- Content will be dynamically inserted -->
+        </div>
+    </div>
+    
+    <!-- Player Dead Overlay -->
+    <div id="player-dead-overlay" class="player-dead-overlay" style="display: none;">
+        <div class="player-dead-content">
+            <div class="dead-emoji">💀</div>
+            <h2 class="dead-title">YOU ARE DEAD</h2>
+            <p class="dead-message">
+                But don't disconnect! We still need you online for the MPC process, bro.
+            </p>
+            <p class="dead-submessage">
+                Your cooperation keeps the game running for everyone else.
+            </p>
+            <div class="dead-status">
+                <span class="status-dot"></span>
+                <span>Connected and helping with MPC</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Background Music -->
+    <audio id="bg-music" loop>
+        <source src="balatro.mp3" type="audio/mpeg">
+    </audio>
+    
+    <!-- Music Control -->
+    <div id="music-control" class="music-control">
+        <button id="music-toggle" class="music-toggle" title="Toggle Music">🎵</button>
+    </div>
+    
     <script src="out.js" type="module"></script>
 </body>
 </html>

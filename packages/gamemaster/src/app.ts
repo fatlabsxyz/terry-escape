@@ -11,10 +11,16 @@ import jwt from "jsonwebtoken";
 import { nanoid } from "nanoid";
 import { AuthRequestData } from "./types.js";
 // import { relayerRouter } from "./routes/index.js";
+import { listGames, createGame, joinGame, getGameStatus } from "./api/games.js";
 
-export const FRONTEND_URLS = ["http://localhost:8000"];
+// Get CORS origins from environment or use defaults
+const CORS_ORIGINS = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+  : ["http://localhost:8000", "http://localhost"];
 
-const SECRET_KEY = 'test-key';
+export const FRONTEND_URLS = CORS_ORIGINS;
+
+const SECRET_KEY = process.env.JWT_SECRET || 'test-key';
 
 // Initialize the express app
 const app: express.Express = express();
@@ -59,6 +65,12 @@ app.post('/auth', validateAuthMiddleware, (req: Request, res: Response, next: Ne
 
   next();
 });
+
+// Game management routes
+app.get('/games', listGames);
+app.post('/games/create', createGame);
+app.post('/games/:gameId/join', joinGame);
+app.get('/games/:gameId/status', getGameStatus);
 
 // Error and 404 handling
 app.use([errorHandlerMiddleware, notFoundMiddleware]);

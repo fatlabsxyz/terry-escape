@@ -1,0 +1,15 @@
+services:
+  terry-escape:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-8000}:8000"
+      - "${BIND_ADDRESS:-127.0.0.1}:2448:2448"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8000}
+      - API_URL=${API_URL:-http://localhost:2448}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://localhost:8000}
+    restart: unless-stopped
