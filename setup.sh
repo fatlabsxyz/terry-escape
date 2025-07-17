@@ -20,7 +20,7 @@ echo "Waiting for services to start..."
 sleep 5
 
 # Check if services are running
-if docker compose ps | grep -q "terry-escape.*running" || docker compose ps | grep -q "terry-escape.*Up"; then
+if (docker compose ps || docker-compose ps) | grep -E -q 'terry-escape.*(running|Up)'; then
     echo "Terry Escape is running!"
     echo ""
     echo "GAME LOBBY SYSTEM:"
@@ -39,5 +39,5 @@ if docker compose ps | grep -q "terry-escape.*running" || docker compose ps | gr
     echo "  Logs: docker compose logs -f terry-escape"
 else
     echo "Failed to start Terry Escape"
-    echo "Check logs with: docker compose logs terry-escape"
+    echo "Check logs with: 'docker compose logs' or 'docker-compose logs'"
 fi
