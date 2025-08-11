@@ -2,6 +2,15 @@
 
 ![](terry-escape.jpg)
 
+## Development Reports
+
+This project was developed in collaboration with Aztec and Noir Lang, exploring novel MPC and zero-knowledge proof techniques for multiplayer gaming.
+
+- **Proposal**: [Multi-party computation for multiplayer games](https://github.com/orgs/noir-lang/discussions/6359)
+- **Report 1**: [Initial implementation and circuit architecture](https://hackmd.io/@FATSOLUTIONS/rJvWjq0uJx)
+- **Report 2**: [Optimizations and vulnerability analysis](https://hackmd.io/@FATSOLUTIONS/rkva88njkl)
+- **Report 3**: [Final implementation and performance results](https://hackmd.io/@FATSOLUTIONS/rk6siqQOle)
+
 ## Quick Start - Complete Setup Guide
 
 ### Prerequisites
