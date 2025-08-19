@@ -22,8 +22,8 @@ This project was developed in collaboration with Aztec and Noir Lang, exploring 
 
 #### Step 1: Clone the Repository
 ```bash
-git clone https://github.com/your-repo/terry-demo.git
-cd terry-demo
+git clone https://github.com/fatlabsxyz/terry-escape.git
+cd terry-escape
 ```
 
 #### Step 2: Run the Setup Script
